@@ -10,7 +10,7 @@ using namespace DirectX;
 class FCamera;
 class FD3DClass;
 
-class FFontRenderer
+class FDynamicText
 {
 public:
 	struct Vertex
@@ -19,10 +19,11 @@ public:
 		XMFLOAT2 uv;
 	};
 
-	FFontRenderer(UINT width, UINT height, FVector3 aPos, const char* aText);
-	~FFontRenderer();
+	FDynamicText(UINT width, UINT height, FVector3 aPos, const char* aText);
+	~FDynamicText();
 	void Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3DClass* aManager);
 	void Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam);
+	void SetText(const char* aNewText);
 
 private:
 	D3D12_VIEWPORT m_viewport;
@@ -39,6 +40,7 @@ private:
 	ID3D12GraphicsCommandList* m_commandList;
 	UINT m_rtvDescriptorSize;
 	UINT8* myConstantBufferPtr;
+	UINT8* pVertexDataBegin;
 
 	// App resources.
 	ID3D12Resource* m_vertexBuffer;
@@ -63,5 +65,9 @@ private:
 	UINT TextureHeight;
 	size_t wordLength;
 	UINT largestBearing;
+
+	// glyph data
+	Vertex* myUVs;
+	size_t allSupportedLength;
 };
 

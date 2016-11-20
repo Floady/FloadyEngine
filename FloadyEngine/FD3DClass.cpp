@@ -2,6 +2,7 @@
 #include "FD3d12Triangle.h"
 #include "FD3d12Quad.h"
 #include "FFontRenderer.h"
+#include "FDynamicText.h"
 #include "FCamera.h"
 
 
@@ -30,7 +31,7 @@ FD3DClass::~FD3DClass()
 static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
-static FFontRenderer* myFontRenderer2 = nullptr;
+static FDynamicText* myFontRenderer2 = nullptr;
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
@@ -353,15 +354,15 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	// test triangle
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
-	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(0, 0, 5), "Piemol");
-	myFontRenderer2 = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, -5), "Extra");
+	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
+	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 5), "Extra");
 
 
 	return true;
 }
 
 static bool firstFrame = true;
-
+static unsigned int frameCounter = 0;
 bool FD3DClass::Render()
 {
 	HRESULT result;
@@ -408,9 +409,9 @@ bool FD3DClass::Render()
 	m_commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, NULL);
 
 	// Then set the color to clear the window to.
-	color[0] = 0.0;
-	color[1] = 0.0;
-	color[2] = 0.0;
+	color[0] = 0.2;
+	color[1] = 0.2;
+	color[2] = 0.2;
 	color[3] = 1.0;
 	m_commandList->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
 
@@ -445,6 +446,14 @@ bool FD3DClass::Render()
 		//myTriangle->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		//myQuad->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap, myCamera);
+
+		//if (rand() < RAND_MAX / 2000)
+		{
+			frameCounter++;
+			char buff[128];
+			sprintf(buff, "%s %d\0", "lol: ", frameCounter);
+			myFontRenderer2->SetText(buff);
+		}
 		for (size_t i = 0; i < 1; i++)
 		{
 			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap, myCamera);

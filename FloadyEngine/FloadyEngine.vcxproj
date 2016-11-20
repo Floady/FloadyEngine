@@ -160,6 +160,7 @@
     <ClCompile Include="FD3d12Input.cpp" />
     <ClCompile Include="FD3d12Triangle.cpp" />
     <ClCompile Include="FD3DClass.cpp" />
+    <ClCompile Include="FDynamicText.cpp" />
     <ClCompile Include="FFontRenderer.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
@@ -174,6 +175,7 @@
     <ClInclude Include="FD3d12Input.h" />
     <ClInclude Include="FD3d12Triangle.h" />
     <ClInclude Include="FD3DClass.h" />
+    <ClInclude Include="FDynamicText.h" />
     <ClInclude Include="FFontRenderer.h" />
     <ClInclude Include="FMatrix.h" />
     <ClInclude Include="FTimer.h" />
