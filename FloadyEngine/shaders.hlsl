@@ -13,10 +13,10 @@ PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 {
 	PSInput result;
 
-	result.position = mul(position, g_offset);
-	//result.position = position;
-	//result.position.y += (g_offset[3][2] - 0.2);
-	
+	float4 newPos = position;
+	result.position = mul(newPos, g_offset);
+	//result.position.z = 0.5f; // set temp test depth?
+	//result.position.w = 0.5f; // set temp test depth?
 	result.uv = uv;
 
 	return result;

@@ -17,7 +17,8 @@ FCamera::FCamera(float aWidth, float aHeight)
 	if (aspectRatio < 1.0f)
 		fovAngleY /= aspectRatio;
 
-	myProjMatrix = XMMatrixTranspose(XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 0.01f, 125.0f));
+	// near + far set here
+	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 0.01f, 125.0f);
 	UpdateViewProj();
 }
 
@@ -59,9 +60,9 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
 	// view matrix
 	XMFLOAT4X4 viewMatrix;
 
-	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 0);
-	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 0);
-	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 0);
+	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
+	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
+	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 1);
 
 	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(myPitch, myYaw, 0);
 
@@ -70,12 +71,12 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
 	vAt += eye;
 
 	XMMATRIX _tviewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 0));
+	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 1));
 	XMStoreFloat4x4(&viewMatrix, offset);
 	XMMATRIX _viewMatrix = XMMatrixMultiply(offset, _tviewMatrix);
 
 	// combine with stored projection matrix
-	XMMATRIX _viewProjMatrix = XMMatrixMultiply(myProjMatrix, XMMatrixTranspose(_viewMatrix));
+	XMMATRIX _viewProjMatrix = XMMatrixMultiply(XMMatrixTranspose(myProjMatrix), XMMatrixTranspose(_viewMatrix));
 	
 	XMFLOAT4X4 ret;
 	// store
@@ -100,12 +101,12 @@ void FCamera::UpdateViewProj()
 	vAt += eye;
 
 	XMMATRIX _tviewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(0, 0, 10.4, 0));
+	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(0, 0, 0, 0)); // ? wtf 
 	XMStoreFloat4x4(&viewMatrix, offset);
 	XMMATRIX _viewMatrix = XMMatrixMultiply(offset, _tviewMatrix);
 
 	// combine with stored projection matrix
-	XMMATRIX _viewProjMatrix = XMMatrixMultiply(myProjMatrix, XMMatrixTranspose(_viewMatrix));
+	XMMATRIX _viewProjMatrix = XMMatrixMultiply(myProjMatrix, (_viewMatrix));
 
 	// store
 	XMStoreFloat4x4(&myViewProjMatrix, _viewProjMatrix);

@@ -34,7 +34,9 @@ private:
 	unsigned long long m_fenceValue;
 
 
-	ID3D12DescriptorHeap* m_srvHeap;
+	ID3D12DescriptorHeap* m_srvHeap; // shader resource view
+	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
+	ID3D12Resource* m_depthStencil;
 
 	FCamera* myCamera;
 	int myCurrentHeapOffset; //for SRV CBV UAV heap

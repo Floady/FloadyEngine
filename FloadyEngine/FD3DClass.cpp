@@ -22,6 +22,9 @@ FD3DClass::FD3DClass()
 
 	myCurrentHeapOffset = 0;
 	myCamera = nullptr;
+
+	m_depthStencil = 0;
+	m_dsvHeap = 0;
 }
 
 FD3DClass::~FD3DClass()
@@ -312,6 +315,33 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	// Finally get the initial index to which buffer is the current back buffer.
 	m_bufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 
+	// SETUP Depth Stencil View
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	result = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap));
+	assert(result == S_OK && "ERROR CREATING THE DSV HEAP");
+
+	CD3DX12_RESOURCE_DESC depth_texture(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
+		static_cast< UINT >(screenWidth), static_cast< UINT >(screenHeight), 1, 1,
+		DXGI_FORMAT_D32_FLOAT, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+
+	D3D12_CLEAR_VALUE clear_value;
+	clear_value.Format = DXGI_FORMAT_D32_FLOAT;
+	clear_value.DepthStencil.Depth = 1.0f;
+	clear_value.DepthStencil.Stencil = 0;
+
+	result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE, &depth_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value,
+		IID_PPV_ARGS(&m_depthStencil));
+	assert(result == S_OK && "CREATING THE DEPTH STENCIL FAILED");
+
+	m_device->CreateDepthStencilView(m_depthStencil, nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// ~ SETUP DSV
+	
 	// Create a command allocator.
 	result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_commandAllocator);
 	if (FAILED(result))
@@ -406,7 +436,8 @@ bool FD3DClass::Render()
 	}
 
 	// Set the back buffer as the render target.
-	m_commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, NULL);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart()); // shouldnt DSV be offsetted too (double buffering)?
+	m_commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, &dsvHandle);
 
 	// Then set the color to clear the window to.
 	color[0] = 0.2;
@@ -414,6 +445,9 @@ bool FD3DClass::Render()
 	color[2] = 0.2;
 	color[3] = 1.0;
 	m_commandList->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
+	
+	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Indicate that the back buffer will now be used to present.
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -445,7 +479,7 @@ bool FD3DClass::Render()
 	{
 		//myTriangle->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		//myQuad->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
-		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap, myCamera);
+		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 
 		//if (rand() < RAND_MAX / 2000)
 		{
@@ -456,7 +490,7 @@ bool FD3DClass::Render()
 		}
 		for (size_t i = 0; i < 1; i++)
 		{
-			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap, myCamera);
+			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 		}
 	}
 		

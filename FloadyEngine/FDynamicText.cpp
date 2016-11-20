@@ -223,6 +223,10 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 	ID3DBlob* pixelShader;
 
 	UINT compileFlags = 0;
+#ifdef _DEBUG
+	compileFlags |= D3DCOMPILE_DEBUG;
+#endif
+
 	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
 	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
 
@@ -242,11 +246,14 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState.DepthEnable = FALSE;
+	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	psoDesc.DepthStencilState.StencilEnable = FALSE;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
 	hr = aDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
@@ -349,7 +356,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		hr = aDevice->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(XMFLOAT4X4)),
+			&CD3DX12_RESOURCE_DESC::Buffer(256),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&m_ModelProjMatrix));
@@ -451,7 +458,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 
 }
 
-void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
+void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
 {
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
@@ -488,7 +495,7 @@ this is how it was initialized:
 	// Indicate that the back buffer will be used as a render target.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(aRenderTarget, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	m_commandList->OMSetRenderTargets(1, &anRTVHandle, FALSE, nullptr);
+	m_commandList->OMSetRenderTargets(1, &anRTVHandle, FALSE, &aDSVHandle);
 
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -525,7 +532,7 @@ void FDynamicText::SetText(const char * aNewText)
 		texWidthRescaled /= 2.0f;
 		texHeightRescaled /= 2.0f;
 
-		const float quadZ = 1.0f;
+		const float quadZ = 0.5f;
 		Vertex uvTL;
 		uvTL.uv.x = 0;
 		uvTL.uv.y = 0;
