@@ -18,7 +18,7 @@ FCamera::FCamera(float aWidth, float aHeight)
 		fovAngleY /= aspectRatio;
 
 	// near + far set here
-	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 0.01f, 125.0f);
+	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 0.01f, 18.0f);
 	UpdateViewProj();
 }
 
@@ -40,9 +40,9 @@ void FCamera::Move(float x, float y, float z)
 	XMVECTOR vUp = XMVector3Transform(up, mtxRot);
 	
 	// rotate xyz to rotation before doing this (move in camera space, not in world -.-)
-	myPos.x += vUp.m128_f32[0];;
-	myPos.y += vUp.m128_f32[1];;
-	myPos.z += vUp.m128_f32[2];;
+	myPos.x += vUp.m128_f32[0];
+	myPos.y += vUp.m128_f32[1];
+	myPos.z += vUp.m128_f32[2];
 }
 
 void FCamera::Yaw(float angle)
@@ -57,9 +57,6 @@ void FCamera::Pitch(float angle)
 
 XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
 {
-	// view matrix
-	XMFLOAT4X4 viewMatrix;
-
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
 	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 1);
@@ -70,13 +67,11 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
 	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
 	vAt += eye;
 
-	XMMATRIX _tviewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 1));
-	XMStoreFloat4x4(&viewMatrix, offset);
-	XMMATRIX _viewMatrix = XMMatrixMultiply(offset, _tviewMatrix);
 
-	// combine with stored projection matrix
-	XMMATRIX _viewProjMatrix = XMMatrixMultiply(XMMatrixTranspose(myProjMatrix), XMMatrixTranspose(_viewMatrix));
+	// combine
+	XMMATRIX _viewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix);
 	
 	XMFLOAT4X4 ret;
 	// store

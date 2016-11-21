@@ -2,7 +2,8 @@
 struct PSInput
 {
 	float4 position : SV_POSITION;
-	float2 uv : TEXCOORD;
+	float2 uv : TEXCOORD0;
+	float depth : TEXCOORD1;
 };
 
 float4x4 g_offset : register(b0);
@@ -17,6 +18,8 @@ PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 	result.position = mul(newPos, g_offset);
 	//result.position.z = 0.5f; // set temp test depth?
 	//result.position.w = 0.5f; // set temp test depth?
+	result.depth    = 1.0f - (result.position.z / result.position.w);
+	
 	result.uv = uv;
 
 	return result;
@@ -25,5 +28,5 @@ PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 float4 PSMain(PSInput input) : SV_TARGET
 {
 	return g_texture.Sample(g_sampler, input.uv);
-	//return float4(input.uv.x,1,1, 1);
+	//return float4(input.depth, input.depth, input.depth, 1.0f);		
 }

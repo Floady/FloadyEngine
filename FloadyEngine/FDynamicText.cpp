@@ -95,7 +95,7 @@ FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* a
 	myText = aText;
 	m_viewport.Width = static_cast<float>(width);
 	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 100.0f;
+	m_viewport.MaxDepth = 1.0f;
 
 	m_scissorRect.right = static_cast<LONG>(width);
 	m_scissorRect.bottom = static_cast<LONG>(height);
@@ -245,10 +245,11 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader);
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = FALSE;
+	psoDesc.DepthStencilState.DepthEnable = TRUE;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	psoDesc.DepthStencilState.StencilEnable = FALSE;
+	//psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
@@ -275,7 +276,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		texWidthRescaled /= 2.0f;
 		texHeightRescaled /= 2.0f;
 
-		const float quadZ = 1.0f;
+		const float quadZ = 0.0f;
 		Vertex uvTL;
 		uvTL.uv.x = 0;
 		uvTL.uv.y = 0;
@@ -465,7 +466,7 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 	// re-recording.
 	HRESULT hr;
 
-	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(aCam->GetViewProjMatrix().m));
+	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
 	hr = m_commandList->Reset(aCmdAllocator, m_pipelineState);
 	
@@ -521,7 +522,7 @@ void FDynamicText::SetText(const char * aNewText)
 	// Create the vertex buffer.
 	{
 		// scale to viewport
-		float texWidthRescaled = (float)TextureWidth / m_viewport.Width;
+		float texWidthRescaled = (float)TextureWidth / m_viewport.Width; // <-- this is the full char set size .. get rid off this odd calculation
 		float texHeightRescaled = (float)TextureHeight / m_viewport.Width;
 
 		const float texMultiplierSize = 10.0f;
@@ -532,7 +533,7 @@ void FDynamicText::SetText(const char * aNewText)
 		texWidthRescaled /= 2.0f;
 		texHeightRescaled /= 2.0f;
 
-		const float quadZ = 0.5f;
+		const float quadZ = 0.0f;
 		Vertex uvTL;
 		uvTL.uv.x = 0;
 		uvTL.uv.y = 0;

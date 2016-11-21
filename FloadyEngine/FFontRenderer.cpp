@@ -75,7 +75,7 @@ FFontRenderer::FFontRenderer(UINT width, UINT height, FVector3 aPos, const char*
 	myText = aText;
 	m_viewport.Width = static_cast<float>(width);
 	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 100.0f;
+	m_viewport.MaxDepth = 1.0f;
 
 	m_scissorRect.right = static_cast<LONG>(width);
 	m_scissorRect.bottom = static_cast<LONG>(height);
@@ -200,7 +200,7 @@ void FFontRenderer::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aD
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader);
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = FALSE;
+	psoDesc.DepthStencilState.DepthEnable = TRUE;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	psoDesc.DepthStencilState.StencilEnable = FALSE;
@@ -382,7 +382,7 @@ void FFontRenderer::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator
 	// re-recording.
 	HRESULT hr;
 
-	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(aCam->GetViewProjMatrix().m));
+	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
 	hr = m_commandList->Reset(aCmdAllocator, m_pipelineState);
 	

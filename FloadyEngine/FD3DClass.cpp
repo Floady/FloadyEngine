@@ -317,7 +317,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 	// SETUP Depth Stencil View
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.NumDescriptors = 2; // 1 or 2? is this double buffered
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	result = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap));
@@ -338,7 +338,13 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		IID_PPV_ARGS(&m_depthStencil));
 	assert(result == S_OK && "CREATING THE DEPTH STENCIL FAILED");
 
-	m_device->CreateDepthStencilView(m_depthStencil, nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	m_depthStencil->SetName(L"m_depthStencil");
 
 	// ~ SETUP DSV
 	
@@ -385,7 +391,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
-	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 5), "Extra");
+	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 1.8), "Extra");
 
 
 	return true;
@@ -493,6 +499,7 @@ bool FD3DClass::Render()
 			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 		}
 	}
+
 		
 	// Finally present the back buffer to the screen since rendering is complete.
 	if (m_vsync_enabled)
