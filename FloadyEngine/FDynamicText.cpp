@@ -10,16 +10,16 @@
 
 #include "FMatrix.h"
 #include "FVector3.h"
+#include "FDelegate.h"
 
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
 
 // All symbols I want to support
 static const char* allSymbols = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:";
-//static const char* allSymbols = "The quick brown fox jumps over the lazy dog";
 
 static FT_Library  m_library;
 static FT_Face     m_face;
-										// Generate a simple black and white checkerboard texture.
+										
 std::vector<UINT8> GenerateTextureData4(const char* aText, int TextureWidth, int TextureHeight, int wordLength, UINT largestBearing)
 {
 	const UINT rowPitch = TextureWidth * TexturePixelSize;
@@ -53,12 +53,12 @@ std::vector<UINT8> GenerateTextureData4(const char* aText, int TextureWidth, int
 			FT_UInt next = FT_Get_Char_Index(m_face, aText[h]);
 			FT_Vector delta;
 			FT_Get_Kerning(m_face, prev, next, FT_KERNING_DEFAULT, &delta);
-			xoffset += (delta.x >> 6) * 4;
+			xoffset += (delta.x >> 6) * TexturePixelSize;
 			int breakhere = 0;
 		}
 
-		xoffset += (m_face->glyph)->bitmap_left * 4;
-		int offset = xoffset + top*TextureWidth * 4;
+		xoffset += (m_face->glyph)->bitmap_left * TexturePixelSize;
+		int offset = xoffset + top*TextureWidth * TexturePixelSize;
 
 		for (unsigned int i = 0; i < bitmap.rows; i++)
 		{
@@ -70,11 +70,11 @@ std::vector<UINT8> GenerateTextureData4(const char* aText, int TextureWidth, int
 				data[offset + counter++] = 255;
 			}
 
-			offset += (TextureWidth - bitmap.pitch) * 4;
+			offset += (TextureWidth - bitmap.pitch) * TexturePixelSize;
 		}
 
 		// advance.x = whitespace before glyph + charWidth + whitespace after glyph, we already moved the whitespace before and the charWidth, so we move: advance.x - whiteSpace before (bitmap_left) = whitespace after glyph
-		xoffset += ((m_face->glyph)->advance.x >> 6) * 4 - ((m_face->glyph)->bitmap_left * 4);
+		xoffset += ((m_face->glyph)->advance.x >> 6) * TexturePixelSize - ((m_face->glyph)->bitmap_left * TexturePixelSize);
 	}
 
 	return data;
@@ -86,8 +86,7 @@ FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* a
 {
 	m_ModelProjMatrix = nullptr;
 	m_vertexBuffer = nullptr;
-
-
+	
 	myPos.x = aPos.x;
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
@@ -173,6 +172,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 {
 	m_device = aDevice;
 	myManagerClass = aManager;
+	m_commandAllocator = aCmdAllocator;
 	HRESULT hr;
 
 	{
@@ -185,7 +185,6 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		{
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 		}
-
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
 		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
@@ -216,119 +215,13 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
 		hr = aDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
-
 	}
 
-	ID3DBlob* vertexShader;
-	ID3DBlob* pixelShader;
-
-	UINT compileFlags = 0;
-#ifdef _DEBUG
-	compileFlags |= D3DCOMPILE_DEBUG;
-#endif
-
-	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
-	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
-
-	// Define the vertex input layout.
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	};
-
-	// Describe and create the graphics pipeline state object (PSO).
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-	psoDesc.pRootSignature = m_rootSignature;
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader);
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader);
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = TRUE;
-	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	psoDesc.DepthStencilState.StencilEnable = FALSE;
-	//psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	psoDesc.SampleMask = UINT_MAX;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.SampleDesc.Count = 1;
-
-	hr = aDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
-
-	hr = aDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, aCmdAllocator, m_pipelineState, IID_PPV_ARGS(&m_commandList));
-
+	SetShader();
+	myManagerClass->GetShaderManager().RegisterForHotReload("shaders.hlsl", this, FDelegate::from_method<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
 	{
-		// scale to viewport
-		float texWidthRescaled = (float)TextureWidth / m_viewport.Width;
-		float texHeightRescaled = (float)TextureHeight / m_viewport.Width;
-
-		const float texMultiplierSize = 10.0f;
-		texWidthRescaled *= texMultiplierSize;
-		texHeightRescaled *= texMultiplierSize;
-
-		//half it
-		texWidthRescaled /= 2.0f;
-		texHeightRescaled /= 2.0f;
-
-		const float quadZ = 0.0f;
-		Vertex uvTL;
-		uvTL.uv.x = 0;
-		uvTL.uv.y = 0;
-
-		Vertex uvBR;
-		uvBR.uv.x = 1;
-		uvBR.uv.y = 1;
-
-
-		// test for dyntex - override for 1 char
-		//*
-		int charIdx = 0;
-
-		Vertex* triangleVertices = new Vertex[wordLength * 6];
-		float xoffset = 0.0f;
-		
-		int vtxIdx = 0;
-		for (size_t i = 0; i < wordLength; i++)
-		{
-			for (size_t j = 0; j < allSupportedLength; j++)
-			{
-				if (allSymbols[j] == myText[i])
-				{
-					charIdx = j;
-					break;
-				}
-			}
-
-			texWidthRescaled = myUVs[charIdx + 1].position.x - myUVs[charIdx].position.x;
-			texWidthRescaled *= texMultiplierSize;
-			texWidthRescaled /= 2.0f;
-			texWidthRescaled /= m_viewport.Width;
-			uvTL.uv.x = myUVs[charIdx].uv.x;
-			uvBR = myUVs[charIdx + 1]; //*/
-			uvBR.uv.y = 1; //*/ TEST
-
-			xoffset += texWidthRescaled;
-
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvBR.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvBR.uv.y } };
-							 
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvBR.uv.y } };
-
-			xoffset += texWidthRescaled;
-		}
-
-
-		const UINT vertexBufferSize = sizeof(Vertex) * wordLength * 6;
-
 		// Note: using upload heaps to transfer static data like vert buffers is not 
 		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
 		// over. Please read up on Default Heap usage. An upload heap is used here for 
@@ -341,19 +234,19 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 			nullptr,
 			IID_PPV_ARGS(&m_vertexBuffer));
 
-		// Copy the triangle data to the vertex buffer.
+		// Map the buffer
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		hr = m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
-		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
-	//	m_vertexBuffer->Unmap(0, nullptr);
-		delete[] triangleVertices;
 
 		// Initialize the vertex buffer view.
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-		m_vertexBufferView.SizeInBytes = vertexBufferSize;
+		//m_vertexBufferView.SizeInBytes = vertexBufferSize;
+		SetText("bla");
+	}
 
-		//create 
+	// create constant buffer for modelviewproj
+	{
 		hr = aDevice->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
@@ -362,10 +255,9 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 			nullptr,
 			IID_PPV_ARGS(&m_ModelProjMatrix));
 
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		hr = m_ModelProjMatrix->Map(0, &readRange, reinterpret_cast<void**>(&myConstantBufferPtr));
-		
-		//m_ModelProjMatrix->Unmap(0, nullptr); // we dont need this i think? that way we can update cb in render func without map
-		
+
 		myHeapOffsetCBV = myManagerClass->GetNextOffset();
 		myHeapOffsetAll = myHeapOffsetCBV;
 		// Describe and create a constant buffer view.
@@ -375,97 +267,84 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
 		aDevice->CreateConstantBufferView(cbvDesc, cbvHandle0);
-
-		// TEXTURE
-
-		// Describe and create a shader resource view (SRV) heap for the texture.
-		//D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-		//srvHeapDesc.NumDescriptors = 1;
-		//srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		//srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		//m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
-		//
+	}
+	
+	// create texture
+	{
 		ID3D12Resource* textureUploadHeap;
-		// Create the texture.
-		{
-			// Describe and create a Texture2D.
-			D3D12_RESOURCE_DESC textureDesc = {};
-			textureDesc.MipLevels = 1;
-			textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			textureDesc.Width = TextureWidth;
-			textureDesc.Height = TextureHeight;
-			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-			textureDesc.DepthOrArraySize = 1;
-			textureDesc.SampleDesc.Count = 1;
-			textureDesc.SampleDesc.Quality = 0;
-			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		
+		// Describe and create a Texture2D.
+		D3D12_RESOURCE_DESC textureDesc = {};
+		textureDesc.MipLevels = 1;
+		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		textureDesc.Width = TextureWidth;
+		textureDesc.Height = TextureHeight;
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		textureDesc.DepthOrArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-			hr = aDevice->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				D3D12_HEAP_FLAG_NONE,
-				&textureDesc,
-				D3D12_RESOURCE_STATE_COPY_DEST,
-				nullptr,
-				IID_PPV_ARGS(&m_texture));
+		hr = aDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&textureDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_texture));
 
-			// these indices are also wrong -> need to be global for upload heap? get from device i guess
-			const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
+		// these indices are also wrong -> need to be global for upload heap? get from device i guess
+		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
 
-			// Create the GPU upload buffer.
-			aDevice->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(&textureUploadHeap));
+		// Create the GPU upload buffer.
+		aDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&textureUploadHeap));
 
-			// Copy data to the intermediate upload heap and then schedule a copy 
-			// from the upload heap to the Texture2D.
-			std::vector<UINT8> texture = GenerateTextureData4(allSymbols, TextureWidth, TextureHeight, allSupportedLength, largestBearing);
+		// Copy data to the intermediate upload heap and then schedule a copy 
+		// from the upload heap to the Texture2D.
+		std::vector<UINT8> texture = GenerateTextureData4(allSymbols, TextureWidth, TextureHeight, allSupportedLength, largestBearing);
 
-			D3D12_SUBRESOURCE_DATA textureData = {};
-			textureData.pData = &texture[0];
-			textureData.RowPitch = TextureWidth * TexturePixelSize;
-			textureData.SlicePitch = textureData.RowPitch * TextureHeight;
+		D3D12_SUBRESOURCE_DATA textureData = {};
+		textureData.pData = &texture[0];
+		textureData.RowPitch = TextureWidth * TexturePixelSize;
+		textureData.SlicePitch = textureData.RowPitch * TextureHeight;
 
-			UpdateSubresources(m_commandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
+		UpdateSubresources(m_commandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
 
-			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-			// Describe and create a SRV for the texture.
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = textureDesc.Format;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
+		// Describe and create a SRV for the texture.
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
 
+		// Get the size of the memory location for the render target view descriptors.
+		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-			// Get the size of the memory location for the render target view descriptors.
-			unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			myHeapOffsetText = myManagerClass->GetNextOffset();
-			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-			aDevice->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
-		}
-
+		myHeapOffsetText = myManagerClass->GetNextOffset();
+		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
+		aDevice->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
+		
 		m_commandList->Close();
 
 		// do we need this?
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
-
-
 }
 
 void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
 {
-	// However, when ExecuteCommandList() is called on a particular command 
-	// list, that command list can then be reset at any time and must be before 
-	// re-recording.
 	HRESULT hr;
 
+	// copy modelviewproj data to gpu
 	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
 	hr = m_commandList->Reset(aCmdAllocator, m_pipelineState);
@@ -480,11 +359,6 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-/*
-this is how it was initialized:
-	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-	ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-*/
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = anSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetAll;
 	m_commandList->SetGraphicsRootDescriptorTable(0, handle);
@@ -542,17 +416,14 @@ void FDynamicText::SetText(const char * aNewText)
 		uvBR.uv.x = 1;
 		uvBR.uv.y = 1;
 
-
-		// test for dyntex - override for 1 char
-		//*
 		int charIdx = 0;
-
 		Vertex* triangleVertices = new Vertex[wordLength * 6];
 		float xoffset = 0.0f;
 
 		int vtxIdx = 0;
 		for (size_t i = 0; i < wordLength; i++)
 		{
+			// lookup char idx in all char set
 			for (size_t j = 0; j < allSupportedLength; j++)
 			{
 				if (allSymbols[j] == myText[i])
@@ -562,25 +433,27 @@ void FDynamicText::SetText(const char * aNewText)
 				}
 			}
 
+			// set uv's
 			texWidthRescaled = myUVs[charIdx + 1].position.x - myUVs[charIdx].position.x;
 			texWidthRescaled *= texMultiplierSize;
 			texWidthRescaled /= 2.0f;
 			texWidthRescaled /= m_viewport.Width;
 			uvTL.uv.x = myUVs[charIdx].uv.x;
 			uvBR = myUVs[charIdx + 1]; //*/
-			uvBR.uv.y = 1; //*/ TEST
+			uvBR.uv.y = 1;
 
-			xoffset += texWidthRescaled;
+			xoffset += texWidthRescaled; // move half
 
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvBR.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvBR.uv.y } };
+			// draw quad
+			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
 
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvTL.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvTL.uv.y } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ },{ uvBR.uv.x, uvBR.uv.y } };
+			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
 
-			xoffset += texWidthRescaled;
+			xoffset += texWidthRescaled; // move half
 		}
 
 		const UINT vertexBufferSize = sizeof(Vertex) * wordLength * 6;
@@ -588,4 +461,30 @@ void FDynamicText::SetText(const char * aNewText)
 
 		delete[] triangleVertices;
 	}
+}
+
+void FDynamicText::SetShader()
+{	
+	// get shader ptr + layouts
+	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("shaders.hlsl");
+
+	// Describe and create the graphics pipeline state object (PSO).
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.InputLayout = { &shader.myInputElementDescs[0], (UINT)shader.myInputElementDescs.size() };
+	psoDesc.pRootSignature = m_rootSignature;
+	psoDesc.VS = CD3DX12_SHADER_BYTECODE(shader.myVertexShader);
+	psoDesc.PS = CD3DX12_SHADER_BYTECODE(shader.myPixelShader);
+	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.SampleMask = UINT_MAX;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	psoDesc.SampleDesc.Count = 1;
+
+	HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
+
+	hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator, m_pipelineState, IID_PPV_ARGS(&m_commandList));
 }

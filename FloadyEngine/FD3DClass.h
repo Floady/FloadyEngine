@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include "FShaderManager.h"
 
 class FCamera;
 
@@ -15,6 +16,8 @@ public:
 	void SetCamera(FCamera* aCam) { myCamera = aCam;  }
 	bool Render();
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; }
+	
+	FShaderManager& GetShaderManager() { return myShaderManager;  }
 
 private:
 	int m_videoCardMemory;
@@ -40,5 +43,7 @@ private:
 
 	FCamera* myCamera;
 	int myCurrentHeapOffset; //for SRV CBV UAV heap
+
+	FShaderManager myShaderManager;
 };
 

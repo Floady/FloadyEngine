@@ -54,6 +54,9 @@
     <ClCompile Include="FDynamicText.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FShaderManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
@@ -93,6 +96,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FDynamicText.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FShaderManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FDelegate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

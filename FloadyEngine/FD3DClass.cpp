@@ -4,9 +4,11 @@
 #include "FFontRenderer.h"
 #include "FDynamicText.h"
 #include "FCamera.h"
+#include "FShaderManager.h"
 
 
 FD3DClass::FD3DClass()
+	: myShaderManager()
 {
 	m_device = 0;
 	m_commandQueue = 0;

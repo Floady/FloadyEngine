@@ -10,7 +10,7 @@ float4x4 g_offset : register(b0);
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
+PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 {
 	PSInput result;
 
@@ -20,7 +20,7 @@ PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 	//result.position.w = 0.5f; // set temp test depth?
 	result.depth    = 1.0f - (result.position.z / result.position.w);
 	
-	result.uv = uv.xy;
+	result.uv = uv;
 
 	return result;
 }
