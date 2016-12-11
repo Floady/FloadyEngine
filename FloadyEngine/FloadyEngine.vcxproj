@@ -146,7 +146,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\um\x64;$(ProjectDir)\freetype-2.3.5\lib\x64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>freetype27.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;freetype27.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -161,6 +161,7 @@
     <ClCompile Include="FD3d12Triangle.cpp" />
     <ClCompile Include="FD3DClass.cpp" />
     <ClCompile Include="FDynamicText.cpp" />
+    <ClCompile Include="FFontManager.cpp" />
     <ClCompile Include="FFontRenderer.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="FD3DClass.h" />
     <ClInclude Include="FDelegate.h" />
     <ClInclude Include="FDynamicText.h" />
+    <ClInclude Include="FFontManager.h" />
     <ClInclude Include="FFontRenderer.h" />
     <ClInclude Include="FMatrix.h" />
     <ClInclude Include="FShaderManager.h" />

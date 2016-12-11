@@ -17,6 +17,8 @@ public:
 	void Shutdown();
 	bool Frame();
 
+	FD3DClass* GetD3DClass() { return m_Direct3D; }
+
 private:
 	bool Render();
 

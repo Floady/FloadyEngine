@@ -19,7 +19,8 @@ public:
 
 	FShaderManager();
 	~FShaderManager();
-	
+
+	void ReloadShaders();
 	const FShader& GetShader(const char* aShaderName) const { return myShaders.find(std::string(aShaderName))->second; }
 	void RegisterForHotReload(const char* aShaderName, void* anObject, FDelegate aReloadDelegate);
 private:

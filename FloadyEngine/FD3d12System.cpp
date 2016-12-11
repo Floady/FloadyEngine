@@ -3,6 +3,7 @@
 #include "FD3d12Input.h"
 #include "FCamera.h"
 #include "FTimer.h"
+#include "FD3DClass.h"
 
 static const bool FULL_SCREEN = false;
 static FD3d12System* ApplicationHandle = 0;
@@ -186,7 +187,7 @@ bool FD3d12System::Frame()
 	{
 		return false;
 	}
-
+	
 	// Set camera probably should also just be in camera, and calling input iskeydown but whatevs
 	double movSpeed = myFrameTime * 10;
 	if (m_Input->IsKeyDown(65))
@@ -196,8 +197,10 @@ bool FD3d12System::Frame()
 	if (m_Input->IsKeyDown(87))
 		myCamera->Move(0, 0, movSpeed);
 	if (m_Input->IsKeyDown(83))
+	{
 		myCamera->Move(0, 0, -movSpeed);
-	
+		m_Graphics->GetD3DClass()->GetShaderManager().ReloadShaders();
+	}
 	if (myIsFocussed)
 	{
 		int deltaX = m_Input->GetMouseX() - (screenWidth / 2);
@@ -213,7 +216,7 @@ bool FD3d12System::Frame()
 		
 		myCamera->UpdateViewProj();
 	}
-
+	
 	// Do the frame processing for the graphics object.
 	result = m_Graphics->Frame();
 	if (!result)

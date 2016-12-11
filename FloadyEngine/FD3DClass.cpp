@@ -5,7 +5,7 @@
 #include "FDynamicText.h"
 #include "FCamera.h"
 #include "FShaderManager.h"
-
+#include "FFontManager.h"
 
 FD3DClass::FD3DClass()
 	: myShaderManager()
@@ -389,12 +389,14 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	m_fenceValue = 1;
 
 
+	result = m_commandList->Reset(m_commandAllocator, m_pipelineState); // how do we deal with this.. passing commandlist around?
+	FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 150, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", m_device, m_commandQueue, this, m_commandList, m_srvHeap);
+
 	// test triangle
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 1.8), "Extra");
-
 
 	return true;
 }

@@ -36,9 +36,38 @@ namespace
 
 FShaderManager::FShaderManager()
 {
+	ReloadShaders();
+
+	// use: ReadDirectoryChangesW
+	// run in own thread
+	//HANDLE  ChangeHandle = FindFirstChangeNotification(_T("C:\\\MyNewFolder"), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+	//for (;;)
+	//{
+	//	DWORD Wait = WaitForSingleObject(ChangeHandle, INFINITE);
+	//	if (Wait == WAIT_OBJECT_0)
+	//	{
+	//		MessageBox(NULL, _T("Change"), _T("Change"), MB_OK);
+	//		FindNextChangeNotification(ChangeHandle);
+	//	}
+	//	else
+	//	{
+	//		break;
+	//	}
+	//}
+}
+
+
+FShaderManager::~FShaderManager()
+{
+}
+
+void FShaderManager::ReloadShaders()
+{
 	HANDLE hFind;
 	WIN32_FIND_DATA data;
 	
+	myShaders.clear();
+
 	hFind = FindFirstFileW(L"Shaders//*.hlsl", &data);
 	if (hFind != INVALID_HANDLE_VALUE) {
 		do {
@@ -51,8 +80,10 @@ FShaderManager::FShaderManager()
 #ifdef _DEBUG
 			compileFlags |= D3DCOMPILE_DEBUG;
 #endif
-			D3DCompileFromFile(data.cFileName, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
-			D3DCompileFromFile(data.cFileName, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
+			std::wstring mywstring(data.cFileName);
+			std::wstring concatted_stdstr = L"Shaders//" + mywstring;
+			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
+			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
 
 
 			ID3D12ShaderReflection* lVertexShaderReflection = nullptr;
@@ -104,45 +135,23 @@ FShaderManager::FShaderManager()
 					else if (lParamDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 				}
 
-			//	desc.Format = i == 0 ? DXGI_FORMAT_R32G32B32_FLOAT : DXGI_FORMAT_R32G32_FLOAT; //D3D12_APPEND_ALIGNED_ELEMENT
-
 				shader.myInputElementDescs.push_back(desc);
 			}
-			
-			//// Define the vertex input layout.
-			//D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-			//{
-			//	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			//	{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			//};
 
 			myShaders[std::string(ConvertFromUtf16ToUtf8(data.cFileName))] = shader;
+
+
+			if (myHotReloadMap.find(std::string(ConvertFromUtf16ToUtf8(data.cFileName))) != myHotReloadMap.end())
+			{
+				for each(const std::pair<void*, FDelegate>& item in myHotReloadMap[std::string(ConvertFromUtf16ToUtf8(data.cFileName))])
+				{
+					item.second();
+				}
+			}
 
 		} while (FindNextFileW(hFind, &data));
 		FindClose(hFind);
 	}
-
-	// use: ReadDirectoryChangesW
-	// run in own thread
-	//HANDLE  ChangeHandle = FindFirstChangeNotification(_T("C:\\\MyNewFolder"), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
-	//for (;;)
-	//{
-	//	DWORD Wait = WaitForSingleObject(ChangeHandle, INFINITE);
-	//	if (Wait == WAIT_OBJECT_0)
-	//	{
-	//		MessageBox(NULL, _T("Change"), _T("Change"), MB_OK);
-	//		FindNextChangeNotification(ChangeHandle);
-	//	}
-	//	else
-	//	{
-	//		break;
-	//	}
-	//}
-}
-
-
-FShaderManager::~FShaderManager()
-{
 }
 
 void FShaderManager::RegisterForHotReload(const char * aShaderName, void * anObject, FDelegate aReloadDelegate)

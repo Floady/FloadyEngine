@@ -1,0 +1,48 @@
+#pragma once
+
+#include <ft2build.h>
+#include <DirectXMath.h>
+#include <dxgi1_4.h>
+#include "d3dx12.h"
+#include <ftglyph.h>
+#include "FD3DClass.h"
+#include <vector>
+
+using namespace DirectX;
+
+class FFontManager
+{
+public:
+	enum FFONT_TYPE
+	{
+		Arial = 0,
+		Count,
+	};
+
+	class FFont
+	{
+	public:
+		int mySize;
+		FFONT_TYPE myType;
+		int myWidth;
+		int myHeight;
+		std::vector<XMFLOAT2> myUVs;
+		const char* myCharacters;
+		ID3D12Resource* myTexture;
+	};
+
+public:
+	FFontManager();
+	~FFontManager();
+	static FFontManager* GetInstance();
+	const FFont& GetFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars);
+	void InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars, ID3D12Device* aDevice, ID3D12CommandQueue* aCmdQueue, FD3DClass* aManager, ID3D12GraphicsCommandList* aCommandList, ID3D12DescriptorHeap* anSRVHeap);
+
+private:
+	std::vector<UINT8> GenerateTextureData(const FT_Face& aFace, const char* aText, int TextureWidth, int TextureHeight, int wordLength, UINT largestBearing);
+
+	FT_Library  myLibrary;
+	const char* myFontMap[FFontManager::FFONT_TYPE::Count];
+	FT_Face  myFontFaces[FFontManager::FFONT_TYPE::Count];
+	std::vector<FFont> myFonts;
+};

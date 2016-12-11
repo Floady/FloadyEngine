@@ -11,6 +11,7 @@
 #include "FMatrix.h"
 #include "FVector3.h"
 #include "FDelegate.h"
+#include "FFontManager.h"
 
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
 
@@ -100,6 +101,9 @@ FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* a
 	m_scissorRect.bottom = static_cast<LONG>(height);
 	m_aspectRatio = (float)width / (float)height;
 
+	m_pipelineState = nullptr;
+	m_commandList = nullptr;
+
 	FT_Error error = FT_Init_FreeType(&m_library);
 	error = FT_New_Face(m_library, "C:/Windows/Fonts/Arial.ttf", 0, &m_face);
 	
@@ -170,9 +174,12 @@ FDynamicText::~FDynamicText()
 
 void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3DClass* aManager)
 {
+	firstFrame = true;
+
 	m_device = aDevice;
 	myManagerClass = aManager;
 	m_commandAllocator = aCmdAllocator;
+	m_commandQueue = aCmdQueue;
 	HRESULT hr;
 
 	{
@@ -217,7 +224,40 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		hr = aDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
 	}
 
+	// Describe and create a Texture2D.
+	D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.MipLevels = 1;
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textureDesc.Width = TextureWidth;
+	textureDesc.Height = TextureHeight;
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	hr = aDevice->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&textureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&m_texture));
+
+	// these indices are also wrong -> need to be global for upload heap? get from device i guess
+	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
+
+	// Create the GPU upload buffer.
+	aDevice->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&textureUploadHeap));
+
 	SetShader();
+
 	myManagerClass->GetShaderManager().RegisterForHotReload("shaders.hlsl", this, FDelegate::from_method<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
@@ -271,40 +311,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 	
 	// create texture
 	{
-		ID3D12Resource* textureUploadHeap;
 		
-		// Describe and create a Texture2D.
-		D3D12_RESOURCE_DESC textureDesc = {};
-		textureDesc.MipLevels = 1;
-		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureDesc.Width = TextureWidth;
-		textureDesc.Height = TextureHeight;
-		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		textureDesc.DepthOrArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-		hr = aDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&textureDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_texture));
-
-		// these indices are also wrong -> need to be global for upload heap? get from device i guess
-		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
-
-		// Create the GPU upload buffer.
-		aDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&textureUploadHeap));
-
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the Texture2D.
 		std::vector<UINT8> texture = GenerateTextureData4(allSymbols, TextureWidth, TextureHeight, allSupportedLength, largestBearing);
@@ -328,9 +335,13 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+		// create SRV to the fontmanager texture?
+		
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
+		// ~
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-		aDevice->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
+		aDevice->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
 		
 		m_commandList->Close();
 
@@ -338,10 +349,24 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
+	
+	skipNextRender = false;
 }
 
 void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
 {
+	// test for shader reloading
+	//{
+	//	SetShader();
+	//	m_commandList->Close(); // should close in setshader but then the object is black , need texture reupload?
+	//}
+
+	if (skipNextRender)
+	{
+		skipNextRender = false;
+		return;
+	}
+
 	HRESULT hr;
 
 	// copy modelviewproj data to gpu
@@ -465,8 +490,16 @@ void FDynamicText::SetText(const char * aNewText)
 
 void FDynamicText::SetShader()
 {	
+	skipNextRender = true;
+
 	// get shader ptr + layouts
 	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("shaders.hlsl");
+
+	if(m_pipelineState)
+		m_pipelineState->Release();
+
+	if (m_commandList)
+		m_commandList->Release();
 
 	// Describe and create the graphics pipeline state object (PSO).
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -485,6 +518,15 @@ void FDynamicText::SetShader()
 	psoDesc.SampleDesc.Count = 1;
 
 	HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
-
+	
 	hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator, m_pipelineState, IID_PPV_ARGS(&m_commandList));
+
+	if (!firstFrame)
+	{
+		m_commandList->Close();
+		ID3D12CommandList* ppCommandLists[] = { m_commandList };
+		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	}
+
+	firstFrame = false;
 }

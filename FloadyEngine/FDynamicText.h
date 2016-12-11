@@ -53,6 +53,7 @@ private:
 
 	float m_aspectRatio;
 
+	ID3D12Resource* textureUploadHeap;
 
 	FVector3 myPos;
 	const char* myText;
@@ -70,5 +71,8 @@ private:
 	// glyph data
 	Vertex* myUVs;
 	size_t allSupportedLength;
+
+	bool skipNextRender;
+	bool firstFrame;
 };
 
