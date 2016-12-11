@@ -62,16 +62,8 @@ private:
 	int myHeapOffsetText;
 	int myHeapOffsetAll;
 
-	// font stuff
-	UINT TextureWidth ;
-	UINT TextureHeight;
-	size_t wordLength;
-	UINT largestBearing;
-
-	// glyph data
-	Vertex* myUVs;
-	size_t allSupportedLength;
-
+	size_t myWordLength;
+	
 	bool skipNextRender;
 	bool firstFrame;
 };

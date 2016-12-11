@@ -80,7 +80,7 @@ std::vector<UINT8> FFontManager::GenerateTextureData(const FT_Face& aFace, const
 
 FFontManager::FFontManager()
 {
-	myFontMap[FFontManager::FFONT_TYPE::Arial] = "C:/Windows/Fonts/Arial.ttf";
+	myFontMap[FFontManager::FFONT_TYPE::Arial] = "C:/Windows/Fonts/arial.ttf";
 
 	FT_Error error = FT_Init_FreeType(&myLibrary);
 
@@ -255,4 +255,79 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	myFonts.push_back(newFont);
+}
+
+
+std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut)
+{
+	unsigned int TextureWidth = 0;
+	unsigned int TextureHeight = 0;
+	size_t wordLength = strlen(aWord);
+	unsigned int largestBearing = 0;
+	int texWidth = 0;
+	int texHeight = 0;
+
+	// setup uv+kerning buffers
+	std::vector<XMFLOAT4> uvs;	
+	uvs.resize(wordLength + 1);
+	std::vector<float> kernings;
+	kernings.resize(wordLength);
+
+	FT_UInt prev;
+	FT_Error error;
+
+	error = FT_Set_Char_Size(myFontFaces[aFont.myType], 0, aFont.mySize * 32, 100, 100);
+
+	// check if user wants kerning, expensive to load char set and check (should store kerning data elsewhere maybe)
+	bool hasKerning = FT_HAS_KERNING(myFontFaces[aFont.myType]);
+		
+	// calculate kerning values and string dimension
+	for (int i = 0; i < wordLength; i++)
+	{
+		error = FT_Load_Char(myFontFaces[aFont.myType], aWord[i], 0);
+		const char* errorString = getErrorMessage(error);
+
+		// kerning
+		if (i > 0)
+		{
+			prev = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i - 1]);
+			FT_UInt next = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i]);
+			FT_Vector delta;
+			FT_Error a = FT_Get_Kerning(myFontFaces[aFont.myType], prev, next, FT_KERNING_DEFAULT, &delta);
+			texWidth += delta.x >> 6;
+			kernings[i - 1] = (delta.x >> 6);
+		}
+
+		int glyphWidth = (myFontFaces[aFont.myType]->glyph->advance.x >> 6);
+		texWidth += glyphWidth;
+		int glyphHeight = (myFontFaces[aFont.myType]->glyph->metrics.height >> 6);
+		texHeight = max(texHeight, glyphHeight);
+	}
+
+	// write tex dimensions to the caller so it can be scaled however they want
+	aWidthOut = texWidth;
+	aHeightOut = texHeight;
+
+	// copy UVs and modify to take kerning into acocunt
+	for (size_t i = 0; i < wordLength; i++)
+	{
+		int charIdx = 0; // should be an invalid char so you can see its missing
+
+		// lookup char idx in all char set
+		for (size_t j = 0; j < strlen(aFont.myCharacters); j++)
+		{
+			if (aFont.myCharacters[j] == aWord[i])
+			{
+				charIdx = j;
+				break;
+			}
+		}
+
+		uvs[i].x = aFont.myUVs[charIdx].x;// +(kernings[i] / aFont.myWidth); // move kerning to0 0-1 uv space
+		uvs[i].y = aFont.myUVs[charIdx].y;
+		uvs[i].z = aFont.myUVs[charIdx+1].x;// +(kernings[i] / aFont.myWidth); // move kerning to0 0-1 uv space
+		uvs[i].w = aFont.myUVs[charIdx+1].y;
+	}
+
+	return uvs;
 }

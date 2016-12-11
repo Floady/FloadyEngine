@@ -37,6 +37,7 @@ static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
 static FDynamicText* myFontRenderer2 = nullptr;
+static FDynamicText* myFontRenderer3 = nullptr;
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
@@ -397,6 +398,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 1.8), "Extra");
+	myFontRenderer3 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 2, 0), "Extra22");
 
 	return true;
 }
@@ -483,6 +485,7 @@ bool FD3DClass::Render()
 		//myQuad->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig());
 		myFontRenderer->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		myFontRenderer2->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
+		myFontRenderer3->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		firstFrame = false;
 	}
 	else
@@ -491,7 +494,7 @@ bool FD3DClass::Render()
 		//myQuad->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 
-		//if (rand() < RAND_MAX / 2000)
+		// show frame counter for dynamic text testing
 		{
 			frameCounter++;
 			char buff[128];
@@ -502,6 +505,7 @@ bool FD3DClass::Render()
 		{
 			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 		}
+		myFontRenderer3->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 	}
 
 		

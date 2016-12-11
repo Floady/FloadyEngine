@@ -37,6 +37,7 @@ public:
 	static FFontManager* GetInstance();
 	const FFont& GetFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars);
 	void InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars, ID3D12Device* aDevice, ID3D12CommandQueue* aCmdQueue, FD3DClass* aManager, ID3D12GraphicsCommandList* aCommandList, ID3D12DescriptorHeap* anSRVHeap);
+	std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut);
 
 private:
 	std::vector<UINT8> GenerateTextureData(const FT_Face& aFace, const char* aText, int TextureWidth, int TextureHeight, int wordLength, UINT largestBearing);

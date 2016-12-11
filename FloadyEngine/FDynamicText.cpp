@@ -13,74 +13,6 @@
 #include "FDelegate.h"
 #include "FFontManager.h"
 
-static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
-
-// All symbols I want to support
-static const char* allSymbols = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:";
-
-static FT_Library  m_library;
-static FT_Face     m_face;
-										
-std::vector<UINT8> GenerateTextureData4(const char* aText, int TextureWidth, int TextureHeight, int wordLength, UINT largestBearing)
-{
-	const UINT rowPitch = TextureWidth * TexturePixelSize;
-	const UINT cellPitch = rowPitch >> 3;		// The width of a cell in the checkboard texture.
-	const UINT cellHeight = TextureWidth >> 3;	// The height of a cell in the checkerboard texture.
-	const UINT textureSize = rowPitch * TextureHeight;
-	
-	std::vector<UINT8> data(textureSize);
-	UINT8* pData = &data[0];
-
-	// fill buffer
-	int xoffset = 0;
-	for (int h = 0; h < wordLength; h++)
-	{
-		int counter = 0;
-		FT_Error error = FT_Load_Char(m_face, aText[h], 0);
-
-		error = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_NORMAL);
-		FT_Bitmap bitmap = m_face->glyph->bitmap;
-
-		//int top = (texHeight - bitmap.rows);
-		int glyphHeight = (m_face->glyph->metrics.height >> 6);
-		int top = largestBearing - (m_face->glyph->metrics.horiBearingY >> 6);
-
-
-		// kerning?
-		if (h > 0)
-		{
-			FT_UInt prev;
-			prev = FT_Get_Char_Index(m_face, aText[h - 1]);
-			FT_UInt next = FT_Get_Char_Index(m_face, aText[h]);
-			FT_Vector delta;
-			FT_Get_Kerning(m_face, prev, next, FT_KERNING_DEFAULT, &delta);
-			xoffset += (delta.x >> 6) * TexturePixelSize;
-			int breakhere = 0;
-		}
-
-		xoffset += (m_face->glyph)->bitmap_left * TexturePixelSize;
-		int offset = xoffset + top*TextureWidth * TexturePixelSize;
-
-		for (unsigned int i = 0; i < bitmap.rows; i++)
-		{
-			for (int j = 0; j < bitmap.pitch; j++)
-			{
-				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
-				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
-				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
-				data[offset + counter++] = 255;
-			}
-
-			offset += (TextureWidth - bitmap.pitch) * TexturePixelSize;
-		}
-
-		// advance.x = whitespace before glyph + charWidth + whitespace after glyph, we already moved the whitespace before and the charWidth, so we move: advance.x - whiteSpace before (bitmap_left) = whitespace after glyph
-		xoffset += ((m_face->glyph)->advance.x >> 6) * TexturePixelSize - ((m_face->glyph)->bitmap_left * TexturePixelSize);
-	}
-
-	return data;
-}
-
 FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* aText)
 	: m_viewport(),
 	m_scissorRect()
@@ -103,70 +35,7 @@ FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* a
 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
-
-	FT_Error error = FT_Init_FreeType(&m_library);
-	error = FT_New_Face(m_library, "C:/Windows/Fonts/Arial.ttf", 0, &m_face);
-	
-	int aSize = 150;
-
-	int wordStart = 0;
-	int texWidth = 0;
-	int texHeight = 0;
-	wordLength = strlen(aText);
-	largestBearing = 0;
-	error = FT_Set_Char_Size(m_face, 0, aSize * 32, 100, 100);
-	bool hasKerning = FT_HAS_KERNING(m_face);
-
-	// setup uv buffer
-	allSupportedLength = strlen(allSymbols);
-	myUVs = new Vertex[allSupportedLength+1];
-	myUVs[0].uv.x = 0;
-	myUVs[0].uv.y = 0;
-	myUVs[0].position.x = 0;
-	myUVs[0].position.y = 0;
-
-	FT_UInt prev;
-
-	// calculate buffer dimensions
-	for (int i = 0; i < allSupportedLength; i++)
-	{
-		error = FT_Load_Char(m_face, allSymbols[i], 0);
-
-		// kerning?
-		if (i > 0)
-		{
-			prev = FT_Get_Char_Index(m_face, allSymbols[i - 1]);
-			FT_UInt next = FT_Get_Char_Index(m_face, allSymbols[i]);
-			FT_Vector delta;
-			FT_Get_Kerning(m_face, prev, next, FT_KERNING_DEFAULT, &delta);
-			texWidth += delta.x >> 6;
-			int breakhere = 0;
-		}
-
-		int glyphWidth = (m_face->glyph->advance.x >> 6);
-		texWidth += glyphWidth;
-		int glyphHeight = (m_face->glyph->metrics.height >> 6);
-
-		largestBearing = max(largestBearing, m_face->glyph->metrics.horiBearingY >> 6);
-		texHeight = max(texHeight, glyphHeight);
-
-		myUVs[i+1].uv.x = texWidth;
-		myUVs[i+1].uv.y = glyphHeight;
-		myUVs[i+1].position.x = texWidth;
-		myUVs[i+1].position.y = glyphHeight;
-	}
-
-	TextureWidth = texWidth;
-	TextureHeight = texHeight+1; // some sizes require + 1 here in the past.. 
-
-	// scale UVs
-	for (int i = 0; i < allSupportedLength+1; i++)
-	{
-		myUVs[i].uv.x /= TextureWidth;
-		myUVs[i].uv.y /= TextureHeight;
-	}
 }
-
 
 FDynamicText::~FDynamicText()
 {
@@ -224,40 +93,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		hr = aDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
 	}
 
-	// Describe and create a Texture2D.
-	D3D12_RESOURCE_DESC textureDesc = {};
-	textureDesc.MipLevels = 1;
-	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	textureDesc.Width = TextureWidth;
-	textureDesc.Height = TextureHeight;
-	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	textureDesc.DepthOrArraySize = 1;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-	hr = aDevice->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&textureDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&m_texture));
-
-	// these indices are also wrong -> need to be global for upload heap? get from device i guess
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
-
-	// Create the GPU upload buffer.
-	aDevice->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&textureUploadHeap));
-
 	SetShader();
-
 	myManagerClass->GetShaderManager().RegisterForHotReload("shaders.hlsl", this, FDelegate::from_method<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
@@ -281,8 +117,8 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		// Initialize the vertex buffer view.
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-		//m_vertexBufferView.SizeInBytes = vertexBufferSize;
-		SetText("bla");
+
+		SetText("AT The Quick Brown Fox Jumped over the Lazy Dog");
 	}
 
 	// create constant buffer for modelviewproj
@@ -309,36 +145,19 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		aDevice->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
 	
-	// create texture
-	{
-		
-		// Copy data to the intermediate upload heap and then schedule a copy 
-		// from the upload heap to the Texture2D.
-		std::vector<UINT8> texture = GenerateTextureData4(allSymbols, TextureWidth, TextureHeight, allSupportedLength, largestBearing);
-
-		D3D12_SUBRESOURCE_DATA textureData = {};
-		textureData.pData = &texture[0];
-		textureData.RowPitch = TextureWidth * TexturePixelSize;
-		textureData.SlicePitch = textureData.RowPitch * TextureHeight;
-
-		UpdateSubresources(m_commandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
-
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
+	// create SRV to global font texture
+	{		
 		// Describe and create a SRV for the texture.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = textureDesc.Format;
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // get format from font?
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		// create SRV to the fontmanager texture?
-		
+				
 		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
-		// ~
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
 		aDevice->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
@@ -355,12 +174,6 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 
 void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
 {
-	// test for shader reloading
-	//{
-	//	SetShader();
-	//	m_commandList->Close(); // should close in setshader but then the object is black , need texture reupload?
-	//}
-
 	if (skipNextRender)
 	{
 		skipNextRender = false;
@@ -400,7 +213,7 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->DrawInstanced(6 * wordLength, 1, 0, 0);
+	m_commandList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(aRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -413,18 +226,23 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 void FDynamicText::SetText(const char * aNewText)
 {
 	myText = aNewText;
-	wordLength = strlen(myText);
+	myWordLength = strlen(myText);
 
-	const UINT vertexBufferSize = sizeof(Vertex) * wordLength * 6;
+	const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
 	// Create the vertex buffer.
 	{
-		// scale to viewport
-		float texWidthRescaled = (float)TextureWidth / m_viewport.Width; // <-- this is the full char set size .. get rid off this odd calculation
-		float texHeightRescaled = (float)TextureHeight / m_viewport.Width;
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
 
-		const float texMultiplierSize = 10.0f;
+		float texWidth, texHeight;
+		std::vector<XMFLOAT4> uvs = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight);
+		
+		// scale to viewport
+		float texWidthRescaled = (float)texWidth / m_viewport.Width; 
+		float texHeightRescaled = (float)texHeight / m_viewport.Width;
+
+		const float texMultiplierSize = 1.0f;
 		texWidthRescaled *= texMultiplierSize;
 		texHeightRescaled *= texMultiplierSize;
 
@@ -441,47 +259,35 @@ void FDynamicText::SetText(const char * aNewText)
 		uvBR.uv.x = 1;
 		uvBR.uv.y = 1;
 
-		int charIdx = 0;
-		Vertex* triangleVertices = new Vertex[wordLength * 6];
+		Vertex* triangleVertices = new Vertex[myWordLength * 6];
 		float xoffset = 0.0f;
 
 		int vtxIdx = 0;
-		for (size_t i = 0; i < wordLength; i++)
+		for (size_t i = 0; i < myWordLength; i++)
 		{
-			// lookup char idx in all char set
-			for (size_t j = 0; j < allSupportedLength; j++)
-			{
-				if (allSymbols[j] == myText[i])
-				{
-					charIdx = j;
-					break;
-				}
-			}
-
 			// set uv's
-			texWidthRescaled = myUVs[charIdx + 1].position.x - myUVs[charIdx].position.x;
-			texWidthRescaled *= texMultiplierSize;
-			texWidthRescaled /= 2.0f;
-			texWidthRescaled /= m_viewport.Width;
-			uvTL.uv.x = myUVs[charIdx].uv.x;
-			uvBR = myUVs[charIdx + 1]; //*/
+			uvTL.uv.y = 0;
+			uvTL.uv.x = uvs[i].x;
+			uvBR.uv.x = uvs[i].z;
 			uvBR.uv.y = 1;
 
-			xoffset += texWidthRescaled; // move half
+			float glyphWidth = 0.01;// (uvs[i + 1].x - uvs[i].x)*texWidth;
+
+			xoffset += glyphWidth; // move half
 
 			// draw quad
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
 
-			triangleVertices[vtxIdx++] = { { xoffset - texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + texWidthRescaled, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
 
-			xoffset += texWidthRescaled; // move half
+			xoffset += glyphWidth; // move half
 		}
 
-		const UINT vertexBufferSize = sizeof(Vertex) * wordLength * 6;
+		const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
 		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
 
 		delete[] triangleVertices;
