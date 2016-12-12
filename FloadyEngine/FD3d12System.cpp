@@ -124,7 +124,7 @@ void FD3d12System::Run()
 	bool done, result;
 
 	char buff[512];
-	sprintf(buff, "load time: %f \n", myFrameTimer->GetTimeMS());
+	sprintf_s(buff, "load time: %f \n", myFrameTimer->GetTimeMS());
 	OutputDebugStringA(buff);
 	myFrameTimer->Restart();
 	
@@ -160,7 +160,7 @@ void FD3d12System::Run()
 			if(myFrameTime > 1 / 3800.0)
 			{
 				char buff[512];
-				sprintf(buff, "Fps: %f \n", 1 / myFrameTime);
+				sprintf_s(buff, "Fps: %f \n", 1 / myFrameTime);
 				OutputDebugStringA(buff);
 			}
 
@@ -189,7 +189,7 @@ bool FD3d12System::Frame()
 	}
 	
 	// Set camera probably should also just be in camera, and calling input iskeydown but whatevs
-	double movSpeed = myFrameTime * 10;
+	float movSpeed = static_cast<float>(myFrameTime * 10);
 	if (m_Input->IsKeyDown(65))
 		myCamera->Move(-movSpeed, 0, 0);
 	if (m_Input->IsKeyDown(68))
@@ -210,7 +210,7 @@ bool FD3d12System::Frame()
 
 		// don't time correct rotatio nsince the mousemove per frame is shorter when frames are shorter times
 		// should be direction normalized times frametime?
-		double rotSpeed = 0.005;
+		float rotSpeed = 0.005f;
 		myCamera->Yaw(deltaX * rotSpeed);
 		myCamera->Pitch(deltaY * rotSpeed);
 		

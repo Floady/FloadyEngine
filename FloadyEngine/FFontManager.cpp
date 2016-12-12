@@ -110,25 +110,24 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 
 	unsigned int TextureWidth = 0;
 	unsigned int TextureHeight = 0;
-	size_t wordLength = strlen(aSupportedChars);
-	unsigned int largestBearing = 0;
+	int wordLength = static_cast<int>(strlen(aSupportedChars));
+	int largestBearing = 0;
 	int texWidth = 0;
 	int texHeight = 0;
 
 	// setup uv buffer
-	unsigned int allSupportedLength = strlen(aSupportedChars);
+	unsigned int allSupportedLength = static_cast<unsigned int>(strlen(aSupportedChars));
 	newFont.myUVs.resize(allSupportedLength + 1);
 
 	newFont.myUVs[0].x = 0;
 	newFont.myUVs[0].y = 0;
 
-	FT_UInt prev;
 	FT_Error error;
 
 	error = FT_Set_Char_Size(myFontFaces[aType], 0, aSize * 32, 1200, 1080);
 
 	// calculate buffer dimensions
-	for (int i = 0; i < allSupportedLength; i++)
+	for (unsigned int i = 0; i < allSupportedLength; i++)
 	{
 		error = FT_Load_Char(myFontFaces[aType], aSupportedChars[i], 0);
 		const char* errorString = getErrorMessage(error);
@@ -140,15 +139,15 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 		largestBearing = max(largestBearing, myFontFaces[aType]->glyph->metrics.horiBearingY >> 6);
 		texHeight = max(texHeight, glyphHeight);
 
-		newFont.myUVs[i + 1].x = texWidth;
-		newFont.myUVs[i + 1].y = glyphHeight;
+		newFont.myUVs[i + 1].x = static_cast<float>(texWidth);
+		newFont.myUVs[i + 1].y = static_cast<float>(glyphHeight);
 	}
 
 	TextureWidth = texWidth;
 	TextureHeight = texHeight + 1; // some sizes require + 1 here in the past.. 
 
 	// scale UVs
-	for (int i = 0; i < allSupportedLength + 1; i++)
+	for (unsigned int i = 0; i < allSupportedLength + 1; i++)
 	{
 		newFont.myUVs[i].x /= TextureWidth;
 		newFont.myUVs[i].y /= TextureHeight;
@@ -232,7 +231,7 @@ FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& a
 	unsigned int TextureWidth = 0;
 	unsigned int TextureHeight = 0;
 	size_t wordLength = strlen(aWord);
-	unsigned int largestBearing = 0;
+	int largestBearing = 0;
 	int texWidth = 0;
 	int texHeight = 0;
 
@@ -246,7 +245,7 @@ FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& a
 	FT_UInt prev;
 	FT_Error error;
 
-	bool hasKerning = FT_HAS_KERNING(myFontFaces[aFont.myType]);
+	FT_Bool hasKerning = FT_HAS_KERNING(myFontFaces[aFont.myType]);
 		
 	// calculate kerning values and string dimension
 	for (int i = 0; i < wordLength; i++)
@@ -264,21 +263,20 @@ FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& a
 			FT_Vector delta;
 			FT_Error a = FT_Get_Kerning(myFontFaces[aFont.myType], prev, next, FT_KERNING_DEFAULT, &delta);
 			texWidth += delta.x >> 6;
-			//glyphWidth += delta.x >> 6; // this would scale the glyph, we want to move it instead, pass kerning info back to drawer in wordInfo?
-			wordInfo.myKerningOffset[i - 1] = (delta.x >> 6);
+			wordInfo.myKerningOffset[i - 1] = static_cast<float>((delta.x >> 6));
 		}
 
 		texWidth += glyphWidth;
 		int glyphHeight = (myFontFaces[aFont.myType]->glyph->metrics.height >> 6);
 		texHeight = max(texHeight, glyphHeight);
 		
-		wordInfo.myDimensions[i].x = glyphWidth;
-		wordInfo.myDimensions[i].y = glyphHeight;
+		wordInfo.myDimensions[i].x = static_cast<float>(glyphWidth);
+		wordInfo.myDimensions[i].y = static_cast<float>(glyphHeight);
 	}
 
 	// write tex dimensions to the caller so it can be scaled however they want
-	aWidthOut = texWidth;
-	aHeightOut = texHeight;
+	aWidthOut = static_cast<float>(texWidth);
+	aHeightOut = static_cast<float>(texHeight);
 
 	// copy UVs and modify to take kerning into acocunt
 	for (size_t i = 0; i < wordLength; i++)
@@ -286,7 +284,7 @@ FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& a
 		int charIdx = 0; // should be an invalid char so you can see its missing
 
 		// lookup char idx in all char set
-		for (size_t j = 0; j < strlen(aFont.myCharacters); j++)
+		for (int j = 0; j < strlen(aFont.myCharacters); j++)
 		{
 			if (aFont.myCharacters[j] == aWord[i])
 			{

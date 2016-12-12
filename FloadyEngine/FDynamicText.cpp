@@ -1,15 +1,9 @@
 #include "FDynamicText.h"
 #include "d3dx12.h"
-#include "D3dCompiler.h"
 #include "FD3DClass.h"
 #include "FCamera.h"
 #include <vector>
 
-#include <ft2build.h>
-#include <ftglyph.h>
-
-#include "FMatrix.h"
-#include "FVector3.h"
 #include "FDelegate.h"
 #include "FFontManager.h"
 
@@ -215,7 +209,7 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, D3D12_CPU_DESCRIPTOR_HA
 void FDynamicText::SetText(const char * aNewText)
 {
 	myText = aNewText;
-	myWordLength = strlen(myText);
+	myWordLength = static_cast<UINT>(strlen(myText));
 
 	const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;

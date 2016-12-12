@@ -89,15 +89,15 @@ FFontRenderer::FFontRenderer(UINT width, UINT height, FVector3 aPos, const char*
 	int wordStart = 0;
 	int texWidth = 0;
 	int texHeight = 0;
-	wordLength = strlen(aText);
+	wordLength = static_cast<UINT>(strlen(aText));
 	largestBearing = 0;
 	error = FT_Set_Char_Size(m_face, 0, aSize * 32, 100, 100);
-	bool hasKerning = FT_HAS_KERNING(m_face);
+	FT_Bool hasKerning = FT_HAS_KERNING(m_face);
 
 	FT_UInt prev;
 
 	// calculate buffer dimensions
-	for (int i = 0; i < wordLength; i++)
+	for (unsigned int i = 0; i < wordLength; i++)
 	{
 		error = FT_Load_Char(m_face, aText[i], 0);
 

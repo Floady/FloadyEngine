@@ -71,7 +71,7 @@ void FShaderManager::ReloadShaders()
 	hFind = FindFirstFileW(L"Shaders//*.hlsl", &data);
 	if (hFind != INVALID_HANDLE_VALUE) {
 		do {
-			printf("%s\n", data.cFileName);
+			printf("%ws\n", data.cFileName);
 
 			ID3DBlob* vertexShader;
 			ID3DBlob* pixelShader;

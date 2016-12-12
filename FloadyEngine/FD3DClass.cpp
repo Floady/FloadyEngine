@@ -408,7 +408,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(this, FVector3(0, 0, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	myFontRenderer3 = new FDynamicText(this, FVector3(0, 0.35, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", false);
+	myFontRenderer3 = new FDynamicText(this, FVector3(0, 0.35f, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", false);
 
 	return true;
 }
@@ -508,7 +508,7 @@ bool FD3DClass::Render()
 		{
 			frameCounter++;
 			char buff[128];
-			sprintf(buff, "%s %d\0", "lol: ", frameCounter);
+			sprintf_s(buff, "%s %d\0", "lol: ", frameCounter);
 			myFontRenderer2->SetText(buff);
 		}
 		for (size_t i = 0; i < 1; i++)

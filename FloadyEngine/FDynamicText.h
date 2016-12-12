@@ -36,7 +36,6 @@ private:
 	UINT8* myConstantBufferPtr;
 	UINT8* pVertexDataBegin;
 
-	// App resources.
 	ID3D12Resource* m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
@@ -44,12 +43,13 @@ private:
 	
 	FVector3 myPos;
 	const char* myText;
-	FD3DClass* myManagerClass; // for getting SRVHeap stuff
+	FD3DClass* myManagerClass;
+
 	int myHeapOffsetCBV;
 	int myHeapOffsetText;
 	int myHeapOffsetAll;
 
-	size_t myWordLength;
+	UINT myWordLength;
 	
 	bool skipNextRender;
 	bool firstFrame;

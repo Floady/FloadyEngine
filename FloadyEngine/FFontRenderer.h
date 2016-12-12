@@ -61,7 +61,7 @@ private:
 	// font stuff
 	UINT TextureWidth ;
 	UINT TextureHeight;
-	size_t wordLength;
-	UINT largestBearing;
+	UINT wordLength;
+	int largestBearing;
 };
 
