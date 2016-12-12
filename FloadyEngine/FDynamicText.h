@@ -19,27 +19,20 @@ public:
 		XMFLOAT4 uv;
 	};
 
-	FDynamicText(UINT width, UINT height, FVector3 aPos, const char* aText);
+	FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning);
 	~FDynamicText();
-	void Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3DClass* aManager);
-	void Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam);
+	void Init();
+	void Render(ID3D12Resource* aRenderTarget, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle);
 	void SetText(const char* aNewText);
 	void SetShader();
 
 private:
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
-	IDXGISwapChain3* m_swapChain;
-	ID3D12Device* m_device;
-	ID3D12Resource* m_renderTargets;
-	ID3D12CommandAllocator* m_commandAllocator;
-	ID3D12CommandQueue* m_commandQueue;
+	bool myUseKerning;
+
 	ID3D12RootSignature* m_rootSignature;
-	ID3D12DescriptorHeap* m_rtvHeap;
-	ID3D12DescriptorHeap* m_srvHeap;
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12GraphicsCommandList* m_commandList;
-	UINT m_rtvDescriptorSize;
+	
 	UINT8* myConstantBufferPtr;
 	UINT8* pVertexDataBegin;
 
@@ -47,14 +40,8 @@ private:
 	ID3D12Resource* m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
-	ID3D12Resource* m_texture;
-
 	ID3D12Resource* m_ModelProjMatrix;
-
-	float m_aspectRatio;
-
-	ID3D12Resource* textureUploadHeap;
-
+	
 	FVector3 myPos;
 	const char* myText;
 	FD3DClass* myManagerClass; // for getting SRVHeap stuff

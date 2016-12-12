@@ -38,24 +38,10 @@ std::vector<UINT8> FFontManager::GenerateTextureData(const FT_Face& aFace, const
 		error = FT_Render_Glyph(aFace->glyph, FT_RENDER_MODE_NORMAL);
 		FT_Bitmap bitmap = aFace->glyph->bitmap;
 
-		//int top = (texHeight - bitmap.rows);
 		int glyphHeight = (aFace->glyph->metrics.height >> 6);
 		int top = largestBearing - (aFace->glyph->metrics.horiBearingY >> 6);
-
-
-		// kerning?
-		if (h > 0)
-		{
-			FT_UInt prev;
-			prev = FT_Get_Char_Index(aFace, aText[h - 1]);
-			FT_UInt next = FT_Get_Char_Index(aFace, aText[h]);
-			FT_Vector delta;
-			FT_Get_Kerning(aFace, prev, next, FT_KERNING_DEFAULT, &delta);
-			xoffset += (delta.x >> 6) * TexturePixelSize;
-			int breakhere = 0;
-		}
-
-		xoffset += (aFace->glyph)->bitmap_left * TexturePixelSize;
+		
+		//xoffset += (aFace->glyph)->bitmap_left * TexturePixelSize;
 		int offset = xoffset + top*TextureWidth * TexturePixelSize;
 
 		for (unsigned int i = 0; i < bitmap.rows; i++)
@@ -72,7 +58,7 @@ std::vector<UINT8> FFontManager::GenerateTextureData(const FT_Face& aFace, const
 		}
 
 		// advance.x = whitespace before glyph + charWidth + whitespace after glyph, we already moved the whitespace before and the charWidth, so we move: advance.x - whiteSpace before (bitmap_left) = whitespace after glyph
-		xoffset += ((aFace->glyph)->advance.x >> 6) * TexturePixelSize - ((aFace->glyph)->bitmap_left * TexturePixelSize);
+		xoffset += ((aFace->glyph)->advance.x >> 6) * TexturePixelSize;// -((aFace->glyph)->bitmap_left * TexturePixelSize);
 	}
 
 	return data;
@@ -139,27 +125,15 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	FT_UInt prev;
 	FT_Error error;
 
-	error = FT_Set_Char_Size(myFontFaces[aType], 0, aSize * 32, 100, 100);
+	error = FT_Set_Char_Size(myFontFaces[aType], 0, aSize * 32, 1200, 1080);
 
 	// calculate buffer dimensions
 	for (int i = 0; i < allSupportedLength; i++)
 	{
 		error = FT_Load_Char(myFontFaces[aType], aSupportedChars[i], 0);
 		const char* errorString = getErrorMessage(error);
-
-		//// kerning?
-		// no kerning for atlas tex
-		/*	if (i > 0)
-		{
-		prev = FT_Get_Char_Index(myFontFaces[aType], aSupportedChars[i - 1]);
-		FT_UInt next = FT_Get_Char_Index(myFontFaces[aType], aSupportedChars[i]);
-		FT_Vector delta;
-		FT_Get_Kerning(myFontFaces[aType], prev, next, FT_KERNING_DEFAULT, &delta);
-		texWidth += delta.x >> 6;
-		int breakhere = 0;
-		}*/
-
-		int glyphWidth = (myFontFaces[aType]->glyph->advance.x >> 6);
+		
+		int glyphWidth = (myFontFaces[aType]->glyph->advance.x >> 6) - (myFontFaces[aType]->glyph)->bitmap_left;
 		texWidth += glyphWidth;
 		int glyphHeight = (myFontFaces[aType]->glyph->metrics.height >> 6);
 
@@ -173,7 +147,7 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	TextureWidth = texWidth;
 	TextureHeight = texHeight + 1; // some sizes require + 1 here in the past.. 
 
-								   // scale UVs
+	// scale UVs
 	for (int i = 0; i < allSupportedLength + 1; i++)
 	{
 		newFont.myUVs[i].x /= TextureWidth;
@@ -184,11 +158,6 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	newFont.myWidth = TextureWidth;
 	
 	std::vector<UINT8> texture = GenerateTextureData(myFontFaces[aType], aSupportedChars, newFont.myWidth, newFont.myHeight, wordLength, largestBearing);
-	
-
-	//
-	// You can do this with a temp commandlist i think
-	// so all you need is device, commandQueue and managerclass?
 	
 	// Describe and create a Texture2D.
 	D3D12_RESOURCE_DESC textureDesc = {};
@@ -258,7 +227,7 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 }
 
 
-std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut)
+FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning)
 {
 	unsigned int TextureWidth = 0;
 	unsigned int TextureHeight = 0;
@@ -267,18 +236,16 @@ std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFo
 	int texWidth = 0;
 	int texHeight = 0;
 
-	// setup uv+kerning buffers
-	std::vector<XMFLOAT4> uvs;	
-	uvs.resize(wordLength + 1);
-	std::vector<float> kernings;
-	kernings.resize(wordLength);
-
+	// setup word+kerning buffers
+	FWordInfo wordInfo;
+	wordInfo.myDimensions.resize(wordLength);
+	wordInfo.myUVTL.resize(wordLength+1);
+	wordInfo.myUVBR.resize(wordLength + 1);
+	wordInfo.myKerningOffset.resize(wordLength);
+	
 	FT_UInt prev;
 	FT_Error error;
 
-	error = FT_Set_Char_Size(myFontFaces[aFont.myType], 0, aFont.mySize * 32, 100, 100);
-
-	// check if user wants kerning, expensive to load char set and check (should store kerning data elsewhere maybe)
 	bool hasKerning = FT_HAS_KERNING(myFontFaces[aFont.myType]);
 		
 	// calculate kerning values and string dimension
@@ -286,22 +253,27 @@ std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFo
 	{
 		error = FT_Load_Char(myFontFaces[aFont.myType], aWord[i], 0);
 		const char* errorString = getErrorMessage(error);
+		
+		int glyphWidth = (myFontFaces[aFont.myType]->glyph->advance.x >> 6) - (myFontFaces[aFont.myType]->glyph)->bitmap_left;
 
 		// kerning
-		if (i > 0)
+		if (hasKerning && aUseKerning && i > 0)
 		{
 			prev = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i - 1]);
 			FT_UInt next = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i]);
 			FT_Vector delta;
 			FT_Error a = FT_Get_Kerning(myFontFaces[aFont.myType], prev, next, FT_KERNING_DEFAULT, &delta);
 			texWidth += delta.x >> 6;
-			kernings[i - 1] = (delta.x >> 6);
+			//glyphWidth += delta.x >> 6; // this would scale the glyph, we want to move it instead, pass kerning info back to drawer in wordInfo?
+			wordInfo.myKerningOffset[i - 1] = (delta.x >> 6);
 		}
 
-		int glyphWidth = (myFontFaces[aFont.myType]->glyph->advance.x >> 6);
 		texWidth += glyphWidth;
 		int glyphHeight = (myFontFaces[aFont.myType]->glyph->metrics.height >> 6);
 		texHeight = max(texHeight, glyphHeight);
+		
+		wordInfo.myDimensions[i].x = glyphWidth;
+		wordInfo.myDimensions[i].y = glyphHeight;
 	}
 
 	// write tex dimensions to the caller so it can be scaled however they want
@@ -323,11 +295,11 @@ std::vector<XMFLOAT4> FFontManager::GetUVsForWord(const FFontManager::FFont& aFo
 			}
 		}
 
-		uvs[i].x = aFont.myUVs[charIdx].x;// +(kernings[i] / aFont.myWidth); // move kerning to0 0-1 uv space
-		uvs[i].y = aFont.myUVs[charIdx].y;
-		uvs[i].z = aFont.myUVs[charIdx+1].x;// +(kernings[i] / aFont.myWidth); // move kerning to0 0-1 uv space
-		uvs[i].w = aFont.myUVs[charIdx+1].y;
+		wordInfo.myUVTL[i].x = aFont.myUVs[charIdx].x;
+		wordInfo.myUVTL[i].y = aFont.myUVs[charIdx].y;
+		wordInfo.myUVBR[i].x = aFont.myUVs[charIdx + 1].x;
+		wordInfo.myUVBR[i].y = aFont.myUVs[charIdx + 1].y;
 	}
 
-	return uvs;
+	return wordInfo;
 }

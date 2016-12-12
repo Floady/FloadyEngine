@@ -13,10 +13,11 @@
 #include "FDelegate.h"
 #include "FFontManager.h"
 
-FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* aText)
-	: m_viewport(),
-	m_scissorRect()
+FDynamicText::FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning)
 {
+	myManagerClass = aManager;
+	myUseKerning = aUseKerning;
+
 	m_ModelProjMatrix = nullptr;
 	m_vertexBuffer = nullptr;
 	
@@ -25,13 +26,6 @@ FDynamicText::FDynamicText(UINT width, UINT height, FVector3 aPos, const char* a
 	myPos.z = aPos.z;
 
 	myText = aText;
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
-	m_aspectRatio = (float)width / (float)height;
 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
@@ -41,23 +35,18 @@ FDynamicText::~FDynamicText()
 {
 }
 
-void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3DClass* aManager)
+void FDynamicText::Init()
 {
 	firstFrame = true;
-
-	m_device = aDevice;
-	myManagerClass = aManager;
-	m_commandAllocator = aCmdAllocator;
-	m_commandQueue = aCmdQueue;
+	
 	HRESULT hr;
-
 	{
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
 		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		if (FAILED(myManagerClass->GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
 		{
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 		}
@@ -90,7 +79,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		ID3DBlob* signature;
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
-		hr = aDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
+		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
 	}
 
 	SetShader();
@@ -102,7 +91,7 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
 		// over. Please read up on Default Heap usage. An upload heap is used here for 
 		// code simplicity and because there are very few verts to actually transfer.
-		hr = aDevice->CreateCommittedResource(
+		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * 128 * 6), // allocate enough for a max size string (128 characters)
@@ -118,12 +107,12 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
-		SetText("AT The Quick Brown Fox Jumped over the Lazy Dog");
+		SetText(myText);
 	}
 
 	// create constant buffer for modelviewproj
 	{
-		hr = aDevice->CreateCommittedResource(
+		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(256),
@@ -140,9 +129,9 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = m_ModelProjMatrix->GetGPUVirtualAddress();
 		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
-		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
-		aDevice->CreateConstantBufferView(cbvDesc, cbvHandle0);
+		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
+		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
 	
 	// create SRV to global font texture
@@ -155,24 +144,24 @@ void FDynamicText::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDe
 		srvDesc.Texture2D.MipLevels = 1;
 
 		// Get the size of the memory location for the render target view descriptors.
-		unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				
 		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
 		myHeapOffsetText = myManagerClass->GetNextOffset();
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-		aDevice->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
+		myManagerClass->GetDevice()->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
 		
 		m_commandList->Close();
 
 		// do we need this?
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
-		aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 	
 	skipNextRender = false;
 }
 
-void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator* aCmdAllocator, ID3D12CommandQueue* aCmdQueue, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle, ID3D12DescriptorHeap* anSRVHeap, FCamera* aCam)
+void FDynamicText::Render(ID3D12Resource* aRenderTarget, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, D3D12_CPU_DESCRIPTOR_HANDLE& aDSVHandle)
 {
 	if (skipNextRender)
 	{
@@ -183,27 +172,27 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 	HRESULT hr;
 
 	// copy modelviewproj data to gpu
-	memcpy(myConstantBufferPtr, aCam->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
-	hr = m_commandList->Reset(aCmdAllocator, m_pipelineState);
+	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
 	
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature);
 
 	// is this how we bind textures?
-	ID3D12DescriptorHeap* ppHeaps[] = { anSRVHeap };
+	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
 	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// Get the size of the memory location for the render target view descriptors.
-	unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE handle = anSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetAll;
 	m_commandList->SetGraphicsRootDescriptorTable(0, handle);
 	
 	// set viewport/scissor
-	m_commandList->RSSetViewports(1, &m_viewport);
-	m_commandList->RSSetScissorRects(1, &m_scissorRect);
+	m_commandList->RSSetViewports(1, &myManagerClass->GetViewPort());
+	m_commandList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(aRenderTarget, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
@@ -220,7 +209,7 @@ void FDynamicText::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator*
 	hr = m_commandList->Close();
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
-	aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
 void FDynamicText::SetText(const char * aNewText)
@@ -236,20 +225,8 @@ void FDynamicText::SetText(const char * aNewText)
 		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
 
 		float texWidth, texHeight;
-		std::vector<XMFLOAT4> uvs = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight);
+		FFontManager::FWordInfo wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
 		
-		// scale to viewport
-		float texWidthRescaled = (float)texWidth / m_viewport.Width; 
-		float texHeightRescaled = (float)texHeight / m_viewport.Width;
-
-		const float texMultiplierSize = 1.0f;
-		texWidthRescaled *= texMultiplierSize;
-		texHeightRescaled *= texMultiplierSize;
-
-		//half it
-		texWidthRescaled /= 2.0f;
-		texHeightRescaled /= 2.0f;
-
 		const float quadZ = 0.0f;
 		Vertex uvTL;
 		uvTL.uv.x = 0;
@@ -267,24 +244,29 @@ void FDynamicText::SetText(const char * aNewText)
 		{
 			// set uv's
 			uvTL.uv.y = 0;
-			uvTL.uv.x = uvs[i].x;
-			uvBR.uv.x = uvs[i].z;
+			uvTL.uv.x = wordInfo.myUVTL[i].x;
+			uvBR.uv.x = wordInfo.myUVBR[i].x;
 			uvBR.uv.y = 1;
 
-			float glyphWidth = 0.01;// (uvs[i + 1].x - uvs[i].x)*texWidth;
+			//why do we scale? should it be uniform or viewport? - viewproj matrix should handle viewport already
+			const float scale = 1000.0f;
+			float halfGlyphWidth = (wordInfo.myDimensions[i].x / scale) / 2.0f;
+			float halfGlyphHeight = (font.myHeight / scale) / 2.0f;
 
-			xoffset += glyphWidth; // move half
+			xoffset += halfGlyphWidth; // move half
+			xoffset += wordInfo.myKerningOffset[i] / scale;
 
 			// draw quad
-			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight , quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
 
-			triangleVertices[vtxIdx++] = { { xoffset - glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + glyphWidth, -texHeightRescaled * m_aspectRatio, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
 
-			xoffset += glyphWidth; // move half
+			xoffset += halfGlyphWidth; // move half
+			//xoffset += 0.1; //custom spacing
 		}
 
 		const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
@@ -323,15 +305,15 @@ void FDynamicText::SetShader()
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
-	HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
+	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 	
-	hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator, m_pipelineState, IID_PPV_ARGS(&m_commandList));
+	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
 
 	if (!firstFrame)
 	{
 		m_commandList->Close();
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
-		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
 	firstFrame = false;

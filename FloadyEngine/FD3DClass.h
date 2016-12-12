@@ -13,13 +13,25 @@ public:
 
 	bool Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen);
 	void Shutdown();
-	void SetCamera(FCamera* aCam) { myCamera = aCam;  }
+	void SetCamera(FCamera* aCam) { myCamera = aCam; }
+	FCamera* GetCamera() { return myCamera; }
 	bool Render();
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; }
 	
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
+	ID3D12CommandAllocator* GetCommandAllocator() { return m_commandAllocator; }
+	ID3D12DescriptorHeap* GetSRVHeap() { return m_srvHeap; }
+	ID3D12DescriptorHeap* GetRTVHeap() { return m_renderTargetViewHeap; }
+	D3D12_VIEWPORT& GetViewPort() { return m_viewport; }
+	D3D12_RECT& GetScissorRect() { return m_scissorRect; }
+	float GetAspectRatio() { return m_aspectRatio; }
+	ID3D12Device* GetDevice() { return m_device; }
+	ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue; }
 
 private:
+	D3D12_VIEWPORT m_viewport;
+	D3D12_RECT m_scissorRect;
+	float m_aspectRatio;
 	int m_videoCardMemory;
 	bool m_vsync_enabled;
 	ID3D12Device* m_device;

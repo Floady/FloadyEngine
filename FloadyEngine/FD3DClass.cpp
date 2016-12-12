@@ -9,6 +9,8 @@
 
 FD3DClass::FD3DClass()
 	: myShaderManager()
+	, m_viewport()
+	, m_scissorRect()
 {
 	m_device = 0;
 	m_commandQueue = 0;
@@ -41,6 +43,14 @@ static FDynamicText* myFontRenderer3 = nullptr;
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
+	m_viewport.Width = static_cast<float>(screenWidth);
+	m_viewport.Height = static_cast<float>(screenHeight);
+	m_viewport.MaxDepth = 1.0f;
+
+	m_scissorRect.right = static_cast<LONG>(screenWidth);
+	m_scissorRect.bottom = static_cast<LONG>(screenHeight);
+	m_aspectRatio = (float)screenWidth / (float)screenHeight;
+
 	D3D_FEATURE_LEVEL featureLevel;
 	HRESULT result;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc;
@@ -391,14 +401,14 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 
 	result = m_commandList->Reset(m_commandAllocator, m_pipelineState); // how do we deal with this.. passing commandlist around?
-	FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 150, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", m_device, m_commandQueue, this, m_commandList, m_srvHeap);
+	FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", m_device, m_commandQueue, this, m_commandList, m_srvHeap);
 
 	// test triangle
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
-	myFontRenderer2 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 0, 1.8), "Extra");
-	myFontRenderer3 = new FDynamicText(screenWidth, screenHeight, FVector3(0, 2, 0), "Extra22");
+	myFontRenderer2 = new FDynamicText(this, FVector3(0, 0, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+	myFontRenderer3 = new FDynamicText(this, FVector3(0, 0.35, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", false);
 
 	return true;
 }
@@ -452,9 +462,9 @@ bool FD3DClass::Render()
 	m_commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, &dsvHandle);
 
 	// Then set the color to clear the window to.
-	color[0] = 0.2;
-	color[1] = 0.2;
-	color[2] = 0.2;
+	color[0] = 0.0;
+	color[1] = 0.0;
+	color[2] = 0.0;
 	color[3] = 1.0;
 	m_commandList->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
 	
@@ -484,8 +494,8 @@ bool FD3DClass::Render()
 		//myTriangle->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap);
 		//myQuad->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig());
 		myFontRenderer->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
-		myFontRenderer2->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
-		myFontRenderer3->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
+		myFontRenderer2->Init();
+		myFontRenderer3->Init();
 		firstFrame = false;
 	}
 	else
@@ -503,9 +513,9 @@ bool FD3DClass::Render()
 		}
 		for (size_t i = 0; i < 1; i++)
 		{
-			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
+			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
 		}
-		myFontRenderer3->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
+		myFontRenderer3->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
 	}
 
 		
