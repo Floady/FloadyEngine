@@ -1,5 +1,5 @@
 #pragma once
-
+#include <assert.h>
 class FDelegate
 {
 public:
@@ -20,6 +20,7 @@ public:
 
 	void operator()() const
 	{
+		assert(stub_ptr && object_ptr);
 		return (*stub_ptr)(object_ptr);
 	}
 

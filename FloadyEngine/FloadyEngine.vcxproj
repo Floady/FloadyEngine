@@ -163,6 +163,7 @@
     <ClCompile Include="FDynamicText.cpp" />
     <ClCompile Include="FFontManager.cpp" />
     <ClCompile Include="FFontRenderer.cpp" />
+    <ClCompile Include="FJobSystem.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
     <ClCompile Include="FShaderManager.cpp" />
@@ -181,6 +182,7 @@
     <ClInclude Include="FDynamicText.h" />
     <ClInclude Include="FFontManager.h" />
     <ClInclude Include="FFontRenderer.h" />
+    <ClInclude Include="FJobSystem.h" />
     <ClInclude Include="FMatrix.h" />
     <ClInclude Include="FShaderManager.h" />
     <ClInclude Include="FTimer.h" />

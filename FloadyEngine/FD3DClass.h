@@ -27,8 +27,10 @@ public:
 	float GetAspectRatio() { return m_aspectRatio; }
 	ID3D12Device* GetDevice() { return m_device; }
 	ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue; }
+	void IncreaseInt();
 
 private:
+	volatile unsigned int myInt;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
 	float m_aspectRatio;

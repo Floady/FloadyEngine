@@ -6,6 +6,8 @@
 #include "FCamera.h"
 #include "FShaderManager.h"
 #include "FFontManager.h"
+#include "FJobSystem.h"
+#include "FTimer.h"
 
 FD3DClass::FD3DClass()
 	: myShaderManager()
@@ -29,17 +31,20 @@ FD3DClass::FD3DClass()
 
 	m_depthStencil = 0;
 	m_dsvHeap = 0;
+	
+	myInt = 0;
 }
 
 FD3DClass::~FD3DClass()
 {
 }
 
+const int DYNTEX_COUNT = 200;
 static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
 static FDynamicText* myFontRenderer2 = nullptr;
-static FDynamicText* myFontRenderer3 = nullptr;
+static FDynamicText* myDynamicText[DYNTEX_COUNT];
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
@@ -156,7 +161,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 	// Now go through all the display modes and find the one that matches the screen height and width.
 	// When a match is found store the numerator and denominator of the refresh rate for that monitor.
-	for (i = 0; i<numModes; i++)
+	for (i = 0; i < numModes; i++)
 	{
 		if (displayModeList[i].Height == (unsigned int)screenHeight)
 		{
@@ -290,7 +295,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	}
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 64;
+	srvHeapDesc.NumDescriptors = 64 * 64;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	result = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
@@ -337,7 +342,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	assert(result == S_OK && "ERROR CREATING THE DSV HEAP");
 
 	CD3DX12_RESOURCE_DESC depth_texture(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
-		static_cast< UINT >(screenWidth), static_cast< UINT >(screenHeight), 1, 1,
+		static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
 		DXGI_FORMAT_D32_FLOAT, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
 
@@ -360,7 +365,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	m_depthStencil->SetName(L"m_depthStencil");
 
 	// ~ SETUP DSV
-	
+
 	// Create a command allocator.
 	result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_commandAllocator);
 	if (FAILED(result))
@@ -407,8 +412,50 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
-	myFontRenderer2 = new FDynamicText(this, FVector3(0, 0, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	myFontRenderer3 = new FDynamicText(this, FVector3(0, 0.35f, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", false);
+	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+
+	for (int i = 0; i < DYNTEX_COUNT; i++)
+	{
+		myDynamicText[i] = new FDynamicText(this, FVector3(0, i * 0.35f, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+	}
+
+
+	// JOBsystem TEST
+	const int numRuns = 1024;
+	for (size_t j = 0; j < 10; j++)
+	{
+		myInt = 0;
+		FJobSystem* test = FJobSystem::GetInstance();
+		test->Pause();
+		test->ResetQueue();
+		for (size_t i = 0; i < numRuns; i++)
+		{
+			test->QueueJob(FDelegate::from_method<FD3DClass, &FD3DClass::IncreaseInt>(this));
+		}
+
+		FTimer timer;
+		test->UnPause();
+		
+		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
+
+		char buff[512];
+		sprintf_s(buff, "Jobs: myInt: %d  - %f [%zd]\n", myInt, timer.GetTimeMS(), j);
+		OutputDebugStringA(buff);
+	}
+	
+	{
+		myInt = 0;
+		FTimer timer;
+		for (size_t i = 0; i < numRuns; i++)
+		{
+			IncreaseInt();
+		}
+
+		char buff[512];
+		sprintf_s(buff, "MT: myInt: %d  - %f\n", myInt, timer.GetTimeMS());
+		OutputDebugStringA(buff);
+	}
+	// ~
 
 	return true;
 }
@@ -495,7 +542,12 @@ bool FD3DClass::Render()
 		//myQuad->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig());
 		myFontRenderer->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		myFontRenderer2->Init();
-		myFontRenderer3->Init();
+		
+		for (int i = 0; i < DYNTEX_COUNT; i++)
+		{
+			myDynamicText[i]->Init();
+		}
+
 		firstFrame = false;
 	}
 	else
@@ -511,11 +563,13 @@ bool FD3DClass::Render()
 			sprintf_s(buff, "%s %d\0", "lol: ", frameCounter);
 			myFontRenderer2->SetText(buff);
 		}
-		for (size_t i = 0; i < 1; i++)
+
+		for (int i = 0; i < DYNTEX_COUNT; i++)
 		{
-			myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
+			myDynamicText[i]->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
 		}
-		myFontRenderer3->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
+
+		myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
 	}
 
 		
@@ -562,6 +616,19 @@ bool FD3DClass::Render()
 	m_bufferIndex == 0 ? m_bufferIndex = 1 : m_bufferIndex = 0;
 
 	return true;
+}
+
+void FD3DClass::IncreaseInt()
+{
+	// do some actual work to test this (gets compiled out in release obviously)
+	for (size_t i = 0; i < 20; i++)
+	{
+		float x = 100;
+		x /= 2.0f;
+		x /= 2.0f;
+		x /= 2.0f;
+	}
+	InterlockedIncrement(&myInt);
 }
 
 void FD3DClass::Shutdown()
