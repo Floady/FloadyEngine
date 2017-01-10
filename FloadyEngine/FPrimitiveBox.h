@@ -10,7 +10,7 @@ using namespace DirectX;
 class FCamera;
 class FD3DClass;
 
-class FDynamicText
+class FPrimitiveBox
 {
 public:
 	struct Vertex
@@ -19,18 +19,15 @@ public:
 		XMFLOAT4 uv;
 	};
 
-	FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning);
-	~FDynamicText();
+	FPrimitiveBox(FD3DClass* aManager, FVector3 aPos);
+	~FPrimitiveBox();
 	void Init();
 	void Render();
-	void PopulateCommandList();
 	void PopulateCommandListAsync();
-	void SetText(const char* aNewText);
+	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
 
 private:
-	bool myUseKerning;
-
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12GraphicsCommandList* m_commandList;
@@ -44,7 +41,6 @@ private:
 	ID3D12Resource* m_ModelProjMatrix;
 	
 	FVector3 myPos;
-	const char* myText;
 	FD3DClass* myManagerClass;
 
 	int myHeapOffsetCBV;
@@ -52,7 +48,8 @@ private:
 	int myHeapOffsetAll;
 
 	UINT myWordLength;
-	
+	ID3D12Resource* m_texture;
+
 	bool skipNextRender;
 	bool firstFrame;
 };

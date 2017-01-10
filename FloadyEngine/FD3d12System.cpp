@@ -199,6 +199,9 @@ bool FD3d12System::Frame()
 	if (m_Input->IsKeyDown(83))
 	{
 		myCamera->Move(0, 0, -movSpeed);
+	}
+	if (m_Input->IsKeyDown(49))
+	{
 		m_Graphics->GetD3DClass()->GetShaderManager().ReloadShaders();
 	}
 	if (myIsFocussed)

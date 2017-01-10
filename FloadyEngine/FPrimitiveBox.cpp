@@ -1,4 +1,4 @@
-#include "FDynamicText.h"
+#include "FPrimitiveBox.h"
 #include "d3dx12.h"
 #include "FD3DClass.h"
 #include "FCamera.h"
@@ -7,11 +7,13 @@
 #include "FDelegate.h"
 #include "FFontManager.h"
 #include "FJobSystem.h"
+#include "FTextureManager.h"
 
-FDynamicText::FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning)
+extern std::vector<UINT8> GenerateTextureData2();
+
+FPrimitiveBox::FPrimitiveBox(FD3DClass* aManager, FVector3 aPos)
 {
 	myManagerClass = aManager;
-	myUseKerning = aUseKerning;
 
 	m_ModelProjMatrix = nullptr;
 	m_vertexBuffer = nullptr;
@@ -20,17 +22,15 @@ FDynamicText::FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
 
-	myText = aText;
-
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
 }
 
-FDynamicText::~FDynamicText()
+FPrimitiveBox::~FPrimitiveBox()
 {
 }
 
-void FDynamicText::Init()
+void FPrimitiveBox::Init()
 {
 	firstFrame = true;
 	
@@ -78,7 +78,7 @@ void FDynamicText::Init()
 	}
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload("shaders.hlsl", this, FDelegate::from_method<FDynamicText, &FDynamicText::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload("primitiveshader.hlsl", this, FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
 
 	// Create the vertex buffer.
 	{
@@ -102,7 +102,25 @@ void FDynamicText::Init()
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
-		SetText(myText);
+		const UINT vertexBufferSize = sizeof(Vertex) * 6;
+		m_vertexBufferView.SizeInBytes = vertexBufferSize;
+
+		// Create the vertex buffer.
+		{
+			float m_aspectRatio = 1.0f;
+			Vertex triangleVertices[] =
+			{
+				{ { -0.25f, 0.25f * m_aspectRatio, 0.0f, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { 0.25f, -0.25f * m_aspectRatio, 0.0f , 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
+				{ { -0.25f, -0.25f * m_aspectRatio, 0.0f , 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+
+				{ { -0.25f, 0.25f * m_aspectRatio, 0.0f, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { 0.25f, 0.25f * m_aspectRatio, 0.0f, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
+				{ { 0.25f, -0.25f * m_aspectRatio, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } }
+			};
+
+			memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
+		}
 	}
 
 	// create constant buffer for modelviewproj
@@ -141,11 +159,62 @@ void FDynamicText::Init()
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
-		myHeapOffsetText = myManagerClass->GetNextOffset();
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-		myManagerClass->GetDevice()->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
-		
+		// Get material
+
+		ID3D12Resource* textureUploadHeap;
+		// Create the texture.
+		{
+			// Describe and create a Texture2D.
+			D3D12_RESOURCE_DESC textureDesc = {};
+			textureDesc.MipLevels = 1;
+			textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			textureDesc.Width = 256;
+			textureDesc.Height = 256;
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			textureDesc.DepthOrArraySize = 1;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+			myManagerClass->GetDevice()->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&textureDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(&m_texture));
+
+			const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
+
+			// Create the GPU upload buffer.
+			myManagerClass->GetDevice()->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&textureUploadHeap));
+
+			// Copy data to the intermediate upload heap and then schedule a copy 
+			// from the upload heap to the Texture2D.
+
+			void* texture = FTextureManager::GetInstance()->GetTexture("testtexture2.png");
+			D3D12_SUBRESOURCE_DATA textureData = {};
+			textureData.pData = texture;
+			textureData.RowPitch = 256 * 4;
+			textureData.SlicePitch = textureData.RowPitch * 256;
+
+			UpdateSubresources(m_commandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+			// Get the size of the memory location for the render target view descriptors.
+			unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			myHeapOffsetText = myManagerClass->GetNextOffset();
+			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
+			myManagerClass->GetDevice()->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
+		}
+
 		m_commandList->Close();
 
 		// do we need this?
@@ -156,7 +225,7 @@ void FDynamicText::Init()
 	skipNextRender = false;
 }
 
-void FDynamicText::Render()
+void FPrimitiveBox::Render()
 {
 	if (skipNextRender)
 	{
@@ -164,168 +233,69 @@ void FDynamicText::Render()
 		return;
 	}
 
-	PopulateCommandList();
+	HRESULT hr;
+	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
+	PopulateCommandListInternal(m_commandList);
+	hr = m_commandList->Close();
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
-void FDynamicText::PopulateCommandList()
+void FPrimitiveBox::PopulateCommandListAsync()
 {
-	HRESULT hr;
-	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
-
-	// copy modelviewproj data to gpu
-	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
-
-	// Set necessary state.
-	m_commandList->SetGraphicsRootSignature(m_rootSignature);
-
-	// is this how we bind textures?
-	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-	// Get the size of the memory location for the render target view descriptors.
-	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += srvSize*myHeapOffsetAll;
-	m_commandList->SetGraphicsRootDescriptorTable(0, handle);
-
-	// set viewport/scissor
-	m_commandList->RSSetViewports(1, &myManagerClass->GetViewPort());
-	m_commandList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
-
-	// Indicate that the back buffer will be used as a render target.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-
-	// Record commands.
-	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->DrawInstanced(6 * myWordLength, 1, 0, 0);
-
-	// Indicate that the back buffer will now be used to present.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-	hr = m_commandList->Close();
-}
-
-void FDynamicText::PopulateCommandListAsync()
-{
-	HRESULT hr;
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
-	cmdList->SetPipelineState(m_pipelineState);
+	PopulateCommandListInternal(cmdList);
+}
+
+void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
+{
+	HRESULT hr;
+	aCmdList->SetPipelineState(m_pipelineState);
 
 	// copy modelviewproj data to gpu
 	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
 	// Set necessary state.
-	cmdList->SetGraphicsRootSignature(m_rootSignature);
+	aCmdList->SetGraphicsRootSignature(m_rootSignature);
 
 	// is this how we bind textures?
 	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetAll;
-	cmdList->SetGraphicsRootDescriptorTable(0, handle);
+	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
 
 	// set viewport/scissor
-	cmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
-	cmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
+	aCmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
+	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
 
 	// Record commands.
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
+	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	aCmdList->DrawInstanced(6 , 1, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-	// hr = m_commandList->Close(); // close on collector?
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 }
 
-void FDynamicText::SetText(const char * aNewText)
-{
-	myText = aNewText;
-	myWordLength = static_cast<UINT>(strlen(myText));
-
-	const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
-	m_vertexBufferView.SizeInBytes = vertexBufferSize;
-
-	// Create the vertex buffer.
-	{
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
-
-		float texWidth, texHeight;
-		FFontManager::FWordInfo wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
-		
-		const float quadZ = 0.0f;
-		Vertex uvTL;
-		uvTL.uv.x = 0;
-		uvTL.uv.y = 0;
-
-		Vertex uvBR;
-		uvBR.uv.x = 1;
-		uvBR.uv.y = 1;
-
-		Vertex* triangleVertices = new Vertex[myWordLength * 6];
-		float xoffset = 0.0f;
-
-		int vtxIdx = 0;
-		for (size_t i = 0; i < myWordLength; i++)
-		{
-			// set uv's
-			uvTL.uv.y = 0;
-			uvTL.uv.x = wordInfo.myUVTL[i].x;
-			uvBR.uv.x = wordInfo.myUVBR[i].x;
-			uvBR.uv.y = 1;
-
-			//why do we scale? should it be uniform or viewport? - viewproj matrix should handle viewport already
-			const float scale = 1000.0f;
-			float halfGlyphWidth = (wordInfo.myDimensions[i].x / scale) / 2.0f;
-			float halfGlyphHeight = (font.myHeight / scale) / 2.0f;
-
-			xoffset += halfGlyphWidth; // move half
-			xoffset += wordInfo.myKerningOffset[i] / scale;
-
-			// draw quad
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight , quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
-
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
-
-			xoffset += halfGlyphWidth; // move half
-			//xoffset += 0.1; //custom spacing
-		}
-
-		const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
-		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
-
-		delete[] triangleVertices;
-	}
-}
-
-void FDynamicText::SetShader()
+void FPrimitiveBox::SetShader()
 {	
 	skipNextRender = true;
 
 	// get shader ptr + layouts
-	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("shaders.hlsl");
+	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("primitiveshader.hlsl");
 
 	if(m_pipelineState)
 		m_pipelineState->Release();

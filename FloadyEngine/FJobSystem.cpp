@@ -1,6 +1,7 @@
 #include "FJobSystem.h"
 
-static int ourTestCounter = 0;
+static int ourWorkerThreadCounter = 0;
+thread_local int FJobSystem::ourThreadIdx = 0;
 DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 {
 	/*char buff[512];
@@ -8,6 +9,8 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 	OutputDebugStringA(buff);	*/
 
 	FJobSystem* jobSystem = (FJobSystem*)aJobSystem;
+
+	FJobSystem::ourThreadIdx = ourWorkerThreadCounter++;
 
 	// poll for jobs and execute
 	while (true)
@@ -137,7 +140,8 @@ FJobSystem::FJobSystem()
 	// careful to not recycle jobs that are being depended on, e.g checked for finish (waited)
 
 	// probably want numCPU -1, and set affinities so we operate on all cores at full power (high prio), no moving threads on cores
-	for (int i = 0; i < numCPU-1; i++)
+	myNrWorkerThreads = numCPU - 1;
+	for (int i = 0; i < myNrWorkerThreads; i++)
 	{
 		/*char buff[512];
 		sprintf_s(buff, "WORKERTHREAD\n");

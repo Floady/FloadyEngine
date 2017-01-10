@@ -102,13 +102,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\freetype-2.3.5\include;$(ProjectDir)\freetype-2.3.5\include\freetype</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\freetype-2.3.5\include;$(ProjectDir)\freetype-2.3.5\include\freetype;$(ProjectDir)\libpng1628\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)\freetype-2.3.5\lib\x64;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\um\x64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dxguid.lib;freetype27d.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)\freetype-2.3.5\lib\x64;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\um\x64;$(ProjectDir)\libpng1628\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libpng16.lib;dxguid.lib;freetype27d.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -138,15 +138,17 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\freetype-2.3.5\include;$(ProjectDir)\freetype-2.3.5\include\freetype</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\freetype-2.3.5\include;$(ProjectDir)\freetype-2.3.5\include\freetype;$(ProjectDir)\libpng1628\include</AdditionalIncludeDirectories>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\um\x64;$(ProjectDir)\freetype-2.3.5\lib\x64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dxguid.lib;freetype27.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.14393.0\um\x64;$(ProjectDir)\freetype-2.3.5\lib\x64;$(ProjectDir)\libpng1628\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libpng16.lib;dxguid.lib;freetype27.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -166,7 +168,9 @@
     <ClCompile Include="FJobSystem.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
+    <ClCompile Include="FPrimitiveBox.cpp" />
     <ClCompile Include="FShaderManager.cpp" />
+    <ClCompile Include="FTextureManager.cpp" />
     <ClCompile Include="FTimer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -184,7 +188,9 @@
     <ClInclude Include="FFontRenderer.h" />
     <ClInclude Include="FJobSystem.h" />
     <ClInclude Include="FMatrix.h" />
+    <ClInclude Include="FPrimitiveBox.h" />
     <ClInclude Include="FShaderManager.h" />
+    <ClInclude Include="FTextureManager.h" />
     <ClInclude Include="FTimer.h" />
     <ClInclude Include="FVector3.h" />
   </ItemGroup>

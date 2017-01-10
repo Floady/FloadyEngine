@@ -27,6 +27,8 @@ public:
 		volatile LONG myFinished;
 	};
 
+	static thread_local int ourThreadIdx;
+
 	FJobSystem();
 	~FJobSystem();
 	static FJobSystem* GetInstance();
@@ -37,12 +39,13 @@ public:
 	void UnPause() { myIsPaused = false; }
 	void Pause() { myIsPaused = true; }
 	bool IsPaused() { return myIsPaused; }
-
+	int GetNrWorkerThreads() { return myNrWorkerThreads; }
 private:
 	std::vector<FJob> myQueue;
 
 	volatile LONG myNextJobIndex;
 	volatile LONG myFreeIndex;
 	bool myIsPaused;
+	int myNrWorkerThreads;
 };
 

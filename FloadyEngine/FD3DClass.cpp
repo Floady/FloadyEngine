@@ -3,17 +3,22 @@
 #include "FD3d12Quad.h"
 #include "FFontRenderer.h"
 #include "FDynamicText.h"
+#include "FPrimitiveBox.h"
 #include "FCamera.h"
 #include "FShaderManager.h"
 #include "FFontManager.h"
 #include "FJobSystem.h"
+#include "FTextureManager.h"
 #include "FTimer.h"
+
+FD3DClass* FD3DClass::ourInstance = nullptr;
 
 FD3DClass::FD3DClass()
 	: myShaderManager()
 	, m_viewport()
 	, m_scissorRect()
 {
+	ourInstance = this;
 	m_device = 0;
 	m_commandQueue = 0;
 	m_swapChain = 0;
@@ -33,6 +38,8 @@ FD3DClass::FD3DClass()
 	m_dsvHeap = 0;
 	
 	myInt = 0;
+	
+	FTextureManager::GetInstance();
 }
 
 FD3DClass::~FD3DClass()
@@ -44,6 +51,7 @@ static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
 static FDynamicText* myFontRenderer2 = nullptr;
+static FPrimitiveBox* myBox = nullptr;
 static FDynamicText* myDynamicText[DYNTEX_COUNT];
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
@@ -70,8 +78,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	IDXGISwapChain* swapChain;
 	D3D12_DESCRIPTOR_HEAP_DESC renderTargetViewHeapDesc;
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle;
-
+	
 	// Store the vsync setting.
 	m_vsync_enabled = vsync;
 
@@ -305,7 +312,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Get a handle to the starting memory location in the render target view heap to identify where the render target views will be located for the two back buffers.
-	renderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
+	myRenderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// Get a pointer to the first back buffer from the swap chain.
 	result = m_swapChain->GetBuffer(0, __uuidof(ID3D12Resource), (void**)&m_backBufferRenderTarget[0]);
@@ -315,10 +322,10 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	}
 
 	// Create a render target view for the first back buffer.
-	m_device->CreateRenderTargetView(m_backBufferRenderTarget[0], NULL, renderTargetViewHandle);
+	m_device->CreateRenderTargetView(m_backBufferRenderTarget[0], NULL, myRenderTargetViewHandle);
 
 	// Increment the view handle to the next descriptor location in the render target view heap.
-	renderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
+	myRenderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
 
 	// Get a pointer to the second back buffer from the swap chain.
 	result = m_swapChain->GetBuffer(1, __uuidof(ID3D12Resource), (void**)&m_backBufferRenderTarget[1]);
@@ -328,7 +335,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	}
 
 	// Create a render target view for the second back buffer.
-	m_device->CreateRenderTargetView(m_backBufferRenderTarget[1], NULL, renderTargetViewHandle);
+	m_device->CreateRenderTargetView(m_backBufferRenderTarget[1], NULL, myRenderTargetViewHandle);
 
 	// Finally get the initial index to which buffer is the current back buffer.
 	m_bufferIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -373,11 +380,35 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		return false;
 	}
 
+	// command allocators for worker threads
+	int nrWorkerThreads = FJobSystem::GetInstance()->GetNrWorkerThreads();
+	m_workerThreadCmdAllocators = new ID3D12CommandAllocator*[nrWorkerThreads];
+	m_workerThreadCmdLists = new ID3D12GraphicsCommandList*[nrWorkerThreads];
+	for (int i = 0; i < nrWorkerThreads; i++)
+	{
+		result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_workerThreadCmdAllocators[i]);
+		if (FAILED(result))
+		{
+			return false;
+		}
+	}
+
 	// Create a basic command list.
 	result = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator, NULL, __uuidof(ID3D12GraphicsCommandList), (void**)&m_commandList);
 	if (FAILED(result))
 	{
 		return false;
+	}
+
+	// command lists for worker thread
+	for (int i = 0; i < nrWorkerThreads; i++)
+	{
+		result = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerThreadCmdAllocators[i], NULL, __uuidof(ID3D12GraphicsCommandList), (void**)&m_workerThreadCmdLists[i]);
+		if (FAILED(result))
+		{
+			return false;
+		}
+		result = m_workerThreadCmdLists[i]->Close(); // start closed
 	}
 
 	// Initially we need to close the command list during initialization as it is created in a recording state.
@@ -413,6 +444,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+	myBox = new FPrimitiveBox(this, FVector3(5, -1.0, 0));
 
 	for (int i = 0; i < DYNTEX_COUNT; i++)
 	{
@@ -466,7 +498,6 @@ bool FD3DClass::Render()
 {
 	HRESULT result;
 	D3D12_RESOURCE_BARRIER barrier;
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle;
 	unsigned int renderTargetViewDescriptorSize;
 	float color[4];
 	ID3D12CommandList* ppCommandLists[1];
@@ -497,23 +528,23 @@ bool FD3DClass::Render()
 	m_commandList->ResourceBarrier(1, &barrier);
 
 	// Get the render target view handle for the current back buffer.
-	renderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
+	myRenderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
 	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	if (m_bufferIndex == 1)
 	{
-		renderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
+		myRenderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
 	}
 
 	// Set the back buffer as the render target.
-	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart()); // shouldnt DSV be offsetted too (double buffering)?
-	m_commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, &dsvHandle);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	m_commandList->OMSetRenderTargets(1, &myRenderTargetViewHandle, FALSE, &dsvHandle);
 
 	// Then set the color to clear the window to.
 	color[0] = 0.0;
 	color[1] = 0.0;
 	color[2] = 0.0;
 	color[3] = 1.0;
-	m_commandList->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
+	m_commandList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
 	
 	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
 		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -540,8 +571,9 @@ bool FD3DClass::Render()
 	{
 		//myTriangle->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap);
 		//myQuad->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig());
-		myFontRenderer->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
+		myFontRenderer->Init(m_commandAllocator, m_device, myRenderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		myFontRenderer2->Init();
+		myBox->Init();
 		
 		for (int i = 0; i < DYNTEX_COUNT; i++)
 		{
@@ -554,7 +586,47 @@ bool FD3DClass::Render()
 	{
 		//myTriangle->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		//myQuad->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
-		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
+
+
+		//// TRY async render..
+		// WaitForPrevious -> Reset Cmd Allocator -> Reset Cmd List -> Record on workerthread -> execute on MT (so probably you give it a resetted Cmd list)
+
+		//*
+		FJobSystem* test = FJobSystem::GetInstance();
+		int nrWorkerThreads = test->GetNrWorkerThreads();
+		for (int i = 0; i < nrWorkerThreads; i++)
+		{
+			m_workerThreadCmdAllocators[i]->Reset();
+			m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+		}
+
+		test->Pause();
+		test->ResetQueue();
+		for (size_t i = 0; i < DYNTEX_COUNT; i++)
+		{
+			test->QueueJob(FDelegate::from_method<FDynamicText, &FDynamicText::PopulateCommandListAsync>(myDynamicText[i]));
+		}
+
+
+		test->UnPause();
+
+		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
+
+		for (int i = 0; i < nrWorkerThreads; i++)
+		{
+			m_workerThreadCmdLists[i]->Close();
+			ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
+			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+		}
+		/*/
+		for (int i = 0; i < DYNTEX_COUNT; i++)
+		{
+			myDynamicText[i]->Render();
+		}
+		//*/
+
+		//~ async render
+		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, myRenderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
 
 		// show frame counter for dynamic text testing
 		{
@@ -564,12 +636,9 @@ bool FD3DClass::Render()
 			myFontRenderer2->SetText(buff);
 		}
 
-		for (int i = 0; i < DYNTEX_COUNT; i++)
-		{
-			myDynamicText[i]->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
-		}
 
-		myFontRenderer2->Render(m_backBufferRenderTarget[m_bufferIndex], renderTargetViewHandle, dsvHandle);
+		myFontRenderer2->Render();
+		myBox->Render();
 	}
 
 		
