@@ -34,9 +34,13 @@ private:
 	
 	UINT8* myConstantBufferPtr;
 	UINT8* pVertexDataBegin;
+	UINT8* pIndexDataBegin;
 
 	ID3D12Resource* m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	
+	ID3D12Resource* m_indexBuffer;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	ID3D12Resource* m_ModelProjMatrix;
 	

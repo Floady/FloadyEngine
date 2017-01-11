@@ -32,6 +32,7 @@ FD3DClass::FD3DClass()
 	m_fenceEvent = 0;
 
 	myCurrentHeapOffset = 0;
+	myCurrentRTVHeapOffset = 0;
 	myCamera = nullptr;
 
 	m_depthStencil = 0;
@@ -290,7 +291,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	ZeroMemory(&renderTargetViewHeapDesc, sizeof(renderTargetViewHeapDesc));
 
 	// Set the number of descriptors to two for our two back buffers.  Also set the heap tyupe to render target views.
-	renderTargetViewHeapDesc.NumDescriptors = 2;
+	renderTargetViewHeapDesc.NumDescriptors = 2 + Gbuffer_count; // 2 backbuffers
 	renderTargetViewHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	renderTargetViewHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -301,18 +302,47 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		return false;
 	}
 
+	myCurrentRTVHeapOffset = 2; // offset for backbuffers
+
+	// Get the size of the memory location for the render target view descriptors.
+	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.NumDescriptors = 64 * 64;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	result = m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
 
-
-	// Get the size of the memory location for the render target view descriptors.
-	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
 	// Get a handle to the starting memory location in the render target view heap to identify where the render target views will be located for the two back buffers.
 	myRenderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
+
+	// GBuffer init
+	{
+		for (size_t i = 0; i < Gbuffer_count; i++)
+		{
+			CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
+				static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
+				DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+				D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+			D3D12_CLEAR_VALUE clear_value;
+			clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			clear_value.Color[0] = 1.0f;
+			clear_value.Color[1] = 1.0f;
+			clear_value.Color[2] = 1.0f;
+			clear_value.Color[3] = 1.0f;
+
+			result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clear_value,
+				IID_PPV_ARGS(&m_gbuffer[i]));
+
+			m_gbufferViews[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
+			m_device->CreateRenderTargetView(m_gbuffer[i], NULL, m_gbufferViews[i]);
+
+			myCurrentRTVHeapOffset++;
+			assert(result == S_OK && "CREATING GBUFFER FAILED");
+		}
+	}
 
 	// Get a pointer to the first back buffer from the swap chain.
 	result = m_swapChain->GetBuffer(0, __uuidof(ID3D12Resource), (void**)&m_backBufferRenderTarget[0]);

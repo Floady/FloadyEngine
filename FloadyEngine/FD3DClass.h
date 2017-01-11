@@ -8,6 +8,14 @@ class FCamera;
 class FD3DClass
 {
 public:
+	enum GbufferType
+	{
+		Gbuffer_color = 0,
+		Gbuffer_normals,
+		Gbuffer_specular,
+		Gbuffer_count
+	};
+
 	FD3DClass();
 	~FD3DClass();
 
@@ -18,7 +26,7 @@ public:
 	void SetCamera(FCamera* aCam) { myCamera = aCam; }
 	FCamera* GetCamera() { return myCamera; }
 	bool Render();
-	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; }
+	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV heap
 	
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
 	ID3D12CommandAllocator* GetCommandAllocator() { return m_commandAllocator; }
@@ -33,6 +41,7 @@ public:
 	ID3D12Resource* GetRenderTarget() { return m_backBufferRenderTarget[m_bufferIndex]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetRTVHandle() { return myRenderTargetViewHandle; }
+	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandle(int anIdx) { return m_gbufferViews[anIdx]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetDSVHandle() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
 	ID3D12CommandAllocator* GetCommandAllocatorForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdAllocators[aWorkerThreadId]; }
 	ID3D12GraphicsCommandList* GetCommandListForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdLists[aWorkerThreadId]; }
@@ -68,8 +77,12 @@ private:
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
 
+	ID3D12Resource* m_gbuffer[Gbuffer_count];
+	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViews[Gbuffer_count];
+
 	FCamera* myCamera;
 	int myCurrentHeapOffset; //for SRV CBV UAV heap
+	int myCurrentRTVHeapOffset; //for RTV heap
 
 	FShaderManager myShaderManager;
 };
