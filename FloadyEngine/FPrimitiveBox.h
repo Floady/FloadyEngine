@@ -16,6 +16,7 @@ public:
 	struct Vertex
 	{
 		DirectX::XMFLOAT4 position;
+		XMFLOAT4 normal;
 		XMFLOAT4 uv;
 	};
 
@@ -23,13 +24,16 @@ public:
 	~FPrimitiveBox();
 	void Init();
 	void Render();
+	void RenderShadows();
 	void PopulateCommandListAsync();
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
+	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
 
 private:
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12PipelineState* m_pipelineState;
+	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
 	UINT8* myConstantBufferPtr;

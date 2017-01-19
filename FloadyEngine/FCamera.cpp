@@ -18,7 +18,10 @@ FCamera::FCamera(float aWidth, float aHeight)
 		fovAngleY /= aspectRatio;
 
 	// near + far set here
-	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 0.01f, 18.0f);
+	// Flipping near and far makes depth precision way better but the object dissapears sooner o.0 - also still has artifacts anyway
+	//myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 1.0f, 100.0f);
+	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 100.0f, 0.01f);
+	XMStoreFloat4x4(&myProjMatrixFloatVersion, myProjMatrix);
 	UpdateViewProj();
 }
 
@@ -55,7 +58,7 @@ void FCamera::Pitch(float angle)
 	myPitch += angle;
 }
 
-XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
+XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose /*= true*/)
 {
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
@@ -67,15 +70,17 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z)
 	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
 	vAt += eye;
 
-	XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 1));
 
+	XMMATRIX _tempviewProjMatrix;
+	
 	// combine
-	XMMATRIX _viewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix);
+	_tempviewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
 	
 	XMFLOAT4X4 ret;
 	// store
-	XMStoreFloat4x4(&ret, _viewProjMatrix);
+	XMStoreFloat4x4(&ret, _tempviewProjMatrix);
 
 	return ret;
 }
@@ -95,14 +100,16 @@ void FCamera::UpdateViewProj()
 	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
 	vAt += eye;
 
-	XMMATRIX _tviewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(0, 0, 0, 0)); // ? wtf 
-	XMStoreFloat4x4(&viewMatrix, offset);
-	XMMATRIX _viewMatrix = XMMatrixMultiply(offset, _tviewMatrix);
+	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 
 	// combine with stored projection matrix
-	XMMATRIX _viewProjMatrix = XMMatrixMultiply(myProjMatrix, (_viewMatrix));
+	_viewProjMatrix = XMMatrixMultiply(_viewMatrix, myProjMatrix);
+	XMMATRIX _viewProjMatrix2 = _viewMatrix * myProjMatrix;
+
+	XMMATRIX invProj = _viewProjMatrix;
+	invProj = XMMatrixInverse(nullptr, invProj);
 
 	// store
-	XMStoreFloat4x4(&myViewProjMatrix, _viewProjMatrix);
+	XMStoreFloat4x4(&myViewProjMatrix, (_viewProjMatrix));
+	XMStoreFloat4x4(&myInvViewProjMatrix, XMMatrixTranspose(invProj)); // this one is for hlsl
 }

@@ -30,6 +30,7 @@ FPrimitiveBox::FPrimitiveBox(FD3DClass* aManager, FVector3 aPos)
 	myPos.z = aPos.z;
 
 	m_pipelineState = nullptr;
+	m_pipelineStateShadows = nullptr;
 	m_commandList = nullptr;
 }
 
@@ -111,9 +112,9 @@ void FPrimitiveBox::Init()
 
 		// Create the vertex buffer.
 		{
-			float width = 2.0f;
-			float height = 2.0f;
-			float depth = 2.0f;
+			float width = 1.0f;
+			float height = 1.0f;
+			float depth = 1.0f;
 
 			float w2 = 0.5f*width;
 			float h2 = 0.5f*height;
@@ -123,35 +124,35 @@ void FPrimitiveBox::Init()
 			
 			Vertex triangleVertices[] =
 			{
-				{ { -w2, -h2, -d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { -w2, +h2, -d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, -d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, -h2, -d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
-
-				{ { -w2, -h2, +d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
-				{ { +w2, -h2, +d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, +d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { -w2, +h2, +d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-
-				{ { -w2, +h2, -d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { -w2, +h2, +d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, +d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, -d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
-
-				{ { -w2, -h2, -d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
-				{ { +w2, -h2, -d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { +w2, -h2, +d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { -w2, -h2, +d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-
-				{ { -w2, -h2, +d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { -w2, +h2, +d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { -w2, +h2, -d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-				{ { -w2, -h2, -d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } },
-
-				{ { +w2, -h2, -d2, 1.0f },{ 0.0f, 1.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, -d2, 1.0f },{ 0.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, +h2, +d2, 1.0f },{ 1.0f, 0.0f, 0.0f, 0.0f } },
-				{ { +w2, -h2, +d2, 1.0f },{ 1.0f, 1.0f, 0.0f, 0.0f } }
+				{ { -w2, -h2, -d2, 1.0f }, { 0, 0, -1, 0}, { 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { -w2, +h2, -d2, 1.0f }, { 0, 0, -1, 0}, { 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, -d2, 1.0f }, { 0, 0, -1, 0}, { 1.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, -h2, -d2, 1.0f }, { 0, 0, -1, 0}, { 1.0f, 1.0f, 0.0f, 0.0f } },
+										   
+				{ { -w2, -h2, +d2, 1.0f }, { 0, 0, 1, 0 },{ 1.0f, 1.0f, 0.0f, 0.0f } },
+				{ { +w2, -h2, +d2, 1.0f },{ 0, 0, 1, 0 },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, +d2, 1.0f },{ 0, 0, 1, 0 },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { -w2, +h2, +d2, 1.0f },{ 0, 0, 1, 0 }, { 1.0f, 0.0f, 0.0f, 0.0f } },
+										   
+				{ { -w2, +h2, -d2, 1.0f }, { 0, 1, 0, 0 },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { -w2, +h2, +d2, 1.0f },{ 0, 1, 0, 0 },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, +d2, 1.0f },{ 0, 1, 0, 0 },{ 1.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, -d2, 1.0f },{ 0, 1, 0, 0 }, { 1.0f, 1.0f, 0.0f, 0.0f } },
+										   
+				{ { -w2, -h2, -d2, 1.0f }, { 0, -1, 0,  0 },{ 1.0f, 1.0f, 0.0f, 0.0f } },
+				{ { +w2, -h2, -d2, 1.0f },{ 0, -1, 0,  0 },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { +w2, -h2, +d2, 1.0f },{ 0, -1, 0,  0 },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { -w2, -h2, +d2, 1.0f },{ 0, -1, 0,  0 }, { 1.0f, 0.0f, 0.0f, 0.0f } },
+										   
+				{ { -w2, -h2, +d2, 1.0f }, { -1, 0, 0, 0 },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { -w2, +h2, +d2, 1.0f },{ -1, 0, 0, 0 },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { -w2, +h2, -d2, 1.0f },{ -1, 0, 0, 0 },{ 1.0f, 0.0f, 0.0f, 0.0f } },
+				{ { -w2, -h2, -d2, 1.0f },{ -1, 0, 0, 0 }, { 1.0f, 1.0f, 0.0f, 0.0f } },
+										   
+				{ { +w2, -h2, -d2, 1.0f }, { 1, 0, 0,0 },{ 0.0f, 1.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, -d2, 1.0f },{ 1, 0, 0,0 },{ 0.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, +h2, +d2, 1.0f },{ 1, 0, 0,0 },{ 1.0f, 0.0f, 0.0f, 0.0f } },
+				{ { +w2, -h2, +d2, 1.0f },{ 1, 0, 0,0 }, { 1.0f, 1.0f, 0.0f, 0.0f } }
 			};
 
 			const UINT vertexBufferSize = sizeof(Vertex) * _countof(triangleVertices);
@@ -310,6 +311,22 @@ void FPrimitiveBox::Render()
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
+void FPrimitiveBox::RenderShadows()
+{
+	if (skipNextRender)
+	{
+		return;
+	}
+
+	HRESULT hr;
+	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineStateShadows);
+	PopulateCommandListInternalShadows(m_commandList);
+	hr = m_commandList->Close();
+
+	ID3D12CommandList* ppCommandLists[] = { m_commandList };
+	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+}
+
 void FPrimitiveBox::PopulateCommandListAsync()
 {
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
@@ -324,6 +341,13 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 	// copy modelviewproj data to gpu
 	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+
+#if DEFERRED
+	for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
+	{
+		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
+#endif
 
 	// Set necessary state.
 	aCmdList->SetGraphicsRootSignature(m_rootSignature);
@@ -350,8 +374,8 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	//D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
 	//aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
 #if DEFERRED
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetRTVHandle(), myManagerClass->GetGBufferHandle(0) };
-	aCmdList->OMSetRenderTargets(2, rtvHandles, FALSE, &dsvHeap);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
+	aCmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
 #else
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
 	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
@@ -365,6 +389,62 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 	// Indicate that the back buffer will now be used to present.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+
+#if DEFERRED
+	for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
+	{
+		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+#endif
+}
+
+void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
+{
+	HRESULT hr;
+	aCmdList->SetPipelineState(m_pipelineStateShadows);
+
+	// copy modelviewproj data to gpu
+	float lightpos[3] = { 8.0, 0, 3.0 };
+	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(lightpos[0], lightpos[1], lightpos[2]).m, sizeof(XMFLOAT4X4));
+
+	//aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_Shadow), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	// Set necessary state.
+	aCmdList->SetGraphicsRootSignature(m_rootSignature);
+
+	// is this how we bind textures?
+	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
+	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	// Get the size of the memory location for the render target view descriptors.
+	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += srvSize*myHeapOffsetAll;
+	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
+
+	// set viewport/scissor
+	aCmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
+	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
+
+	// Indicate that the back buffer will be used as a render target.
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
+	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+
+	// Record commands.
+	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	aCmdList->IASetIndexBuffer(&m_indexBufferView);
+	aCmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+
+	// Indicate that the back buffer will now be used to present.
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	//aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_Shadow), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
 void FPrimitiveBox::SetShader()
@@ -373,9 +453,13 @@ void FPrimitiveBox::SetShader()
 
 	// get shader ptr + layouts
 	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("primitiveshader_deferred.hlsl");
+	FShaderManager::FShader shaderShadows = myManagerClass->GetShaderManager().GetShader("primitiveshader_deferredShadows.hlsl");
 
-	if(m_pipelineState)
+	if (m_pipelineState)
 		m_pipelineState->Release();
+
+	if (m_pipelineStateShadows)
+		m_pipelineStateShadows->Release();
 
 	if (m_commandList)
 		m_commandList->Release();
@@ -389,12 +473,15 @@ void FPrimitiveBox::SetShader()
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 #if DEFERRED
-	psoDesc.NumRenderTargets = 2;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
+	for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+	{
+		psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
+	}
 #else
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -402,10 +489,28 @@ void FPrimitiveBox::SetShader()
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
+	// Describe and create the graphics pipeline state object (PSO).
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDescShadows = {};
+	psoDescShadows.InputLayout = { &shader.myInputElementDescs[0], (UINT)shader.myInputElementDescs.size() };
+	psoDescShadows.pRootSignature = m_rootSignature;
+	psoDescShadows.VS = CD3DX12_SHADER_BYTECODE(shader.myVertexShader);
+	psoDescShadows.PS = CD3DX12_SHADER_BYTECODE(shader.myPixelShader);
+	psoDescShadows.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDescShadows.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	psoDescShadows.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDescShadows.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+	psoDescShadows.SampleMask = UINT_MAX;
+	psoDescShadows.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDescShadows.NumRenderTargets = 1;
+	psoDescShadows.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDescShadows.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	psoDescShadows.SampleDesc.Count = 1;
+
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
+	hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDescShadows, IID_PPV_ARGS(&m_pipelineStateShadows));
 	
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
-
+	m_commandList->SetName(L"PrimitiveBox");
 	if (!firstFrame)
 	{
 		m_commandList->Close();

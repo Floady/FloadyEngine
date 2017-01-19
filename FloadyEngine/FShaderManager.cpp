@@ -32,6 +32,27 @@ namespace
 
 		return convertedString;
 	}
+
+
+
+	void OutputShaderErrorMessage(ID3D10Blob* errorMessage)
+	{
+		char* compileErrors;
+		size_t bufferSize;
+
+		// Get a pointer to the error message text buffer.
+		compileErrors = (char*)(errorMessage->GetBufferPointer());
+
+		// Get the length of the message.
+		bufferSize = errorMessage->GetBufferSize();
+		OutputDebugStringA(compileErrors);
+		
+		// Release the error message.
+		errorMessage->Release();
+		errorMessage = 0;
+
+		return;
+	}
 }
 
 FShaderManager::FShaderManager()
@@ -82,9 +103,15 @@ void FShaderManager::ReloadShaders()
 #endif
 			std::wstring mywstring(data.cFileName);
 			std::wstring concatted_stdstr = L"Shaders//" + mywstring;
-			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
-			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
-
+			ID3DBlob* errorMessage = nullptr;
+			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorMessage);
+			if(errorMessage)
+				OutputShaderErrorMessage(errorMessage);
+			errorMessage = nullptr;
+			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorMessage);
+			if (errorMessage)
+				OutputShaderErrorMessage(errorMessage);
+			errorMessage = nullptr;
 
 			ID3D12ShaderReflection* lVertexShaderReflection = nullptr;
 			HRESULT hr = D3DReflect(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize(), IID_ID3D12ShaderReflection, (void**)&lVertexShaderReflection);

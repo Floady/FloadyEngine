@@ -12,9 +12,11 @@ public:
 	{
 		Gbuffer_color = 0,
 		Gbuffer_normals,
-		Gbuffer_specular,
+		Gbuffer_Depth,
+		Gbuffer_Shadow,
 		Gbuffer_count
 	};
+	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT };
 
 	FD3DClass();
 	~FD3DClass();
@@ -39,16 +41,20 @@ public:
 	ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue; }
 	void IncreaseInt();
 	ID3D12Resource* GetRenderTarget() { return m_backBufferRenderTarget[m_bufferIndex]; }
+	ID3D12Resource* GetGBufferTarget(int i) { return m_gbuffer[i]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetRTVHandle() { return myRenderTargetViewHandle; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandle(int anIdx) { return m_gbufferViews[anIdx]; }
+	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandleSRV(int anIdx) { return m_gbufferViewsSRV[anIdx]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetDSVHandle() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
+	D3D12_CPU_DESCRIPTOR_HANDLE& GetShadowMapHandle() { return myShadowMapViewHandle; }
 	ID3D12CommandAllocator* GetCommandAllocatorForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdAllocators[aWorkerThreadId]; }
 	ID3D12GraphicsCommandList* GetCommandListForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdLists[aWorkerThreadId]; }
 
 private:
 	static FD3DClass* ourInstance;
 	D3D12_CPU_DESCRIPTOR_HANDLE myRenderTargetViewHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowMapViewHandle;
 	volatile unsigned int myInt;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
@@ -61,7 +67,6 @@ private:
 	IDXGISwapChain3* m_swapChain;
 	ID3D12DescriptorHeap* m_renderTargetViewHeap;
 	ID3D12Resource* m_backBufferRenderTarget[2];
-	ID3D12Resource* myGBuffer[4]; // position, diffuse, normal, texcoord
 	unsigned int m_bufferIndex;
 	ID3D12CommandAllocator* m_commandAllocator;
 	ID3D12CommandAllocator** m_workerThreadCmdAllocators;
@@ -76,9 +81,11 @@ private:
 	ID3D12DescriptorHeap* m_srvHeap; // shader resource view
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
+	ID3D12Resource* myShadowMap;
 
 	ID3D12Resource* m_gbuffer[Gbuffer_count];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViews[Gbuffer_count];
+	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViewsSRV[Gbuffer_count];
 
 	FCamera* myCamera;
 	int myCurrentHeapOffset; //for SRV CBV UAV heap

@@ -194,6 +194,15 @@
     <ClInclude Include="FTimer.h" />
     <ClInclude Include="FVector3.h" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\lightshader.hlsl" />
+    <FxCompile Include="Shaders\lightshader_firstworkingbackup.hlsl" />
+    <FxCompile Include="Shaders\primitiveshader.hlsl" />
+    <FxCompile Include="Shaders\primitiveshader_deferred.hlsl" />
+    <FxCompile Include="Shaders\primitiveshader_deferredShadows.hlsl" />
+    <FxCompile Include="Shaders\shaders.hlsl" />
+    <FxCompile Include="Shaders\xxxxxshaders.hlsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

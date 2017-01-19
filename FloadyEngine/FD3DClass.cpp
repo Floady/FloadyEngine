@@ -47,12 +47,13 @@ FD3DClass::~FD3DClass()
 {
 }
 
-const int DYNTEX_COUNT = 200;
+const int DYNTEX_COUNT = 1;
 static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
 static FDynamicText* myFontRenderer2 = nullptr;
 static FPrimitiveBox* myBox = nullptr;
+static FPrimitiveBox* myFloor = nullptr;
 static FDynamicText* myDynamicText[DYNTEX_COUNT];
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
@@ -322,24 +323,34 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		{
 			CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 				static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
-				DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+				gbufferFormat[i], 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
 				D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 			D3D12_CLEAR_VALUE clear_value;
-			clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			clear_value.Color[0] = 1.0f;
-			clear_value.Color[1] = 1.0f;
-			clear_value.Color[2] = 1.0f;
+			clear_value.Format = gbufferFormat[i];
+			clear_value.Color[0] = 0.0f;
+			clear_value.Color[1] = 0.0f;
+			clear_value.Color[2] = 0.0f;
 			clear_value.Color[3] = 1.0f;
 
 			result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clear_value,
 				IID_PPV_ARGS(&m_gbuffer[i]));
+			m_gbuffer[i]->SetName(L"Gbuffer");
+			// Describe and create a SRV for the texture.
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = gbufferFormat[i];
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
 
 			m_gbufferViews[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
+			m_gbufferViewsSRV[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 			m_device->CreateRenderTargetView(m_gbuffer[i], NULL, m_gbufferViews[i]);
+			m_device->CreateShaderResourceView(m_gbuffer[i], &srvDesc, m_gbufferViewsSRV[i]);
 
 			myCurrentRTVHeapOffset++;
+			myCurrentHeapOffset++;
 			assert(result == S_OK && "CREATING GBUFFER FAILED");
 		}
 	}
@@ -372,7 +383,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 	// SETUP Depth Stencil View
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 2; // 1 or 2? is this double buffered
+	dsvHeapDesc.NumDescriptors = 2; // how many depth buffers you need? (1 depth, 1 shadow) 
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	result = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap));
@@ -380,12 +391,12 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 	CD3DX12_RESOURCE_DESC depth_texture(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 		static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
-		DXGI_FORMAT_D32_FLOAT, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+		DXGI_FORMAT_R32_TYPELESS, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
 	D3D12_CLEAR_VALUE clear_value;
 	clear_value.Format = DXGI_FORMAT_D32_FLOAT;
-	clear_value.DepthStencil.Depth = 1.0f;
+	clear_value.DepthStencil.Depth = 0.0f;
 	clear_value.DepthStencil.Stencil = 0;
 
 	result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -393,14 +404,33 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		IID_PPV_ARGS(&m_depthStencil));
 	assert(result == S_OK && "CREATING THE DEPTH STENCIL FAILED");
 
+	result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE, &depth_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value,
+		IID_PPV_ARGS(&myShadowMap));
+	assert(result == S_OK && "CREATING THE SHADOW MAP FAILED");
+
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	
+	D3D12_CPU_DESCRIPTOR_HANDLE depth_handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	myShadowMapViewHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
+	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, depth_handle);
+	m_device->CreateDepthStencilView(myShadowMap, &dsvDesc, myShadowMapViewHandle); // you cna bind these straight into the gbuffer handles (currently we rebind the gbuffer views to these resources and leave the 2 targets unused
 	m_depthStencil->SetName(L"m_depthStencil");
+	myShadowMap->SetName(L"shadow map");
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = gbufferFormat[Gbuffer_Depth];
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+//	m_gbufferViewsSRV[Gbuffer_Depth] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	m_device->CreateShaderResourceView(m_depthStencil, &srvDesc, m_gbufferViewsSRV[Gbuffer_Depth]); // Depth tex has better precision than my custom one :(
+	m_device->CreateShaderResourceView(myShadowMap, &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]); 
+//	myCurrentHeapOffset++;
 	// ~ SETUP DSV
 
 	// Create a command allocator.
@@ -465,16 +495,17 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	// Initialize the starting fence value. 
 	m_fenceValue = 1;
 
+	myQuad = new FD3d12Quad(this, FVector3(10, 0, 0));
 
 	result = m_commandList->Reset(m_commandAllocator, m_pipelineState); // how do we deal with this.. passing commandlist around?
 	FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", m_device, m_commandQueue, this, m_commandList, m_srvHeap);
 
 	// test triangle
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
-	myQuad = new FD3d12Quad(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	myBox = new FPrimitiveBox(this, FVector3(5, -1.0, 0));
+	myBox = new FPrimitiveBox(this, FVector3(0, 0.0, 3.0f));
+	myFloor = new FPrimitiveBox(this, FVector3(2.0, 0.0, 3.0f));
 
 	for (int i = 0; i < DYNTEX_COUNT; i++)
 	{
@@ -575,9 +606,16 @@ bool FD3DClass::Render()
 	color[2] = 0.0;
 	color[3] = 1.0;
 	m_commandList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
-	
+
+	for (int i = 0; i < Gbuffer_count; i++)
+	{
+		m_commandList->ClearRenderTargetView(m_gbufferViews[i], color, 0, NULL);
+	}
+
 	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
-		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+	m_commandList->ClearDepthStencilView(myShadowMapViewHandle,
+		D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
 
 	// Indicate that the back buffer will now be used to present.
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -600,10 +638,11 @@ bool FD3DClass::Render()
 	if (firstFrame)
 	{
 		//myTriangle->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap);
-		//myQuad->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig());
+		myQuad->Init();
 		myFontRenderer->Init(m_commandAllocator, m_device, myRenderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		myFontRenderer2->Init();
 		myBox->Init();
+		myFloor->Init();
 		
 		for (int i = 0; i < DYNTEX_COUNT; i++)
 		{
@@ -615,8 +654,7 @@ bool FD3DClass::Render()
 	else
 	{
 		//myTriangle->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
-		//myQuad->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
-
+		
 
 		//// TRY async render..
 		// WaitForPrevious -> Reset Cmd Allocator -> Reset Cmd List -> Record on workerthread -> execute on MT (so probably you give it a resetted Cmd list)
@@ -642,7 +680,7 @@ bool FD3DClass::Render()
 
 		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
 
-		for (int i = 0; i < nrWorkerThreads; i++)
+		for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
 		{
 			m_workerThreadCmdLists[i]->Close();
 			ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
@@ -668,8 +706,16 @@ bool FD3DClass::Render()
 
 
 		myFontRenderer2->Render();
+		myBox->RenderShadows();
+		myFloor->RenderShadows();
 		myBox->Render();
+		myFloor->Render();
+		myQuad->Render();
 	}
+
+	// Light pass ?
+
+	// ~ light pass
 
 		
 	// Finally present the back buffer to the screen since rendering is complete.

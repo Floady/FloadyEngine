@@ -13,15 +13,21 @@ public:
 	void Move(float x, float y, float z);
 	void Yaw(float angle);
 	void Pitch(float angle);
-
+	const FVector3& GetPos() const { return myPos;  }
 	const XMFLOAT4X4& GetViewProjMatrix() { return myViewProjMatrix; }
-	XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z);
+	const XMFLOAT4X4& GetInvViewProjMatrix() { return myInvViewProjMatrix; }
+	XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose = true);
 	void UpdateViewProj();
+	XMFLOAT4X4 GetProjMatrix() { return myProjMatrixFloatVersion; }
 
-private:
+	XMMATRIX _viewProjMatrix;
+	XMMATRIX _viewMatrix;
 	XMMATRIX  myProjMatrix;
+private:
+	XMFLOAT4X4  myProjMatrixFloatVersion;
 	XMMATRIX myViewMatrix;
 	XMFLOAT4X4 myViewProjMatrix;
+	XMFLOAT4X4 myInvViewProjMatrix;
 	FVector3 myPos;
 	FVector3 myDir;
 	FVector3 myUp;
