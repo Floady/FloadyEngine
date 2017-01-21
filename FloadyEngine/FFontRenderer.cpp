@@ -214,6 +214,8 @@ void FFontRenderer::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aD
 	hr = aDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 
 	hr = aDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, aCmdAllocator, m_pipelineState, IID_PPV_ARGS(&m_commandList));
+	m_commandList->SetName(L"FFontRenderer");
+
 
 
 	// Create the vertex buffer.
@@ -388,6 +390,7 @@ void FFontRenderer::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocator
 	
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature);
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// is this how we bind textures?
 	ID3D12DescriptorHeap* ppHeaps[] = { anSRVHeap };
@@ -421,6 +424,7 @@ this is how it was initialized:
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(aRenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	hr = m_commandList->Close();
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };

@@ -32,11 +32,13 @@ public:
 
 private:
 	ID3D12RootSignature* m_rootSignature;
+	ID3D12RootSignature* m_rootSignatureShadows;
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
 	UINT8* myConstantBufferPtr;
+	UINT8* myConstantBufferShadowsPtr;
 	UINT8* pVertexDataBegin;
 	UINT8* pIndexDataBegin;
 
@@ -47,11 +49,13 @@ private:
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	ID3D12Resource* m_ModelProjMatrix;
+	ID3D12Resource* m_ModelProjMatrixShadow;
 	
 	FVector3 myPos;
 	FD3DClass* myManagerClass;
 
 	int myHeapOffsetCBV;
+	int myHeapOffsetCBVShadow;
 	int myHeapOffsetText;
 	int myHeapOffsetAll;
 

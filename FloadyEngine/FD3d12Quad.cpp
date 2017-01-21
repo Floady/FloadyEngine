@@ -399,6 +399,7 @@ void FD3d12Quad::SetShader()
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
+	m_commandList->SetName(L"FD3d12Quad");
 
 	if (!firstFrame)
 	{

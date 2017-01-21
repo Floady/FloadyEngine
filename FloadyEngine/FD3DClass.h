@@ -17,6 +17,7 @@ public:
 		Gbuffer_count
 	};
 	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT };
+	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow" };
 
 	FD3DClass();
 	~FD3DClass();
@@ -43,6 +44,7 @@ public:
 	ID3D12Resource* GetRenderTarget() { return m_backBufferRenderTarget[m_bufferIndex]; }
 	ID3D12Resource* GetGBufferTarget(int i) { return m_gbuffer[i]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
+	ID3D12Resource* GetShadowMapBuffer() { return myShadowMap; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetRTVHandle() { return myRenderTargetViewHandle; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandle(int anIdx) { return m_gbufferViews[anIdx]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandleSRV(int anIdx) { return m_gbufferViewsSRV[anIdx]; }

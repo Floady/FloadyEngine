@@ -70,7 +70,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float projShadowDepth = projShadowMapPos2.z / projShadowMapPos.w;
 	
 	float shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy);
-	
+	output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f) * 1.0f;
+	//return output;
  
 	// try get positions
     float3 viewPos = worldPos.xyz;
@@ -117,11 +118,11 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float4 texel = colors;
 	
 
-	if(projShadowDepth - shadowDepth < -0.0001f) // hand tuned shadow bias
+	if(projShadowDepth - shadowDepth < -0.00008f) // hand tuned shadow bias
 	{
 		output.color = float4(saturate(texel * AmbientLightColor), texel.w);
 		output.color = float4(0,0,0,0);
-		return output;		
+		//return output;		
 	}
 	else
 	{
@@ -147,7 +148,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(worldPos.xyz, 1.0f);
 	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 500.0f;
 	float shadowmapval = g_shadowTexture.Sample(g_sampler, input.uv);
-	shadowmapval = shadowDepth;
+	//shadowmapval = shadowDepth;
 	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1) * 40.0f;
 	//output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f);
 	return output;	

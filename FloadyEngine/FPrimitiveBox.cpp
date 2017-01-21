@@ -23,6 +23,7 @@ FPrimitiveBox::FPrimitiveBox(FD3DClass* aManager, FVector3 aPos)
 	myManagerClass = aManager;
 
 	m_ModelProjMatrix = nullptr;
+	m_ModelProjMatrixShadow = nullptr;
 	m_vertexBuffer = nullptr;
 	m_indexBuffer = nullptr;
 	
@@ -85,6 +86,22 @@ void FPrimitiveBox::Init()
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
 		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
+		m_rootSignature->SetName(L"PrimitiveBox");
+
+		// shadow root sig
+		CD3DX12_DESCRIPTOR_RANGE1 rangesShadows[1];
+		rangesShadows[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+		CD3DX12_ROOT_PARAMETER1 rootParametersShadow[1];
+		rootParametersShadow[0].InitAsDescriptorTable(1, &rangesShadows[0], D3D12_SHADER_VISIBILITY_ALL);
+		
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDescShadows;
+		rootSignatureDescShadows.Init_1_1(_countof(rootParametersShadow), rootParametersShadow, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+		ID3DBlob* signatureShadows;
+		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDescShadows, featureData.HighestVersion, &signatureShadows, &error);
+		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signatureShadows->GetBufferPointer(), signatureShadows->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatureShadows));
+		m_rootSignatureShadows->SetName(L"PrimitiveBoxShadow");
 	}
 
 	SetShader();
@@ -202,6 +219,10 @@ void FPrimitiveBox::Init()
 		}
 	}
 
+	myHeapOffsetCBV = myManagerClass->GetNextOffset();
+	myHeapOffsetAll = myHeapOffsetCBV;
+	myHeapOffsetText = myManagerClass->GetNextOffset();
+	myHeapOffsetCBVShadow = myManagerClass->GetNextOffset();
 	// create constant buffer for modelviewproj
 	{
 		hr = myManagerClass->GetDevice()->CreateCommittedResource(
@@ -215,8 +236,6 @@ void FPrimitiveBox::Init()
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		hr = m_ModelProjMatrix->Map(0, &readRange, reinterpret_cast<void**>(&myConstantBufferPtr));
 
-		myHeapOffsetCBV = myManagerClass->GetNextOffset();
-		myHeapOffsetAll = myHeapOffsetCBV;
 		// Describe and create a constant buffer view.
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = m_ModelProjMatrix->GetGPUVirtualAddress();
@@ -224,6 +243,23 @@ void FPrimitiveBox::Init()
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
+
+		// need seperate memory for shadowmodelviewproj cause gpu executes deferred and copying mem is not part of cmd list (move to light manager?)
+		hr = myManagerClass->GetDevice()->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(256),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_ModelProjMatrixShadow));
+
+		hr = m_ModelProjMatrixShadow->Map(0, &readRange, reinterpret_cast<void**>(&myConstantBufferShadowsPtr));
+
+		// Describe and create a constant buffer view.
+		cbvDesc[0].BufferLocation = m_ModelProjMatrixShadow->GetGPUVirtualAddress();
+		srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandleShadow(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBVShadow, srvSize);
+		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandleShadow);
 	}
 	
 	// create SRV to global font texture
@@ -289,7 +325,6 @@ void FPrimitiveBox::Init()
 			// Get the size of the memory location for the render target view descriptors.
 			unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-			myHeapOffsetText = myManagerClass->GetNextOffset();
 			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
 			myManagerClass->GetDevice()->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
 		}
@@ -357,6 +392,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
 #endif
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Set necessary state.
 	aCmdList->SetGraphicsRootSignature(m_rootSignature);
@@ -399,7 +435,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	// Indicate that the back buffer will now be used to present.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 #if DEFERRED
 	for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
 	{
@@ -413,13 +449,15 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	XMFLOAT4X4  myProjMatrixFloatVersion = FLightManager::GetLightViewProjMatrix(myPos.x, myPos.y, myPos.z);
 
 	// copy modelviewproj data to gpu
-	memcpy(myConstantBufferPtr, myProjMatrixFloatVersion.m, sizeof(XMFLOAT4X4));
-
+	memcpy(myConstantBufferShadowsPtr, myProjMatrixFloatVersion.m, sizeof(XMFLOAT4X4));
+	
 	// set pipeline  to shadow shaders
 	aCmdList->SetPipelineState(m_pipelineStateShadows);
 
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
 	// Set necessary state.
-	aCmdList->SetGraphicsRootSignature(m_rootSignature);
+	aCmdList->SetGraphicsRootSignature(m_rootSignatureShadows);
 
 	// is this how we bind textures?
 	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
@@ -429,7 +467,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += srvSize*myHeapOffsetAll;
+	handle.ptr += srvSize*myHeapOffsetCBVShadow;
 	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
 
 	// set viewport/scissor
@@ -437,10 +475,10 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3DClass::GbufferType::Gbuffer_color);
 	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
 
 	// Record commands.
@@ -449,10 +487,12 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->IASetIndexBuffer(&m_indexBufferView);
 	aCmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 
-	// Indicate that the back buffer will now be used to present.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	aCmdList->ClearRenderTargetView(myManagerClass->GetGBufferHandle(FD3DClass::GbufferType::Gbuffer_color), color, 0, NULL);
 
-	//aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_Shadow), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	// Indicate that the back buffer will now be used to present.
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
 void FPrimitiveBox::SetShader()
@@ -499,10 +539,10 @@ void FPrimitiveBox::SetShader()
 
 	// Describe and create the graphics pipeline state object (PSO).
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDescShadows = {};
-	psoDescShadows.InputLayout = { &shader.myInputElementDescs[0], (UINT)shader.myInputElementDescs.size() };
-	psoDescShadows.pRootSignature = m_rootSignature;
-	psoDescShadows.VS = CD3DX12_SHADER_BYTECODE(shader.myVertexShader);
-	psoDescShadows.PS = CD3DX12_SHADER_BYTECODE(shader.myPixelShader);
+	psoDescShadows.InputLayout = { &shaderShadows.myInputElementDescs[0], (UINT)shaderShadows.myInputElementDescs.size() };
+	psoDescShadows.pRootSignature = m_rootSignatureShadows;
+	psoDescShadows.VS = CD3DX12_SHADER_BYTECODE(shaderShadows.myVertexShader);
+	psoDescShadows.PS = CD3DX12_SHADER_BYTECODE(shaderShadows.myPixelShader);
 	psoDescShadows.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDescShadows.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDescShadows.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
