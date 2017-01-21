@@ -143,9 +143,8 @@ void FTextureManager::ReloadTextures()
 	}
 }
 
-void write_png_file(char *filename) {
-	int y;
-
+void write_png_file(char *filename) 
+{
 	FILE *fp = fopen(filename, "wb");
 	if (!fp) abort();
 
@@ -189,8 +188,8 @@ void write_png_file(char *filename) {
 
 FTextureManager::FTextureManager()
 {
-	HANDLE hFind;
-	WIN32_FIND_DATA data;
+//	HANDLE hFind;
+//	WIN32_FIND_DATA data;
 
 	ReloadTextures();
 }

@@ -2,11 +2,11 @@
 
 
 FCamera::FCamera(float aWidth, float aHeight)
-	: myPos(0, 0, 0)
+	: myPos(8, 0, 3)
 	, myDir(0, 0, 1)
 	, myUp(0, 1.0f, 0)
 {
-	myYaw = 0.0f;
+	myYaw = -3.14/2.0f;
 	myPitch = 0.0f;
 
 	// proj matrix
@@ -88,8 +88,6 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 void FCamera::UpdateViewProj()
 {
 	// view matrix
-	XMFLOAT4X4 viewMatrix;
-
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 0);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 0);
 	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 0);

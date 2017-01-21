@@ -7,6 +7,7 @@
 #include "FVector3.h"
 #include <vector>
 #include <DirectXMath.h>
+#include "FLightManager.h"
 
 static const UINT TextureWidth = 256;
 static const UINT TextureHeight = 256;
@@ -173,8 +174,6 @@ void FD3d12Quad::Init()
 		//srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		//m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
 		//
-		ID3D12Resource* textureUploadHeap;
-		// Create the texture.
 		//{
 		//	// Describe and create a Texture2D.
 		//	D3D12_RESOURCE_DESC textureDesc = {};
@@ -311,18 +310,15 @@ void FD3d12Quad::Render()
 	// set const data
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
 	float lightPos[] = { 0, 1.0f, 4.0f};
-	XMFLOAT4X4 lightPosScreenSpace = myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(lightPos[0], lightPos[1], lightPos[2]);
+	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
 		
-	float shaderConstData2[24];
+	float shaderConstData2[36];
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
-	shaderConstData2[16] = lightPosScreenSpace._14;
-	shaderConstData2[17] = lightPosScreenSpace._24;
-	shaderConstData2[18] = lightPosScreenSpace._34;
-	shaderConstData2[19] = 1.0f;
-	shaderConstData2[20] = myManagerClass->GetCamera()->GetPos().x;
-	shaderConstData2[21] = myManagerClass->GetCamera()->GetPos().y;
-	shaderConstData2[22] = myManagerClass->GetCamera()->GetPos().z;
-	shaderConstData2[23] = 1.0f;
+	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
+	shaderConstData2[32] = myManagerClass->GetCamera()->GetPos().x;
+	shaderConstData2[33] = myManagerClass->GetCamera()->GetPos().y;
+	shaderConstData2[34] = myManagerClass->GetCamera()->GetPos().z;
+	shaderConstData2[35] = 1.0f;
 	//memcpy(myConstBufferShaderPtr, shaderConstData, sizeof(shaderConstData));
 	//memcpy(myConstBufferShaderPtr, projMatrix.m, sizeof(projMatrix.m));
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));

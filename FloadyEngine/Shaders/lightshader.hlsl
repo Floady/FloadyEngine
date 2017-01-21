@@ -19,6 +19,7 @@ SamplerState g_sampler : register(s0);
 struct MyData
 {
 	float4x4 g_invProjMatrix;
+	float4x4 g_ProjMatrixLight;
     float4 lightPos;
     float4 camPos;
 };
@@ -47,28 +48,38 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	normals = normals * 2.0f;
 	normals = normals - float4(1,1,1,1);
 	
-	float shadowDepth = g_shadowTexture.Sample(g_sampler, input.uv);
-	
 	// get linear depth
 	float depth = g_depthTexture.Sample(g_sampler, input.uv);
 	float zNear = 100.0;
 	float zFar = 1.0;
 
-    //depth = 2.0 * depth - 1.0;
-    //depth = 2.0 * zNear * zFar / (zFar + zNear - depth * (zFar - zNear));
-	//depth = 1.0f - depth;
 	float4 H = float4(input.uv.x * 2 - 1, (1.0f - input.uv.y) * 2 - 1, depth , 1);
 	float4 D = mul(H, invProjMatrix); 
 	float4 worldPos = D / D.w;
+ 
+	float4 projShadowMapPos = mul(worldPos, myData.g_ProjMatrixLight);
+	float3 projShadowMapPos2 = projShadowMapPos.xyz;
+	
+	projShadowMapPos2.x = projShadowMapPos2.x / projShadowMapPos.w;
+	projShadowMapPos2.y = projShadowMapPos2.y / projShadowMapPos.w;
+	projShadowMapPos2.x = (projShadowMapPos2.x + 1.0f) / 2;
+	projShadowMapPos2.y = (projShadowMapPos2.y + 1.0f)/ 2;
+	
+	//projShadowMapPos2.x = 0.5f;
+	//projShadowMapPos2.y = 0.5f;
+	float projShadowDepth = projShadowMapPos2.z / projShadowMapPos.w;
+	
+	float shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy);
+	
  
 	// try get positions
     float3 viewPos = worldPos.xyz;
 	float distToLight = length(viewPos - lightPos);
 	
-	if(distToLight > 80.0)
+	if(distToLight > 10.0)
 	{
-		output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
-		return output;	
+	//	output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
+	//	return output;	
 	}
     float3 lightDir = float3(0,-1,0);
 	float lightIntensity = 1.0f;
@@ -106,12 +117,22 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float4 texel = colors;
 	
 
-	output.color = float4(saturate(
-	texel * AmbientLightColor +
-	(texel.xyz * DiffuseColor * LightDiffuseColor * diffuseLighting * 0.6) + // Use light diffuse vector as intensity multiplier
-	(SpecularColor * LightSpecularColor * specLighting * 0.5) // Use light specular vector as intensity multiplier
-	), texel.w);
-		
+	if(projShadowDepth - shadowDepth < -0.0001f) // hand tuned shadow bias
+	{
+		output.color = float4(saturate(texel * AmbientLightColor), texel.w);
+		output.color = float4(0,0,0,0);
+		return output;		
+	}
+	else
+	{
+		// light normally
+		output.color = float4(saturate(
+		texel * AmbientLightColor +
+		(texel.xyz * DiffuseColor * LightDiffuseColor * diffuseLighting * 0.6) + // Use light diffuse vector as intensity multiplier
+		(SpecularColor * LightSpecularColor * specLighting * 0.5) // Use light specular vector as intensity multiplier
+		), texel.w);
+			
+	}
     // Determine the final amount of diffuse color based on the color of the pixel combined with the light intensity.
     //output.color = saturate(colors * lightIntensity);
 
@@ -124,6 +145,10 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(g_constData[0].xyz, 1.0f);	
 	//output.color = float4(distToLight, distToLight, distToLight, 1.0f);	
 	//output.color = float4(worldPos.xyz, 1.0f);
-	output.color = float4(shadowDepth,shadowDepth,shadowDepth, 1.0f) * 100.0f;
+	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 500.0f;
+	float shadowmapval = g_shadowTexture.Sample(g_sampler, input.uv);
+	shadowmapval = shadowDepth;
+	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1) * 40.0f;
+	//output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f);
 	return output;	
 }

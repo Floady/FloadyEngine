@@ -139,7 +139,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\freetype-2.3.5\include;$(ProjectDir)\freetype-2.3.5\include\freetype;$(ProjectDir)\libpng1628\include</AdditionalIncludeDirectories>
-      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DebugInformationFormat>None</DebugInformationFormat>
       <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
@@ -166,6 +166,7 @@
     <ClCompile Include="FFontManager.cpp" />
     <ClCompile Include="FFontRenderer.cpp" />
     <ClCompile Include="FJobSystem.cpp" />
+    <ClCompile Include="FLightManager.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
     <ClCompile Include="FPrimitiveBox.cpp" />
@@ -187,6 +188,7 @@
     <ClInclude Include="FFontManager.h" />
     <ClInclude Include="FFontRenderer.h" />
     <ClInclude Include="FJobSystem.h" />
+    <ClInclude Include="FLightManager.h" />
     <ClInclude Include="FMatrix.h" />
     <ClInclude Include="FPrimitiveBox.h" />
     <ClInclude Include="FShaderManager.h" />
@@ -195,13 +197,34 @@
     <ClInclude Include="FVector3.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\lightshader.hlsl" />
-    <FxCompile Include="Shaders\lightshader_firstworkingbackup.hlsl" />
-    <FxCompile Include="Shaders\primitiveshader.hlsl" />
-    <FxCompile Include="Shaders\primitiveshader_deferred.hlsl" />
-    <FxCompile Include="Shaders\primitiveshader_deferredShadows.hlsl" />
-    <FxCompile Include="Shaders\shaders.hlsl" />
-    <FxCompile Include="Shaders\xxxxxshaders.hlsl" />
+    <FxCompile Include="Shaders\lightshader.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\lightshader_firstworkingbackup.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\primitiveshader.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\primitiveshader_deferred.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\primitiveshader_deferredShadows.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\shaders.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shaders\xxxxxshaders.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -168,16 +168,17 @@ void FShaderManager::ReloadShaders()
 			myShaders[std::string(ConvertFromUtf16ToUtf8(data.cFileName))] = shader;
 
 
-			if (myHotReloadMap.find(std::string(ConvertFromUtf16ToUtf8(data.cFileName))) != myHotReloadMap.end())
-			{
-				for each(const std::pair<void*, FDelegate>& item in myHotReloadMap[std::string(ConvertFromUtf16ToUtf8(data.cFileName))])
-				{
-					item.second();
-				}
-			}
-
 		} while (FindNextFileW(hFind, &data));
 		FindClose(hFind);
+
+
+		for(std::map<std::string, std::vector<std::pair<void*, FDelegate> > >::const_iterator it = myHotReloadMap.begin(); it != myHotReloadMap.end(); ++it)
+		{
+			for each(const std::pair<void*, FDelegate>& fdelegate in (*it).second)
+			{
+				fdelegate.second();
+			}
+		}
 	}
 }
 

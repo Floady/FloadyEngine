@@ -8,6 +8,7 @@
 #include "FFontManager.h"
 #include "FJobSystem.h"
 #include "FTextureManager.h"
+#include "FLightManager.h"
 
 extern std::vector<UINT8> GenerateTextureData2();
 #define DEFERRED 1
@@ -38,6 +39,7 @@ FPrimitiveBox::~FPrimitiveBox()
 {
 }
 
+static int isfloor = false;
 void FPrimitiveBox::Init()
 {
 	firstFrame = true;
@@ -112,9 +114,17 @@ void FPrimitiveBox::Init()
 
 		// Create the vertex buffer.
 		{
-			float width = 1.0f;
+			float width = 30.0f;
 			float height = 1.0f;
-			float depth = 1.0f;
+			float depth = 30.0f;
+
+			if (!isfloor)
+			{
+				isfloor = true;
+				width = 1.0f;
+				height = 1.0f;
+				depth = 1.0f;
+			}
 
 			float w2 = 0.5f*width;
 			float h2 = 0.5f*height;
@@ -336,7 +346,6 @@ void FPrimitiveBox::PopulateCommandListAsync()
 
 void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
 {
-	HRESULT hr;
 	aCmdList->SetPipelineState(m_pipelineState);
 
 	// copy modelviewproj data to gpu
@@ -401,14 +410,13 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
-	HRESULT hr;
-	aCmdList->SetPipelineState(m_pipelineStateShadows);
+	XMFLOAT4X4  myProjMatrixFloatVersion = FLightManager::GetLightViewProjMatrix(myPos.x, myPos.y, myPos.z);
 
 	// copy modelviewproj data to gpu
-	float lightpos[3] = { 8.0, 0, 3.0 };
-	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(lightpos[0], lightpos[1], lightpos[2]).m, sizeof(XMFLOAT4X4));
+	memcpy(myConstantBufferPtr, myProjMatrixFloatVersion.m, sizeof(XMFLOAT4X4));
 
-	//aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_Shadow), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	// set pipeline  to shadow shaders
+	aCmdList->SetPipelineState(m_pipelineStateShadows);
 
 	// Set necessary state.
 	aCmdList->SetGraphicsRootSignature(m_rootSignature);

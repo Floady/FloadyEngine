@@ -214,7 +214,6 @@ void FDynamicText::PopulateCommandList()
 
 void FDynamicText::PopulateCommandListAsync()
 {
-	HRESULT hr;
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);

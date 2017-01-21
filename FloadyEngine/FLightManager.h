@@ -1,0 +1,19 @@
+#pragma once
+#include <DirectXMath.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include "d3dx12.h"
+#include "FVector3.h"
+#include "FCamera.h"
+
+class FLightManager
+{
+public:
+	static XMFLOAT4X4 GetLightViewProjMatrix(float x = 0.0f, float y = 0.0f, float z = 0.0f);
+	static XMFLOAT4X4 GetInvLightViewProjMatrix();
+private:
+	FLightManager();
+	~FLightManager();
+	static FLightManager* ourInstance;
+};
+

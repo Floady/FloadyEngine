@@ -504,8 +504,8 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	myBox = new FPrimitiveBox(this, FVector3(0, 0.0, 3.0f));
-	myFloor = new FPrimitiveBox(this, FVector3(2.0, 0.0, 3.0f));
+	myBox = new FPrimitiveBox(this, FVector3(3.0, 0.0, 4.0f));
+	myFloor = new FPrimitiveBox(this, FVector3(-1.0, -1.0, 3.0f));
 
 	for (int i = 0; i < DYNTEX_COUNT; i++)
 	{
@@ -706,6 +706,7 @@ bool FD3DClass::Render()
 
 
 		myFontRenderer2->Render();
+//		Send invLightViewProjMatrix to combine pass, reproject shade pos to worldpos and compare to distToLight length(worldpos-lightposWorld)
 		myBox->RenderShadows();
 		myFloor->RenderShadows();
 		myBox->Render();
