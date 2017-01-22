@@ -17,6 +17,7 @@ public:
 	const XMFLOAT4X4& GetViewProjMatrix() { return myViewProjMatrix; }
 	const XMFLOAT4X4& GetInvViewProjMatrix() { return myInvViewProjMatrix; }
 	XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose = true);
+	XMFLOAT4X4 GetViewProjMatrixWithOffset(const XMMATRIX& anObjectMatrix);
 	void UpdateViewProj();
 	XMFLOAT4X4 GetProjMatrix() { return myProjMatrixFloatVersion; }
 

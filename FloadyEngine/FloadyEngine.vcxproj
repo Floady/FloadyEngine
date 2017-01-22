@@ -170,6 +170,7 @@
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FMatrix.cpp" />
     <ClCompile Include="FPrimitiveBox.cpp" />
+    <ClCompile Include="FPrimitiveGeometry.cpp" />
     <ClCompile Include="FShaderManager.cpp" />
     <ClCompile Include="FTextureManager.cpp" />
     <ClCompile Include="FTimer.cpp" />
@@ -191,6 +192,7 @@
     <ClInclude Include="FLightManager.h" />
     <ClInclude Include="FMatrix.h" />
     <ClInclude Include="FPrimitiveBox.h" />
+    <ClInclude Include="FPrimitiveGeometry.h" />
     <ClInclude Include="FShaderManager.h" />
     <ClInclude Include="FTextureManager.h" />
     <ClInclude Include="FTimer.h" />

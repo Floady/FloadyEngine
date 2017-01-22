@@ -101,7 +101,7 @@ const FFontManager::FFont& FFontManager::GetFont(FFontManager::FFONT_TYPE aType,
 	return myFonts.back(); // this should return a fallback font
 }
 
-void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char * aSupportedChars, ID3D12Device * aDevice, ID3D12CommandQueue * aCmdQueue, FD3DClass * aManager, ID3D12GraphicsCommandList* aCommandList, ID3D12DescriptorHeap* anSRVHeap)
+void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char * aSupportedChars, FD3DClass * aManager, ID3D12GraphicsCommandList* aCommandList)
 {
 	FFont newFont;
 	newFont.myType = aType;
@@ -170,7 +170,7 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-	HRESULT hr = aDevice->CreateCommittedResource(
+	HRESULT hr = aManager->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
@@ -184,7 +184,7 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	ID3D12Resource* textureUploadHeap;
 
 	// Create the GPU upload buffer.
-	aDevice->CreateCommittedResource(
+	aManager->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
@@ -210,17 +210,11 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	srvDesc.Texture2D.MipLevels = 1;
 
 	// Get the size of the memory location for the render target view descriptors.
-	unsigned int srvSize = aDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	unsigned int srvSize = aManager->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	UINT myHeapOffsetText = aManager->GetNextOffset();
-	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(anSRVHeap->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-	aDevice->CreateShaderResourceView(newFont.myTexture, &srvDesc, srvHandle0);
-
-	aCommandList->Close();
-
-	// do we need this?
-	ID3D12CommandList* ppCommandLists[] = { aCommandList };
-	aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(aManager->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
+	aManager->GetDevice()->CreateShaderResourceView(newFont.myTexture, &srvDesc, srvHandle0);
 
 	myFonts.push_back(newFont);
 }

@@ -39,30 +39,22 @@ private:
 	
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;
-	UINT8* pVertexDataBegin;
-	UINT8* pIndexDataBegin;
-
-	ID3D12Resource* m_vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	
-	ID3D12Resource* m_indexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	ID3D12Resource* m_ModelProjMatrix;
 	ID3D12Resource* m_ModelProjMatrixShadow;
 	
 	FVector3 myPos;
+	FVector3 myScale;
 	FD3DClass* myManagerClass;
-
+	bool myIsFloor; // temp to test scale rotate
 	int myHeapOffsetCBV;
 	int myHeapOffsetCBVShadow;
 	int myHeapOffsetText;
 	int myHeapOffsetAll;
-
-	UINT myWordLength;
-	ID3D12Resource* m_texture;
-
+	float myYaw;
 	bool skipNextRender;
-	bool firstFrame;
 };
 

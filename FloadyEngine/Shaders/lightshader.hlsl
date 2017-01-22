@@ -121,7 +121,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	if(projShadowDepth - shadowDepth < -0.00008f) // hand tuned shadow bias
 	{
 		output.color = float4(saturate(texel * AmbientLightColor), texel.w);
-		output.color = float4(0,0,0,0);
+		//output.color = float4(0,0,0,0);
 		//return output;		
 	}
 	else

@@ -2,11 +2,11 @@
 
 
 FCamera::FCamera(float aWidth, float aHeight)
-	: myPos(8, 0, 3)
+	: myPos(0, 0, 0)
 	, myDir(0, 0, 1)
 	, myUp(0, 1.0f, 0)
 {
-	myYaw = -3.14/2.0f;
+	myYaw = 0.0f;
 	myPitch = 0.0f;
 
 	// proj matrix
@@ -58,7 +58,7 @@ void FCamera::Pitch(float angle)
 	myPitch += angle;
 }
 
-XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose /*= true*/)
+XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose)
 {
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
@@ -71,13 +71,43 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 	vAt += eye;
 
 	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	// test :)
+	//XMMATRIX scale = XMMatrixScaling(3.0f, 1.0f, 1.0f);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 1));
-
+	//offset = offset * scale;
 	XMMATRIX _tempviewProjMatrix;
 	
 	// combine
-	_tempviewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
-	
+	if(transpose)
+		_tempviewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
+	else
+		_tempviewProjMatrix = (offset * _viewMatrix * myProjMatrix);
+
+	XMFLOAT4X4 ret;
+	// store
+	XMStoreFloat4x4(&ret, _tempviewProjMatrix);
+
+	return ret;
+}
+
+XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(const XMMATRIX& anObjectMatrix)
+{
+	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
+	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
+	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 1);
+
+	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(myPitch, myYaw, 0);
+
+	XMVECTOR vUp = XMVector3Transform(up, mtxRot);
+	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
+	vAt += eye;
+
+	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	XMMATRIX _tempviewProjMatrix;
+
+	// combine
+	_tempviewProjMatrix = XMMatrixTranspose(anObjectMatrix * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
+
 	XMFLOAT4X4 ret;
 	// store
 	XMStoreFloat4x4(&ret, _tempviewProjMatrix);

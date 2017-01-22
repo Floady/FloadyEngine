@@ -14,7 +14,13 @@ struct PSOutput
 	float depth;
 };
 
-float4x4 g_offset : register(b0);
+struct MyData
+{
+	float4x4 g_viewProjMatrix;
+	float4x4 g_transform;
+};
+
+ConstantBuffer<MyData> myData : register(b0);
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
@@ -22,12 +28,14 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 {
 	PSInput result;
 
-	float4 newPos = position;
-	result.position = mul(newPos, g_offset);
+	result.position = position;
+	result.position = mul(result.position, myData.g_transform);
+	result.position = mul(result.position, myData.g_viewProjMatrix);
 	result.depth    = (result.position.z / result.position.w);
 	
 	result.uv = uv;
 	result.normal = normal;
+	result.normal = mul(result.normal, myData.g_transform);
 	result.normal = (result.normal + float4(1, 1, 1,1))/2.0f;
 	//result.normal = normalize(result.normal);
 	

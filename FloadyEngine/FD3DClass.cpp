@@ -9,6 +9,7 @@
 #include "FFontManager.h"
 #include "FJobSystem.h"
 #include "FTextureManager.h"
+#include "FPrimitiveGeometry.h"
 #include "FTimer.h"
 
 FD3DClass* FD3DClass::ourInstance = nullptr;
@@ -47,7 +48,8 @@ FD3DClass::~FD3DClass()
 {
 }
 
-const int DYNTEX_COUNT = 1;
+const int DYNTEX_COUNT = 5;
+const int BOX_COUNT = 5*5; // they are made in a grid so row*col
 static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
@@ -55,6 +57,7 @@ static FDynamicText* myFontRenderer2 = nullptr;
 static FPrimitiveBox* myBox = nullptr;
 static FPrimitiveBox* myFloor = nullptr;
 static FDynamicText* myDynamicText[DYNTEX_COUNT];
+static FPrimitiveBox* myBoxes[BOX_COUNT];
 
 bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
@@ -80,7 +83,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	IDXGISwapChain* swapChain;
 	D3D12_DESCRIPTOR_HEAP_DESC renderTargetViewHeapDesc;
-	
+
 	// Store the vsync setting.
 	m_vsync_enabled = vsync;
 
@@ -125,6 +128,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		HRESULT hr2 = m_device->GetDeviceRemovedReason();
 		return false;
 	}
+	m_commandQueue->SetName(L"RendererCmdQueue");
 
 	// Create a DirectX graphics interface factory.
 	result = CreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory);
@@ -413,7 +417,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-	
+
 	D3D12_CPU_DESCRIPTOR_HANDLE depth_handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	myShadowMapViewHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
 	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, depth_handle);
@@ -427,13 +431,13 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-//	m_gbufferViewsSRV[Gbuffer_Depth] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	//	m_gbufferViewsSRV[Gbuffer_Depth] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_device->CreateShaderResourceView(m_depthStencil, &srvDesc, m_gbufferViewsSRV[Gbuffer_Depth]); // Depth tex has better precision than my custom one :(
-	m_device->CreateShaderResourceView(myShadowMap, &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]); 
-//	myCurrentHeapOffset++;
-	// ~ SETUP DSV
+	m_device->CreateShaderResourceView(myShadowMap, &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]);
+	//	myCurrentHeapOffset++;
+		// ~ SETUP DSV
 
-	// Create a command allocator.
+		// Create a command allocator.
 	result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_commandAllocator);
 	if (FAILED(result))
 	{
@@ -496,22 +500,39 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 
 	// Initialize the starting fence value. 
 	m_fenceValue = 1;
-
 	myQuad = new FD3d12Quad(this, FVector3(10, 0, 0));
 
 	result = m_commandList->Reset(m_commandAllocator, m_pipelineState); // how do we deal with this.. passing commandlist around?
-	FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", m_device, m_commandQueue, this, m_commandList, m_srvHeap);
+	
+	// Init resources for managers, they record in cmd list and execute alltogether
+	{
+		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", this, m_commandList);
+		FTextureManager::GetInstance()->InitD3DResources(m_device, m_commandList);
+		FPrimitiveGeometry::InitD3DResources(m_device, m_commandList);
+
+		m_commandList->Close();
+		ID3D12CommandList* ppCommandLists[] = { m_commandList };
+		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	}
 
 	// test triangle
 	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
 	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
 	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+	myFloor = new FPrimitiveBox(this, FVector3(0.0, -2.0, 0.0f));
 	myBox = new FPrimitiveBox(this, FVector3(3.0, 0.0, 4.0f));
-	myFloor = new FPrimitiveBox(this, FVector3(-1.0, -1.0, 3.0f));
-
+	
 	for (int i = 0; i < DYNTEX_COUNT; i++)
 	{
 		myDynamicText[i] = new FDynamicText(this, FVector3(0, i * 0.35f, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
+	}
+
+	int boxGridSize = int(sqrt(BOX_COUNT));
+	
+	for (int i = 0; i < boxGridSize; i++)
+		for (int j = 0; j < boxGridSize; j++)
+	{
+		myBoxes[i * boxGridSize + j] = new FPrimitiveBox(this, FVector3(i * 5.0, 0.0, j * 5.0f));
 	}
 
 
@@ -647,12 +668,18 @@ bool FD3DClass::Render()
 		myQuad->Init();
 		myFontRenderer->Init(m_commandAllocator, m_device, myRenderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
 		myFontRenderer2->Init();
-		myBox->Init();
 		myFloor->Init();
+		
+		myBox->Init();
 		
 		for (int i = 0; i < DYNTEX_COUNT; i++)
 		{
 			myDynamicText[i]->Init();
+		}
+		
+		for (int i = 0; i < BOX_COUNT; i++)
+		{
+			myBoxes[i]->Init();
 		}
 
 		firstFrame = false;
@@ -666,6 +693,89 @@ bool FD3DClass::Render()
 		// WaitForPrevious -> Reset Cmd Allocator -> Reset Cmd List -> Record on workerthread -> execute on MT (so probably you give it a resetted Cmd list)
 
 		//*
+
+		/*/
+		for (int i = 0; i < DYNTEX_COUNT; i++)
+		{
+			myDynamicText[i]->Render();
+		}
+		//*/
+
+		//~ async render
+		
+		// show frame counter for dynamic text testing
+		{
+			frameCounter++;
+			char buff[128];
+			sprintf_s(buff, "%s %d\0", "lol: ", frameCounter);
+			myFontRenderer2->SetText(buff);
+		}
+
+
+		for (int i = 0; i < BOX_COUNT; i++)
+		{
+			myBoxes[i]->RenderShadows();
+		}
+
+		// deferred - render shadows, render gbuffer
+		myBox->RenderShadows();
+		myFloor->RenderShadows();
+		myBox->Render();
+		myFloor->Render();
+
+		//*	
+		for (int i = 0; i < BOX_COUNT; i++)
+		{
+			myBoxes[i]->Render();
+		}
+
+		//*/
+		{
+			FJobSystem* test = FJobSystem::GetInstance();
+			int nrWorkerThreads = test->GetNrWorkerThreads();
+			for (int i = 0; i < nrWorkerThreads; i++)
+			{
+				m_workerThreadCmdAllocators[i]->Reset();
+				m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+			}
+
+			test->Pause();
+			test->ResetQueue();
+			for (size_t i = 0; i < BOX_COUNT; i++)
+			{
+				test->QueueJob(FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::PopulateCommandListAsync>(myBoxes[i]));
+			}
+
+			test->UnPause();
+
+			test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
+
+			for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
+			{
+				m_workerThreadCmdLists[i]->Close();
+				ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+			}
+
+			// wait for cmdlist to be done before returning
+			ID3D12Fence* m_fence;
+			HANDLE m_fenceEvent;
+			m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			int fenceToWaitFor = 1; // what value?
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+			result = GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+			m_fence->SetEventOnCompletion(1, m_fenceEvent);
+			WaitForSingleObject(m_fenceEvent, INFINITE);
+		}
+		// */
+
+		// deferred combine pass
+		myQuad->Render();
+
+		// render forward stuff - dynamictext is causing depthstencil error
+		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, myRenderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
+		myFontRenderer2->Render();
+
 		FJobSystem* test = FJobSystem::GetInstance();
 		int nrWorkerThreads = test->GetNrWorkerThreads();
 		for (int i = 0; i < nrWorkerThreads; i++)
@@ -681,7 +791,6 @@ bool FD3DClass::Render()
 			test->QueueJob(FDelegate::from_method<FDynamicText, &FDynamicText::PopulateCommandListAsync>(myDynamicText[i]));
 		}
 
-
 		test->UnPause();
 
 		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
@@ -690,39 +799,9 @@ bool FD3DClass::Render()
 		{
 			m_workerThreadCmdLists[i]->Close();
 			ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+			m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 		}
-		/*/
-		for (int i = 0; i < DYNTEX_COUNT; i++)
-		{
-			myDynamicText[i]->Render();
-		}
-		//*/
-
-		//~ async render
-		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, myRenderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
-
-		// show frame counter for dynamic text testing
-		{
-			frameCounter++;
-			char buff[128];
-			sprintf_s(buff, "%s %d\0", "lol: ", frameCounter);
-			myFontRenderer2->SetText(buff);
-		}
-
-
-		myFontRenderer2->Render();
-//		Send invLightViewProjMatrix to combine pass, reproject shade pos to worldpos and compare to distToLight length(worldpos-lightposWorld)
-		myBox->RenderShadows();
-		myFloor->RenderShadows();
-		myBox->Render();
-		myFloor->Render();
-		myQuad->Render();
 	}
-
-	// Light pass ?
-
-	// ~ light pass
 
 		
 	// Finally present the back buffer to the screen since rendering is complete.

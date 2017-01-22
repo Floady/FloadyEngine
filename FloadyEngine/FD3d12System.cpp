@@ -166,7 +166,7 @@ void FD3d12System::Run()
 
 			myFrameTimer->Restart();
 			
-			//Sleep(160.0f - myFrameTime); // frame limiter
+			//Sleep(8.0f - myFrameTime); // frame limiter
 
 			if (!result)
 			{

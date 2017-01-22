@@ -137,7 +137,9 @@ void FTextureManager::ReloadTextures()
 			std::string cStrFilename = ConvertFromUtf16ToUtf8(mywstring);
 			std::string cStrFilenameConcat = ConvertFromUtf16ToUtf8(concatted_stdstr);
 			read_png_file(cStrFilenameConcat.c_str());
-			myTextures[cStrFilename] = transformedBytes;
+			myTextures[cStrFilename].myRawPixelData = transformedBytes;
+			myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
+																// also disconnects from render device, so we can use texture + resource managing with other devices
 		} while (FindNextFileW(hFind, &data));
 		FindClose(hFind);
 	}
@@ -190,8 +192,60 @@ FTextureManager::FTextureManager()
 {
 //	HANDLE hFind;
 //	WIN32_FIND_DATA data;
-
+	myInitializedD3D = false;
 	ReloadTextures();
+}
+
+void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsCommandList* aCommandList)
+{
+	for (std::map<std::string, TextureInfo>::iterator it = myTextures.begin(); it != myTextures.end(); ++it)
+	{
+		TextureInfo& texture = it->second;
+
+		// Describe and create a Texture2D.
+		D3D12_RESOURCE_DESC textureDesc = {};
+		textureDesc.MipLevels = 1;
+		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		textureDesc.Width = 256;
+		textureDesc.Height = 256;
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		textureDesc.DepthOrArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		aDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&textureDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&texture.myD3DResource));
+
+		// Create the GPU upload buffer.
+		ID3D12Resource* textureUploadHeap;
+		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.myD3DResource, 0, 1);
+		aDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&textureUploadHeap));
+
+		// Copy data to the intermediate upload heap and then schedule a copy 
+		// from the upload heap to the Texture2D.
+		void* texturePixelData = texture.myRawPixelData;
+		D3D12_SUBRESOURCE_DATA textureData = {};
+		textureData.pData = texturePixelData;
+		textureData.RowPitch = 256 * 4;
+		textureData.SlicePitch = textureData.RowPitch * 256;
+
+		UpdateSubresources(aCommandList, texture.myD3DResource, textureUploadHeap, 0, 0, 1, &textureData);
+		aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.myD3DResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
+	myInitializedD3D = true;
 }
 
 FTextureManager::~FTextureManager()
