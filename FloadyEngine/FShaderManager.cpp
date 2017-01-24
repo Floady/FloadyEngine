@@ -98,7 +98,7 @@ void FShaderManager::ReloadShaders()
 			ID3DBlob* pixelShader;
 
 			UINT compileFlags = 0;
-#ifdef _DEBUG
+#ifndef _DEBUG
 			compileFlags |= D3DCOMPILE_DEBUG;
 #endif
 			std::wstring mywstring(data.cFileName);

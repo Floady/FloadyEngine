@@ -23,6 +23,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 	result.position = position;
 	result.position = mul(result.position, myData.g_transform);
 	result.position = mul(result.position, myData.g_viewProjMatrix);
+		
 	return result;
 }
 

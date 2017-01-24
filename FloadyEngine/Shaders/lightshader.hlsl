@@ -20,7 +20,7 @@ struct MyData
 {
 	float4x4 g_invProjMatrix;
 	float4x4 g_ProjMatrixLight;
-    float4 lightPos;
+    float4 lightWorldPos;
     float4 camPos;
 };
 
@@ -40,8 +40,12 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	float4x4 invProjMatrix = myData.g_invProjMatrix;
-    const float3 lightPos = float3(8.0, 0.0, 3.0f);
+	
 	PSOutput output;
+	
+	// to check if bound by shader performance
+	//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
+	//return output;
 	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
 	float4 normals = g_normaltexture.Sample(g_sampler, input.uv);
@@ -63,31 +67,46 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	projShadowMapPos2.x = projShadowMapPos2.x / projShadowMapPos.w;
 	projShadowMapPos2.y = projShadowMapPos2.y / projShadowMapPos.w;
 	projShadowMapPos2.x = (projShadowMapPos2.x + 1.0f) / 2;
-	projShadowMapPos2.y = (projShadowMapPos2.y + 1.0f)/ 2;
+	projShadowMapPos2.y = 1.0f - ((projShadowMapPos2.y + 1.0f)/ 2);
 	
 	//projShadowMapPos2.x = 0.5f;
 	//projShadowMapPos2.y = 0.5f;
 	float projShadowDepth = projShadowMapPos2.z / projShadowMapPos.w;
 	
 	float shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy);
+	
+	// get neighbor avg
+	if(true)
+	{
+		shadowDepth = 0.0f;
+		float2 shadowuvstep = float2(1.0f, 1.0f) / float2(800.0f, 600.0f);
+		int nrOfPixelsOut = 2;
+		[loop]
+		for( int i = -nrOfPixelsOut; i < nrOfPixelsOut; i++ )
+		{
+			[loop]
+			for( int j = -nrOfPixelsOut; j < nrOfPixelsOut; j++ )
+			{
+				shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+			}
+		}
+		
+		shadowDepth /= ((2*nrOfPixelsOut)*(2*nrOfPixelsOut));
+	}
 	output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f) * 1.0f;
 	//return output;
  
 	// try get positions
     float3 viewPos = worldPos.xyz;
-	float distToLight = length(viewPos - lightPos);
+	float distToLight = length(viewPos - myData.lightWorldPos);
 	
-	if(distToLight > 10.0)
+	if(distToLight > 30.0)
 	{
-	//	output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
-	//	return output;	
+		//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
+		//return output;	
 	}
-    float3 lightDir = float3(0,-1,0);
 	float lightIntensity = 1.0f;
-
-    // Calculate the amount of light on this pixel.
-    lightIntensity = saturate(dot(normals.xyz, -lightDir));
-
+	
 	// From the web: blinn-phong
 	float3 LightDiffuseColor = float3(0.7,0.7,0.7); // intensity multiplier
 	float3 LightSpecularColor = float3(0.7,0.7,0.7); // intensity multiplier
@@ -102,14 +121,18 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	// and http://en.wikipedia.org/wiki/Phong_shading
 	
 	// Get light direction for this fragment
-	lightDir = normalize(worldPos - lightPos); // per pixel diffuse lighting
+	float3 lightDir = normalize(worldPos - myData.lightWorldPos); // per pixel diffuse lighting - point light / spot light type
+	//lightDir = normalize(float3(0,-1,1)); // uncomment this line for directional lighting
 	
 	// Note: Non-uniform scaling not supported
 	float diffuseLighting = saturate(dot(normals.xyz, -lightDir));
 	
+    // Calculate the amount of light on this pixel.
+    lightIntensity = saturate(dot(normals.xyz, -lightDir));
+
 	float LightDistanceSquared = distToLight*distToLight;
 	// Introduce fall-off of light intensity
-	diffuseLighting *= (LightDistanceSquared / dot(lightPos - worldPos, lightPos - worldPos));
+	//diffuseLighting *= (LightDistanceSquared / dot(myData.lightWorldPos - worldPos, myData.lightWorldPos - worldPos));
 	
 	float3 CameraPos = myData.camPos.xyz;
 	// Using Blinn half angle modification for perofrmance over correctness
@@ -117,11 +140,15 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float specLighting = pow(saturate(dot(h, normals.xyz)), SpecularPower);
 	float4 texel = colors;
 	
+	float shadowBiasParam = 0.002f;
+	float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
+	shadowBias = clamp(shadowBias, 0.0f, 0.1f);
+	shadowBias = 0.0000005f;
 
-	if(projShadowDepth - shadowDepth < -0.00008f) // hand tuned shadow bias
+	if(projShadowDepth < shadowDepth - shadowBias) // hand tuned shadow bias
 	{
 		output.color = float4(saturate(texel * AmbientLightColor), texel.w);
-		//output.color = float4(0,0,0,0);
+		//output.color = float4(1,0,0,0);
 		//return output;		
 	}
 	else
@@ -147,9 +174,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(distToLight, distToLight, distToLight, 1.0f);	
 	//output.color = float4(worldPos.xyz, 1.0f);
 	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 500.0f;
-	float shadowmapval = g_shadowTexture.Sample(g_sampler, input.uv);
+	float shadowmapval = 1.0f - g_shadowTexture.Sample(g_sampler, input.uv);
 	//shadowmapval = shadowDepth;
-	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1) * 40.0f;
+	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1);
 	//output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f);
 	return output;	
 }

@@ -46,7 +46,9 @@ png_byte bit_depth;
 png_bytep *row_pointers;
 UINT8* transformedBytes;
 void read_png_file(const char *filename) {
-	FILE *fp = fopen(filename, "rb");
+	FILE *fp;
+	
+	fopen_s(&fp, filename, "rb");
 
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!png) abort();
@@ -147,7 +149,8 @@ void FTextureManager::ReloadTextures()
 
 void write_png_file(char *filename) 
 {
-	FILE *fp = fopen(filename, "wb");
+	FILE *fp;
+	fopen_s(&fp, filename, "wb");
 	if (!fp) abort();
 
 	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);

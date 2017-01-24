@@ -40,7 +40,7 @@ FPrimitiveBox::~FPrimitiveBox()
 {
 }
 
-static int isfloor = true;
+static bool isfloor = true;
 void FPrimitiveBox::Init()
 {
 	HRESULT hr;
@@ -114,15 +114,15 @@ void FPrimitiveBox::Init()
 			isfloor = false;
 		}
 		if(myIsFloor)
-			myScale = FVector3(20.0f, 1.0f, 20.0f);
+			myScale = FVector3(60.0f, 1.0f, 40.0f);
 		else
 			myScale = FVector3(1.5f, 1.0f, 1.0f);
 
-		m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(Vertex); // get from primitive manager		
+		m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetVerticesBuffer()->GetGPUVirtualAddress();
+		m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box::GetVerticesBufferStride();
 		m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetVertexBufferSize();
 			
-		m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::m_indexBuffer->GetGPUVirtualAddress();
+		m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetIndicesBuffer()->GetGPUVirtualAddress();
 		m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
 		m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();		
 	}
@@ -246,6 +246,13 @@ void FPrimitiveBox::PopulateCommandListAsync()
 	PopulateCommandListInternal(cmdList);
 }
 
+void FPrimitiveBox::PopulateCommandListAsyncShadows()
+{
+	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
+	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
+	PopulateCommandListInternalShadows(cmdList);
+}
+
 void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
 {
 	aCmdList->SetPipelineState(m_pipelineState);
@@ -318,7 +325,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	aCmdList->IASetIndexBuffer(&m_indexBufferView);
-	aCmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+	aCmdList->DrawIndexedInstanced(FPrimitiveGeometry::Box::GetIndices().size(), 1, 0, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -334,7 +341,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
-	XMFLOAT4X4  myProjMatrixFloatVersion = FLightManager::GetLightViewProjMatrix(myPos.x, myPos.y, myPos.z);
+//	XMFLOAT4X4  myProjMatrixFloatVersion = FLightManager::GetLightViewProjMatrix(myPos.x, myPos.y, myPos.z);
 
 
 	// copy modelviewproj data to gpu
@@ -393,7 +400,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	aCmdList->IASetIndexBuffer(&m_indexBufferView);
-	aCmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+	aCmdList->DrawIndexedInstanced(FPrimitiveGeometry::Box::GetIndices().size(), 1, 0, 0, 0);
 
 	float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	aCmdList->ClearRenderTargetView(myManagerClass->GetGBufferHandle(FD3DClass::GbufferType::Gbuffer_color), color, 0, NULL);
@@ -403,6 +410,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
+#define DEPTH_BIAS_D32_FLOAT(d) (d/(1/pow(2,23)))
 void FPrimitiveBox::SetShader()
 {	
 	skipNextRender = true;
@@ -452,6 +460,8 @@ void FPrimitiveBox::SetShader()
 	psoDescShadows.VS = CD3DX12_SHADER_BYTECODE(shaderShadows.myVertexShader);
 	psoDescShadows.PS = CD3DX12_SHADER_BYTECODE(shaderShadows.myPixelShader);
 	psoDescShadows.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDescShadows.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+	//psoDescShadows.RasterizerState.DepthBias = DEPTH_BIAS_D32_FLOAT(-0.006);
 	psoDescShadows.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDescShadows.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDescShadows.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;

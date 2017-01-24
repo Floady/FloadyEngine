@@ -49,7 +49,7 @@ FD3DClass::~FD3DClass()
 }
 
 const int DYNTEX_COUNT = 5;
-const int BOX_COUNT = 5*5; // they are made in a grid so row*col
+const int BOX_COUNT = 10*10; // they are made in a grid so row*col
 static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
 static FFontRenderer* myFontRenderer = nullptr;
@@ -532,7 +532,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	for (int i = 0; i < boxGridSize; i++)
 		for (int j = 0; j < boxGridSize; j++)
 	{
-		myBoxes[i * boxGridSize + j] = new FPrimitiveBox(this, FVector3(i * 5.0, 0.0, j * 5.0f));
+		myBoxes[i * boxGridSize + j] = new FPrimitiveBox(this, FVector3(i * 5.0f, 0.0f, j * 5.0f));
 	}
 
 
@@ -712,10 +712,51 @@ bool FD3DClass::Render()
 		}
 
 
+		/*
 		for (int i = 0; i < BOX_COUNT; i++)
 		{
-			myBoxes[i]->RenderShadows();
+		myBoxes[i]->RenderShadows();
 		}
+
+		/*/
+		{
+			FJobSystem* test = FJobSystem::GetInstance();
+			int nrWorkerThreads = test->GetNrWorkerThreads();
+			for (int i = 0; i < nrWorkerThreads; i++)
+			{
+				m_workerThreadCmdAllocators[i]->Reset();
+				m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+			}
+
+			test->Pause();
+			test->ResetQueue();
+			for (size_t i = 0; i < BOX_COUNT; i++)
+			{
+				test->QueueJob(FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::PopulateCommandListAsyncShadows>(myBoxes[i]));
+			}
+
+			test->UnPause();
+
+			test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
+
+			for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
+			{
+				m_workerThreadCmdLists[i]->Close();
+				ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+			}
+
+			// wait for cmdlist to be done before returning
+			ID3D12Fence* m_fence;
+			HANDLE m_fenceEvent;
+			m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+			result = GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+			m_fence->SetEventOnCompletion(1, m_fenceEvent);
+			WaitForSingleObject(m_fenceEvent, INFINITE);
+		}
+		// */
 
 		// deferred - render shadows, render gbuffer
 		myBox->RenderShadows();
@@ -723,13 +764,14 @@ bool FD3DClass::Render()
 		myBox->Render();
 		myFloor->Render();
 
-		//*	
+		// with 5x5 box grid, its about 110fps vs 70fps
+		/*	
 		for (int i = 0; i < BOX_COUNT; i++)
 		{
 			myBoxes[i]->Render();
 		}
 
-		//*/
+		/*/
 		{
 			FJobSystem* test = FJobSystem::GetInstance();
 			int nrWorkerThreads = test->GetNrWorkerThreads();
@@ -761,7 +803,7 @@ bool FD3DClass::Render()
 			ID3D12Fence* m_fence;
 			HANDLE m_fenceEvent;
 			m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-			int fenceToWaitFor = 1; // what value?
+			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
 			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
 			result = GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
 			m_fence->SetEventOnCompletion(1, m_fenceEvent);

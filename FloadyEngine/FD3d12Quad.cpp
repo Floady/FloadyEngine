@@ -13,51 +13,12 @@ static const UINT TextureWidth = 256;
 static const UINT TextureHeight = 256;
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
 
-										// Generate a simple black and white checkerboard texture.
-std::vector<UINT8> GenerateTextureData2()
-{
-	const UINT rowPitch = TextureWidth * TexturePixelSize;
-	const UINT cellPitch = rowPitch >> 3;		// The width of a cell in the checkboard texture.
-	const UINT cellHeight = TextureWidth >> 3;	// The height of a cell in the checkerboard texture.
-	const UINT textureSize = rowPitch * TextureHeight;
-
-	std::vector<UINT8> data(textureSize);
-	UINT8* pData = &data[0];
-
-	for (UINT n = 0; n < textureSize; n += TexturePixelSize)
-	{
-		UINT x = n % rowPitch;
-		UINT y = n / rowPitch;
-		UINT i = x / cellPitch;
-		UINT j = y / cellHeight;
-
-		if (i % 2 == j % 2)
-		{
-			pData[n] = 0x00;		// R
-			pData[n + 1] = 0x00;	// G
-			pData[n + 2] = 0x00;	// B
-			pData[n + 3] = 0xff;	// A
-		}
-		else
-		{
-			pData[n] = 0xff;		// R
-			pData[n + 1] = 0xff;	// G
-			pData[n + 2] = 0xff;	// B
-			pData[n + 3] = 0xff;	// A
-		}
-	}
-
-	return data;
-}
-
-
 FD3d12Quad::FD3d12Quad(FD3DClass* aManager, FVector3 aPos)
 {
 	myManagerClass = aManager;
 	myHeapOffsetCBV = aManager->GetNextOffset();
 	int tmp = aManager->GetNextOffset();
 }
-
 
 FD3d12Quad::~FD3d12Quad()
 {
@@ -164,84 +125,14 @@ void FD3d12Quad::Init()
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 		m_vertexBufferView.SizeInBytes = vertexBufferSize;
-
-		// TEXTURE
-
-		// Describe and create a shader resource view (SRV) heap for the texture.
-		//D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-		//srvHeapDesc.NumDescriptors = 1;
-		//srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		//srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		//m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap));
-		//
-		//{
-		//	// Describe and create a Texture2D.
-		//	D3D12_RESOURCE_DESC textureDesc = {};
-		//	textureDesc.MipLevels = 1;
-		//	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		//	textureDesc.Width = TextureWidth;
-		//	textureDesc.Height = TextureHeight;
-		//	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		//	textureDesc.DepthOrArraySize = 1;
-		//	textureDesc.SampleDesc.Count = 1;
-		//	textureDesc.SampleDesc.Quality = 0;
-		//	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-		//	m_device->CreateCommittedResource(
-		//		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		//		D3D12_HEAP_FLAG_NONE,
-		//		&textureDesc,
-		//		D3D12_RESOURCE_STATE_COPY_DEST,
-		//		nullptr,
-		//		IID_PPV_ARGS(&m_texture));
-
-		//	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture, 0, 1);
-
-		//	// Create the GPU upload buffer.
-		//	m_device->CreateCommittedResource(
-		//		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		//		D3D12_HEAP_FLAG_NONE,
-		//		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-		//		D3D12_RESOURCE_STATE_GENERIC_READ,
-		//		nullptr,
-		//		IID_PPV_ARGS(&textureUploadHeap));
-
-		//	// Copy data to the intermediate upload heap and then schedule a copy 
-		//	// from the upload heap to the Texture2D.
-		//	std::vector<UINT8> texture = GenerateTextureData2();
-
-		//	D3D12_SUBRESOURCE_DATA textureData = {};
-		//	textureData.pData = &texture[0];
-		//	textureData.RowPitch = TextureWidth * TexturePixelSize;
-		//	textureData.SlicePitch = textureData.RowPitch * TextureHeight;
-
-		//	UpdateSubresources(m_commandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
-		//	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-		//	// Describe and create a SRV for the texture.
-		//	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		//	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		//	srvDesc.Format = textureDesc.Format;
-		//	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		//	srvDesc.Texture2D.MipLevels = 1;
-
-
-		//	// Get the size of the memory location for the render target view descriptors.
-		//	unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		//	myHeapOffset = myManagerClass->GetNextOffset();
-		//	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffset, srvSize);
-		//	m_device->CreateShaderResourceView(m_texture, &srvDesc, srvHandle0);
-		//}
-
+		
 		m_commandList->Close();
 
 		// do we need this?
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-		// Sleep(1000);
-		//float invProjMatrixShader[] = {};
+		// should have  a fence (or pass cmd list to init function so we can init all at the same time
 	}
 
 	// buffer for invproj + 3 lights (4x4 float)
@@ -289,8 +180,6 @@ void FD3d12Quad::Init()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV+1, srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
-
-
 }
 
 void FD3d12Quad::Render()
@@ -302,34 +191,25 @@ void FD3d12Quad::Render()
 		return;
 	}
 
-	// However, when ExecuteCommandList() is called on a particular command 
-	// list, that command list can then be reset at any time and must be before 
-	// re-recording.
 	HRESULT hr;
 
 	// set const data
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
-	float lightPos[] = { 0, 1.0f, 4.0f};
+	float lightPos[] = { 10.0, 5.0f, -5.0f};
 	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
 		
 	float shaderConstData2[36];
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
-	shaderConstData2[32] = myManagerClass->GetCamera()->GetPos().x;
-	shaderConstData2[33] = myManagerClass->GetCamera()->GetPos().y;
-	shaderConstData2[34] = myManagerClass->GetCamera()->GetPos().z;
+	shaderConstData2[32] = lightPos[0];
+	shaderConstData2[33] = lightPos[1];
+	shaderConstData2[34] = lightPos[2];
 	shaderConstData2[35] = 1.0f;
-	//memcpy(myConstBufferShaderPtr, shaderConstData, sizeof(shaderConstData));
-	//memcpy(myConstBufferShaderPtr, projMatrix.m, sizeof(projMatrix.m));
+
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));
 
 	// populate cmd list
 	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
-
-	//for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
-	//{
-	//	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	//}
 
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature);

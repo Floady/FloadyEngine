@@ -13,19 +13,13 @@ class FD3DClass;
 class FPrimitiveBox
 {
 public:
-	struct Vertex
-	{
-		DirectX::XMFLOAT4 position;
-		XMFLOAT4 normal;
-		XMFLOAT4 uv;
-	};
-
 	FPrimitiveBox(FD3DClass* aManager, FVector3 aPos);
 	~FPrimitiveBox();
 	void Init();
 	void Render();
 	void RenderShadows();
 	void PopulateCommandListAsync();
+	void PopulateCommandListAsyncShadows();
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();

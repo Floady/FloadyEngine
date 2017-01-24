@@ -8,7 +8,17 @@ class FPrimitiveGeometry
 {
 	struct Vertex
 	{
-		DirectX::XMFLOAT4 position;
+		Vertex(float x, float y, float z, float nx, float ny, float nz, float u, float v)
+		{
+			position.x = x; position.y = y; position.z = z; 
+			normal.x = nx; normal.y = ny; normal.z = nz; uv.x = u; uv.y = v;
+			position.w = 1.0f;
+			normal.w = 1.0f;
+			uv.z = 0.0f;
+			uv.w = 0.0f;
+		}
+
+		XMFLOAT4 position;
 		XMFLOAT4 normal;
 		XMFLOAT4 uv;
 	};
@@ -19,14 +29,35 @@ public:
 	struct Box
 	{
 	private:
-		static int indices[];
-		static Vertex triangleVertices[];
-
-	public:
+		static std::vector<int> indices;
+		static std::vector<Vertex> vertices;
 		static ID3D12Resource* m_vertexBuffer;
 		static ID3D12Resource* m_indexBuffer;
-		static const Vertex* const GetVertices() {	return triangleVertices; }
-		static const int* const GetIndices() {	return indices;	}
+
+	public:
+		static std::vector<Vertex>& const GetVertices() {	return vertices; }
+		static ID3D12Resource*& const GetIndicesBuffer() {	return m_indexBuffer;	}
+		static ID3D12Resource*& const GetVerticesBuffer() { return m_vertexBuffer; }
+		static int const GetVerticesBufferStride() { return sizeof(Vertex); }
+		static std::vector<int>& const GetIndices() { return indices; }
+		static const int GetIndicesBufferSize();
+		static const int GetVertexBufferSize();
+	};
+
+	struct Box2
+	{
+	private:
+		static std::vector<int> indices;
+		static std::vector<Vertex> vertices;
+		static ID3D12Resource* m_vertexBuffer;
+		static ID3D12Resource* m_indexBuffer;
+
+	public:
+		static std::vector<Vertex>& const GetVertices() { return vertices; }
+		static ID3D12Resource*& const GetIndicesBuffer() { return m_indexBuffer; }
+		static ID3D12Resource*& const GetVerticesBuffer() { return m_vertexBuffer; }
+		static int const GetVerticesBufferStride() { return sizeof(Vertex); }
+		static std::vector<int>& const GetIndices() { return indices; }
 		static const int GetIndicesBufferSize();
 		static const int GetVertexBufferSize();
 	};
