@@ -1,6 +1,6 @@
 #include "FPrimitiveBox.h"
 #include "d3dx12.h"
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FCamera.h"
 #include <vector>
 
@@ -18,7 +18,7 @@ const char* shaderfilename = "primitiveshader_deferred.hlsl";
 const char* shaderfilename = "primitiveshader.hlsl";
 #endif
 
-FPrimitiveBox::FPrimitiveBox(FD3DClass* aManager, FVector3 aPos)
+FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, FPrimitiveBox::PrimitiveType aType)
 {
 	myManagerClass = aManager;
 	myYaw = 0.0f; // test
@@ -29,18 +29,19 @@ FPrimitiveBox::FPrimitiveBox(FD3DClass* aManager, FVector3 aPos)
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
 
-	myScale = FVector3(1.0f, 1.0f, 1.0f);
+	myScale = aScale;
 
 	m_pipelineState = nullptr;
 	m_pipelineStateShadows = nullptr;
 	m_commandList = nullptr;
+
+	myType = aType;
 }
 
 FPrimitiveBox::~FPrimitiveBox()
 {
 }
 
-static bool isfloor = true;
 void FPrimitiveBox::Init()
 {
 	HRESULT hr;
@@ -103,28 +104,32 @@ void FPrimitiveBox::Init()
 	}
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
 
 	// Create vertex + index buffer
 	{
-		// first box is floor for now, for testing scale rotate and sizes and shadows
-		myIsFloor = isfloor;
-		if (isfloor)
+		if (myType == PrimitiveType::Sphere)
 		{
-			isfloor = false;
-		}
-		if(myIsFloor)
-			myScale = FVector3(60.0f, 1.0f, 40.0f);
-		else
-			myScale = FVector3(1.5f, 1.0f, 1.0f);
+			myIndicesCount = FPrimitiveGeometry::Box2::GetIndices().size();
+			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetVerticesBuffer()->GetGPUVirtualAddress();
+			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box2::GetVerticesBufferStride();
+			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetVertexBufferSize();
 
-		m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetVerticesBuffer()->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box::GetVerticesBufferStride();
-		m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetVertexBufferSize();
-			
-		m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetIndicesBuffer()->GetGPUVirtualAddress();
-		m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
-		m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();		
+			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetIndicesBuffer()->GetGPUVirtualAddress();
+			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
+		}
+		else if (myType == PrimitiveType::Box)
+		{
+			myIndicesCount = FPrimitiveGeometry::Box::GetIndices().size();
+			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetVerticesBuffer()->GetGPUVirtualAddress();
+			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box::GetVerticesBufferStride();
+			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetVertexBufferSize();
+
+			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetIndicesBuffer()->GetGPUVirtualAddress();
+			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();
+		}
 	}
 
 	myHeapOffsetCBV = myManagerClass->GetNextOffset();
@@ -257,22 +262,12 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 {
 	aCmdList->SetPipelineState(m_pipelineState);
 
-	myYaw += 0.01f;
-	if (myYaw >= 2*3.14f)
-		myYaw = 0.0f;
-
 	// copy modelviewproj data to gpu
 	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, myYaw, 0);
 	XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-	if(!myIsFloor)
-	{
-		offset = scale * mtxRot * offset;
-	}
-	else
-	{
-		offset = scale * offset;
-	}
+	offset = scale * mtxRot * offset;
+
 	XMFLOAT4X4 ret;
 	offset = XMMatrixTranspose(offset);
 
@@ -284,7 +279,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
 
 #if DEFERRED
-	for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
 	{
 		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
@@ -325,14 +320,14 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	aCmdList->IASetIndexBuffer(&m_indexBufferView);
-	aCmdList->DrawIndexedInstanced(FPrimitiveGeometry::Box::GetIndices().size(), 1, 0, 0, 0);
+	aCmdList->DrawIndexedInstanced(myIndicesCount, 1, 0, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 #if DEFERRED
-	for (size_t i = 0; i < FD3DClass::GbufferType::Gbuffer_count; i++)
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
 	{
 		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	}
@@ -341,24 +336,14 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
-//	XMFLOAT4X4  myProjMatrixFloatVersion = FLightManager::GetLightViewProjMatrix(myPos.x, myPos.y, myPos.z);
-
-
 	// copy modelviewproj data to gpu
 	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, myYaw, 0);
 	XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-	if (!myIsFloor)
-	{
-		offset = scale * mtxRot * offset;
-	}
-	else
-	{
-		offset = scale * offset;
-	}
+	offset = scale * mtxRot * offset;
+
 	XMFLOAT4X4 ret;
 	offset = XMMatrixTranspose(offset);
-
 	XMStoreFloat4x4(&ret, offset);
 
 	float constData[32];
@@ -390,23 +375,23 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3DClass::GbufferType::Gbuffer_color);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color);
 	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
 
 	// Record commands.
 	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	aCmdList->IASetIndexBuffer(&m_indexBufferView);
-	aCmdList->DrawIndexedInstanced(FPrimitiveGeometry::Box::GetIndices().size(), 1, 0, 0, 0);
+	aCmdList->DrawIndexedInstanced(myIndicesCount, 1, 0, 0, 0);
 
 	float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	aCmdList->ClearRenderTargetView(myManagerClass->GetGBufferHandle(FD3DClass::GbufferType::Gbuffer_color), color, 0, NULL);
+	aCmdList->ClearRenderTargetView(myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color), color, 0, NULL);
 
 	// Indicate that the back buffer will now be used to present.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3DClass::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 

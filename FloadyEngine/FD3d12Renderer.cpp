@@ -1,9 +1,7 @@
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FD3d12Triangle.h"
 #include "FD3d12Quad.h"
 #include "FFontRenderer.h"
-#include "FDynamicText.h"
-#include "FPrimitiveBox.h"
 #include "FCamera.h"
 #include "FShaderManager.h"
 #include "FFontManager.h"
@@ -12,9 +10,11 @@
 #include "FPrimitiveGeometry.h"
 #include "FTimer.h"
 
-FD3DClass* FD3DClass::ourInstance = nullptr;
+#include <functional>
 
-FD3DClass::FD3DClass()
+FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
+
+FD3d12Renderer::FD3d12Renderer()
 	: myShaderManager()
 	, m_viewport()
 	, m_scissorRect()
@@ -44,22 +44,13 @@ FD3DClass::FD3DClass()
 	FTextureManager::GetInstance();
 }
 
-FD3DClass::~FD3DClass()
+FD3d12Renderer::~FD3d12Renderer()
 {
 }
 
-const int DYNTEX_COUNT = 5;
-const int BOX_COUNT = 10*10; // they are made in a grid so row*col
-static FD3d12Triangle* myTriangle = nullptr;
 static FD3d12Quad* myQuad = nullptr;
-static FFontRenderer* myFontRenderer = nullptr;
-static FDynamicText* myFontRenderer2 = nullptr;
-static FPrimitiveBox* myBox = nullptr;
-static FPrimitiveBox* myFloor = nullptr;
-static FDynamicText* myDynamicText[DYNTEX_COUNT];
-static FPrimitiveBox* myBoxes[BOX_COUNT];
 
-bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
+bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
 	m_viewport.Width = static_cast<float>(screenWidth);
 	m_viewport.Height = static_cast<float>(screenHeight);
@@ -506,7 +497,7 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 	
 	// Init resources for managers, they record in cmd list and execute alltogether
 	{
-		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:", this, m_commandList);
+		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.", this, m_commandList);
 		FTextureManager::GetInstance()->InitD3DResources(m_device, m_commandList);
 		FPrimitiveGeometry::InitD3DResources(m_device, m_commandList);
 
@@ -515,70 +506,12 @@ bool FD3DClass::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vs
 		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
-	// test triangle
-	myTriangle = new FD3d12Triangle(screenWidth, screenHeight);
-	myFontRenderer = new FFontRenderer(screenWidth, screenHeight, FVector3(10, 0, 0), "Piemol");
-	myFontRenderer2 = new FDynamicText(this, FVector3(0, -0.5, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	myFloor = new FPrimitiveBox(this, FVector3(0.0, -2.0, 0.0f));
-	myBox = new FPrimitiveBox(this, FVector3(3.0, 0.0, 4.0f));
-	
-	for (int i = 0; i < DYNTEX_COUNT; i++)
-	{
-		myDynamicText[i] = new FDynamicText(this, FVector3(0, i * 0.35f, 0), "AT The jJ Quick Brown Fox Jumped over the Lazy Dog", true);
-	}
-
-	int boxGridSize = int(sqrt(BOX_COUNT));
-	
-	for (int i = 0; i < boxGridSize; i++)
-		for (int j = 0; j < boxGridSize; j++)
-	{
-		myBoxes[i * boxGridSize + j] = new FPrimitiveBox(this, FVector3(i * 5.0f, 0.0f, j * 5.0f));
-	}
-
-
-	// JOBsystem TEST
-	const int numRuns = 1024;
-	for (size_t j = 0; j < 10; j++)
-	{
-		myInt = 0;
-		FJobSystem* test = FJobSystem::GetInstance();
-		test->Pause();
-		test->ResetQueue();
-		for (size_t i = 0; i < numRuns; i++)
-		{
-			test->QueueJob(FDelegate::from_method<FD3DClass, &FD3DClass::IncreaseInt>(this));
-		}
-
-		FTimer timer;
-		test->UnPause();
-		
-		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-
-		char buff[512];
-		sprintf_s(buff, "Jobs: myInt: %d  - %f [%zd]\n", myInt, timer.GetTimeMS(), j);
-		OutputDebugStringA(buff);
-	}
-	
-	{
-		myInt = 0;
-		FTimer timer;
-		for (size_t i = 0; i < numRuns; i++)
-		{
-			IncreaseInt();
-		}
-
-		char buff[512];
-		sprintf_s(buff, "MT: myInt: %d  - %f\n", myInt, timer.GetTimeMS());
-		OutputDebugStringA(buff);
-	}
-	// ~
-
 	return true;
 }
 
 static bool firstFrame = true;
 static unsigned int frameCounter = 0;
-bool FD3DClass::Render()
+bool FD3d12Renderer::Render()
 {
 	HRESULT result;
 	D3D12_RESOURCE_BARRIER barrier;
@@ -664,61 +597,14 @@ bool FD3DClass::Render()
 
 	if (firstFrame)
 	{
-		//myTriangle->Init(m_commandAllocator, m_device, renderTargetViewHandle, m_commandQueue, m_srvHeap);
 		myQuad->Init();
-		myFontRenderer->Init(m_commandAllocator, m_device, myRenderTargetViewHandle, m_commandQueue, m_srvHeap, myTriangle->GetRootSig(), this);
-		myFontRenderer2->Init();
-		myFloor->Init();
-		
-		myBox->Init();
-		
-		for (int i = 0; i < DYNTEX_COUNT; i++)
-		{
-			myDynamicText[i]->Init();
-		}
-		
-		for (int i = 0; i < BOX_COUNT; i++)
-		{
-			myBoxes[i]->Init();
-		}
 
 		firstFrame = false;
 	}
 	else
 	{
-		//myTriangle->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, renderTargetViewHandle, m_srvHeap);
 		
-
-		//// TRY async render..
-		// WaitForPrevious -> Reset Cmd Allocator -> Reset Cmd List -> Record on workerthread -> execute on MT (so probably you give it a resetted Cmd list)
-
-		//*
-
-		/*/
-		for (int i = 0; i < DYNTEX_COUNT; i++)
-		{
-			myDynamicText[i]->Render();
-		}
-		//*/
-
-		//~ async render
-		
-		// show frame counter for dynamic text testing
-		{
-			frameCounter++;
-			char buff[128];
-			sprintf_s(buff, "%s %d\0", "lol: ", frameCounter);
-			myFontRenderer2->SetText(buff);
-		}
-
-
-		/*
-		for (int i = 0; i < BOX_COUNT; i++)
-		{
-		myBoxes[i]->RenderShadows();
-		}
-
-		/*/
+		mySceneGraph.InitNewObjects();
 		{
 			FJobSystem* test = FJobSystem::GetInstance();
 			int nrWorkerThreads = test->GetNrWorkerThreads();
@@ -730,9 +616,10 @@ bool FD3DClass::Render()
 
 			test->Pause();
 			test->ResetQueue();
-			for (size_t i = 0; i < BOX_COUNT; i++)
+
+			for (FRenderableObject* object : mySceneGraph.GetObjects())
 			{
-				test->QueueJob(FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::PopulateCommandListAsyncShadows>(myBoxes[i]));
+				test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
 			}
 
 			test->UnPause();
@@ -756,22 +643,7 @@ bool FD3DClass::Render()
 			m_fence->SetEventOnCompletion(1, m_fenceEvent);
 			WaitForSingleObject(m_fenceEvent, INFINITE);
 		}
-		// */
 
-		// deferred - render shadows, render gbuffer
-		myBox->RenderShadows();
-		myFloor->RenderShadows();
-		myBox->Render();
-		myFloor->Render();
-
-		// with 5x5 box grid, its about 110fps vs 70fps
-		/*	
-		for (int i = 0; i < BOX_COUNT; i++)
-		{
-			myBoxes[i]->Render();
-		}
-
-		/*/
 		{
 			FJobSystem* test = FJobSystem::GetInstance();
 			int nrWorkerThreads = test->GetNrWorkerThreads();
@@ -783,9 +655,10 @@ bool FD3DClass::Render()
 
 			test->Pause();
 			test->ResetQueue();
-			for (size_t i = 0; i < BOX_COUNT; i++)
+
+			for (FRenderableObject* object : mySceneGraph.GetObjects())
 			{
-				test->QueueJob(FDelegate::from_method<FPrimitiveBox, &FPrimitiveBox::PopulateCommandListAsync>(myBoxes[i]));
+				test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsync>(object));
 			}
 
 			test->UnPause();
@@ -809,40 +682,9 @@ bool FD3DClass::Render()
 			m_fence->SetEventOnCompletion(1, m_fenceEvent);
 			WaitForSingleObject(m_fenceEvent, INFINITE);
 		}
-		// */
 
 		// deferred combine pass
 		myQuad->Render();
-
-		// render forward stuff - dynamictext is causing depthstencil error
-		myFontRenderer->Render(m_backBufferRenderTarget[m_bufferIndex], m_commandAllocator, m_commandQueue, myRenderTargetViewHandle, dsvHandle, m_srvHeap, myCamera);
-		myFontRenderer2->Render();
-
-		FJobSystem* test = FJobSystem::GetInstance();
-		int nrWorkerThreads = test->GetNrWorkerThreads();
-		for (int i = 0; i < nrWorkerThreads; i++)
-		{
-			m_workerThreadCmdAllocators[i]->Reset();
-			m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
-		}
-
-		test->Pause();
-		test->ResetQueue();
-		for (size_t i = 0; i < DYNTEX_COUNT; i++)
-		{
-			test->QueueJob(FDelegate::from_method<FDynamicText, &FDynamicText::PopulateCommandListAsync>(myDynamicText[i]));
-		}
-
-		test->UnPause();
-
-		test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-
-		for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
-		{
-			m_workerThreadCmdLists[i]->Close();
-			ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-			m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-		}
 	}
 
 		
@@ -891,7 +733,7 @@ bool FD3DClass::Render()
 	return true;
 }
 
-void FD3DClass::IncreaseInt()
+void FD3d12Renderer::IncreaseInt()
 {
 	// do some actual work to test this (gets compiled out in release obviously)
 	for (size_t i = 0; i < 20; i++)
@@ -904,7 +746,7 @@ void FD3DClass::IncreaseInt()
 	InterlockedIncrement(&myInt);
 }
 
-void FD3DClass::Shutdown()
+void FD3d12Renderer::Shutdown()
 {
 	int error;
 

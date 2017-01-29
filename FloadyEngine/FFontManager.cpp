@@ -1,7 +1,7 @@
 #include "FFontManager.h"
 #include "d3dx12.h"
 #include "D3dCompiler.h"
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FCamera.h"
 #include <vector>
 
@@ -101,7 +101,7 @@ const FFontManager::FFont& FFontManager::GetFont(FFontManager::FFONT_TYPE aType,
 	return myFonts.back(); // this should return a fallback font
 }
 
-void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char * aSupportedChars, FD3DClass * aManager, ID3D12GraphicsCommandList* aCommandList)
+void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char * aSupportedChars, FD3d12Renderer * aManager, ID3D12GraphicsCommandList* aCommandList)
 {
 	FFont newFont;
 	newFont.myType = aType;

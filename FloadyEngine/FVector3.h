@@ -20,7 +20,8 @@ public:
 	inline FVector3(__m128 vec) : xyz(vec){}
 	FVector3(const FVector3& other) : x(other.x), y(other.y), z(other.z) {  }
 	FVector3(FVector3&& other) : x(other.x), y(other.y), z(other.z) {  }
-	FVector3& operator=(FVector3&& other){ x = other.x; y = other.y; z = other.z; return *this;}
+	FVector3& operator=(FVector3&& other) { x = other.x; y = other.y; z = other.z; return *this; }
+	FVector3& operator=(FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
 	
 	void Set( float a_X, float a_Y, float a_Z )
 	{

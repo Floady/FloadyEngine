@@ -5,21 +5,28 @@
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 #include "FVector3.h"
+#include "FRenderableObject.h"
 
 using namespace DirectX;
 class FCamera;
-class FD3DClass;
+class FD3d12Renderer;
 
-class FPrimitiveBox
+class FPrimitiveBox : public FRenderableObject
 {
 public:
-	FPrimitiveBox(FD3DClass* aManager, FVector3 aPos);
+	enum PrimitiveType
+	{
+		Box = 0,
+		Sphere
+	};
+
+	FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, PrimitiveType aType);
 	~FPrimitiveBox();
-	void Init();
-	void Render();
-	void RenderShadows();
-	void PopulateCommandListAsync();
-	void PopulateCommandListAsyncShadows();
+	void Init() override;
+	void Render() override;
+	void RenderShadows() override;
+	void PopulateCommandListAsync() override;
+	void PopulateCommandListAsyncShadows() override;
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
@@ -42,13 +49,15 @@ private:
 	
 	FVector3 myPos;
 	FVector3 myScale;
-	FD3DClass* myManagerClass;
-	bool myIsFloor; // temp to test scale rotate
+	FD3d12Renderer* myManagerClass;
+	
 	int myHeapOffsetCBV;
 	int myHeapOffsetCBVShadow;
 	int myHeapOffsetText;
 	int myHeapOffsetAll;
 	float myYaw;
 	bool skipNextRender;
+	int myIndicesCount;
+	PrimitiveType myType;
 };
 

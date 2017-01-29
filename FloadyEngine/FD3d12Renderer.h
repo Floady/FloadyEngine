@@ -2,10 +2,11 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include "FShaderManager.h"
+#include "FSceneGraph.h"
 
 class FCamera;
 
-class FD3DClass
+class FD3d12Renderer
 {
 public:
 	enum GbufferType
@@ -19,10 +20,10 @@ public:
 	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT };
 	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow" };
 
-	FD3DClass();
-	~FD3DClass();
+	FD3d12Renderer();
+	~FD3d12Renderer();
 
-	FD3DClass* GetInstance() { return ourInstance; }
+	FD3d12Renderer* GetInstance() { return ourInstance; }
 
 	bool Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen);
 	void Shutdown();
@@ -53,8 +54,10 @@ public:
 	ID3D12CommandAllocator* GetCommandAllocatorForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdAllocators[aWorkerThreadId]; }
 	ID3D12GraphicsCommandList* GetCommandListForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdLists[aWorkerThreadId]; }
 
+	FSceneGraph& GetSceneGraph() { return mySceneGraph; }
+
 private:
-	static FD3DClass* ourInstance;
+	static FD3d12Renderer* ourInstance;
 	D3D12_CPU_DESCRIPTOR_HANDLE myRenderTargetViewHandle;
 	D3D12_CPU_DESCRIPTOR_HANDLE myShadowMapViewHandle;
 	volatile unsigned int myInt;
@@ -94,5 +97,7 @@ private:
 	int myCurrentRTVHeapOffset; //for RTV heap
 
 	FShaderManager myShaderManager;
+
+	FSceneGraph mySceneGraph;
 };
 

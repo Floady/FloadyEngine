@@ -1,6 +1,6 @@
 #include "FDynamicText.h"
 #include "d3dx12.h"
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FCamera.h"
 #include <vector>
 
@@ -8,7 +8,14 @@
 #include "FFontManager.h"
 #include "FJobSystem.h"
 
-FDynamicText::FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning)
+#define DEFERRED 1
+#if DEFERRED
+	const char* ourShaderName = "primitiveshader_deferred.hlsl";
+#else
+	const char* ourShaderName = "shaders.hlsl";
+#endif
+
+FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, bool aUseKerning)
 {
 	myManagerClass = aManager;
 	myUseKerning = aUseKerning;
@@ -20,10 +27,11 @@ FDynamicText::FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
 
-	myText = aText;
+	myText[0] = '\0';
 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
+	pVertexDataBegin = nullptr;
 }
 
 FDynamicText::~FDynamicText()
@@ -78,7 +86,7 @@ void FDynamicText::Init()
 	}
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload("shaders.hlsl", this, FDelegate::from_method<FDynamicText, &FDynamicText::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload(ourShaderName, this, FDelegate2<void()>::from<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
 	{
@@ -89,7 +97,7 @@ void FDynamicText::Init()
 		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * 128 * 6), // allocate enough for a max size string (128 characters)
+			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FPrimitiveGeometry::Vertex) * 128 * 6), // allocate enough for a max size string (128 characters)
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&m_vertexBuffer));
@@ -100,7 +108,7 @@ void FDynamicText::Init()
 
 		// Initialize the vertex buffer view.
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+		m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex);
 
 		SetText(myText);
 	}
@@ -174,9 +182,33 @@ void FDynamicText::PopulateCommandList()
 {
 	HRESULT hr;
 	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
+#if DEFERRED
+	// copy modelviewproj data to gpu
+	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
+	XMMATRIX scale = XMMatrixScaling(1,1,1);
+	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+	offset = scale * mtxRot * offset;
 
+	XMFLOAT4X4 ret;
+	offset = XMMatrixTranspose(offset);
+
+	XMStoreFloat4x4(&ret, offset);
+
+	float constData[32];
+	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
+	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
+#else
 	// copy modelviewproj data to gpu
 	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+#endif
+
+#if DEFERRED
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	{
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
+#endif
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Set necessary state.
@@ -200,8 +232,15 @@ void FDynamicText::PopulateCommandList()
 	// Indicate that the back buffer will be used as a render target.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
+
+#if DEFERRED
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
+	m_commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
+#else
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+#endif
+
 
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -209,6 +248,12 @@ void FDynamicText::PopulateCommandList()
 	m_commandList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+#if DEFERRED
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	{
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+#endif
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -220,11 +265,36 @@ void FDynamicText::PopulateCommandListAsync()
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
-	
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
+	HRESULT hr;
+#if DEFERRED
+	// copy modelviewproj data to gpu
+	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
+	XMMATRIX scale = XMMatrixScaling(1, 1, 1);
+	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+	offset = scale * mtxRot * offset;
+
+	XMFLOAT4X4 ret;
+	offset = XMMatrixTranspose(offset);
+
+	XMStoreFloat4x4(&ret, offset);
+
+	float constData[32];
+	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
+	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
+#else
 	// copy modelviewproj data to gpu
 	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+#endif
+
+#if DEFERRED
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	{
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
+#endif
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Set necessary state.
 	cmdList->SetGraphicsRootSignature(m_rootSignature);
@@ -247,45 +317,61 @@ void FDynamicText::PopulateCommandListAsync()
 	// Indicate that the back buffer will be used as a render target.
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
+
+#if DEFERRED
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
+	cmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
+#else
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
 	cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+#endif
+
 
 	// Record commands.
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+#if DEFERRED
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	{
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+#endif
+
 	// Indicate that the back buffer will now be used to present.
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-	// hr = m_commandList->Close(); // close on collector?
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
 void FDynamicText::SetText(const char * aNewText)
 {
-	myText = aNewText;
-	myWordLength = static_cast<UINT>(strlen(myText));
+	if (!pVertexDataBegin)
+		return;
 
-	const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
+	//myText = aNewText;
+	myWordLength = static_cast<UINT>(strlen(aNewText));
+	memcpy(&myText, aNewText, myWordLength);
+	const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
 	// Create the vertex buffer.
 	{
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz123456789.0");
 
 		float texWidth, texHeight;
 		FFontManager::FWordInfo wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
 		
 		const float quadZ = 0.0f;
-		Vertex uvTL;
+		FPrimitiveGeometry::Vertex uvTL;
 		uvTL.uv.x = 0;
 		uvTL.uv.y = 0;
 
-		Vertex uvBR;
+		FPrimitiveGeometry::Vertex uvBR;
 		uvBR.uv.x = 1;
 		uvBR.uv.y = 1;
 
-		Vertex* triangleVertices = new Vertex[myWordLength * 6];
+		FPrimitiveGeometry::Vertex* triangleVertices = new FPrimitiveGeometry::Vertex[myWordLength * 6];
 		float xoffset = 0.0f;
 
 		int vtxIdx = 0;
@@ -306,19 +392,19 @@ void FDynamicText::SetText(const char * aNewText)
 			xoffset += wordInfo.myKerningOffset[i] / scale;
 
 			// draw quad
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight , quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvBR.uv.y, 0, 0 } };
-
-			triangleVertices[vtxIdx++] = { { xoffset - halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvTL.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvTL.uv.y, 0, 0 } };
-			triangleVertices[vtxIdx++] = { { xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 1 },{ uvBR.uv.x, uvBR.uv.y, 0, 0 } };
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, halfGlyphHeight , quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, -halfGlyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y);
+										 																											   
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, halfGlyphHeight, quadZ,  0,0,-1, uvTL.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, halfGlyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvBR.uv.y);
 
 			xoffset += halfGlyphWidth; // move half
 			//xoffset += 0.1; //custom spacing
 		}
 
-		const UINT vertexBufferSize = sizeof(Vertex) * myWordLength * 6;
+		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
 		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
 
 		delete[] triangleVertices;
@@ -330,7 +416,7 @@ void FDynamicText::SetShader()
 	skipNextRender = true;
 
 	// get shader ptr + layouts
-	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader("shaders.hlsl");
+	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader(ourShaderName);
 
 	if(m_pipelineState)
 		m_pipelineState->Release();
@@ -350,8 +436,16 @@ void FDynamicText::SetShader()
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+#if DEFERRED
+	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
+	for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+	{
+		psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
+	}
+#else
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+#endif
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 

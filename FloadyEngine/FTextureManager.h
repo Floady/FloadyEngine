@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <map>
 
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 
 class FTextureManager
 {

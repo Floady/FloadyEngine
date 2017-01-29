@@ -16,6 +16,15 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{bdc4e380-e156-49b3-977e-fca6dbe59241}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Game">
+      <UniqueIdentifier>{215780ee-8693-4e85-824a-3d19d9866edb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Header Files">
+      <UniqueIdentifier>{bd1428b3-fb09-433b-8bee-bc8bde4b3b78}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Source Files">
+      <UniqueIdentifier>{0f4756e3-29cf-448b-802d-18e9897c9ee8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -25,15 +34,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FD3d12Input.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FD3d12Graphics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FD3d12System.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FD3DClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FD3d12Triangle.cpp">
@@ -78,18 +78,27 @@
     <ClCompile Include="FPrimitiveGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FGame.cpp">
+      <Filter>Game\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameCamera.cpp">
+      <Filter>Game\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FRenderWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FD3d12Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FRenderableObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FSceneGraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3d12Graphics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3d12System.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3DClass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FD3d12Triangle.h">
@@ -141,6 +150,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FPrimitiveGeometry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGame.h">
+      <Filter>Game\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameCamera.h">
+      <Filter>Game\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FRenderWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FD3d12Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FRenderableObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FSceneGraph.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

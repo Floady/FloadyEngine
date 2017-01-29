@@ -1,7 +1,7 @@
 #include "FFontRenderer.h"
 #include "d3dx12.h"
 #include "D3dCompiler.h"
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FCamera.h"
 #include <vector>
 
@@ -128,7 +128,7 @@ FFontRenderer::~FFontRenderer()
 {
 }
 
-void FFontRenderer::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3DClass* aManager)
+void FFontRenderer::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aDevice, D3D12_CPU_DESCRIPTOR_HANDLE& anRTVHandle, ID3D12CommandQueue* aCmdQueue, ID3D12DescriptorHeap* anSRVHeap, ID3D12RootSignature* aRootSig, FD3d12Renderer* aManager)
 {
 	m_device = aDevice;
 	myManagerClass = aManager;

@@ -172,9 +172,9 @@ void FShaderManager::ReloadShaders()
 		FindClose(hFind);
 
 
-		for(std::map<std::string, std::vector<std::pair<void*, FDelegate> > >::const_iterator it = myHotReloadMap.begin(); it != myHotReloadMap.end(); ++it)
+		for(std::map<std::string, std::vector<std::pair<void*, FDelegate2<void()>> > >::const_iterator it = myHotReloadMap.begin(); it != myHotReloadMap.end(); ++it)
 		{
-			for each(const std::pair<void*, FDelegate>& fdelegate in (*it).second)
+			for each(const std::pair<void*, FDelegate2<void()>>& fdelegate in (*it).second)
 			{
 				fdelegate.second();
 			}
@@ -182,7 +182,7 @@ void FShaderManager::ReloadShaders()
 	}
 }
 
-void FShaderManager::RegisterForHotReload(const char * aShaderName, void * anObject, FDelegate aReloadDelegate)
+void FShaderManager::RegisterForHotReload(const char * aShaderName, void * anObject, FDelegate2<void()>& aReloadDelegate)
 {
 	myHotReloadMap[std::string(aShaderName)].push_back(std::make_pair(anObject, aReloadDelegate));
 }

@@ -1,7 +1,7 @@
 #include "FD3d12Quad.h"
 #include "d3dx12.h"
 #include "D3dCompiler.h"
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include "FShaderManager.h"
 #include "FCamera.h"
 #include "FVector3.h"
@@ -13,7 +13,7 @@ static const UINT TextureWidth = 256;
 static const UINT TextureHeight = 256;
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
 
-FD3d12Quad::FD3d12Quad(FD3DClass* aManager, FVector3 aPos)
+FD3d12Quad::FD3d12Quad(FD3d12Renderer* aManager, FVector3 aPos)
 {
 	myManagerClass = aManager;
 	myHeapOffsetCBV = aManager->GetNextOffset();
@@ -80,7 +80,7 @@ void FD3d12Quad::Init()
 		// get shader ptr + layouts
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload("lightshader.hlsl", this, FDelegate::from_method<FD3d12Quad, &FD3d12Quad::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload("lightshader.hlsl", this, FDelegate2<void()>::from<FD3d12Quad, &FD3d12Quad::SetShader>(this));
 
 
 	// Create the vertex buffer.
@@ -198,13 +198,18 @@ void FD3d12Quad::Render()
 	float lightPos[] = { 10.0, 5.0f, -5.0f};
 	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
 		
-	float shaderConstData2[36];
+	float shaderConstData2[40];
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
 	shaderConstData2[32] = lightPos[0];
 	shaderConstData2[33] = lightPos[1];
 	shaderConstData2[34] = lightPos[2];
 	shaderConstData2[35] = 1.0f;
+	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
+	shaderConstData2[36] = camPos.x;
+	shaderConstData2[37] = camPos.y;
+	shaderConstData2[38] = camPos.z;
+	shaderConstData2[39] = 1.0f;
 
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));
 

@@ -8,7 +8,7 @@
 
 using namespace DirectX;
 
-class FD3DClass;
+class FD3d12Renderer;
 
 class FD3d12Quad
 {
@@ -19,7 +19,7 @@ public:
 		XMFLOAT2 uv;
 	};
 
-	FD3d12Quad(FD3DClass* aManager, FVector3 aPos);
+	FD3d12Quad(FD3d12Renderer* aManager, FVector3 aPos);
 	~FD3d12Quad();
 	void Init();
 	void Render();
@@ -50,7 +50,7 @@ private:
 
 	int myHeapOffset;
 
-	FD3DClass* myManagerClass;
+	FD3d12Renderer* myManagerClass;
 	// App resources.
 	ID3D12Resource* m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;

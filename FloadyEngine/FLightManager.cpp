@@ -16,8 +16,8 @@ XMFLOAT4X4 FLightManager::GetLightViewProjMatrix(float x, float y, float z)
 	float fov = 60.0f;
 	float fovAngleY = fov * XM_PI / 180.0f;
 
-	XMMATRIX myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 100.0f, 0.01f);
-	//XMMATRIX myProjMatrix = XMMatrixOrthographicLH(40.0f, 15.0f, 100.0f, 0.01f);
+	//XMMATRIX myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 100.0f, 0.01f);
+	XMMATRIX myProjMatrix = XMMatrixOrthographicLH(40.0f, 15.0f, 100.0f, 0.01f);
 	// calc viewproj from lightpos
 
 	FXMVECTOR eye = XMVectorSet(ourLightPos.x, ourLightPos.y, ourLightPos.z, 1);

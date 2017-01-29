@@ -100,9 +100,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
     float3 viewPos = worldPos.xyz;
 	float distToLight = length(viewPos - myData.lightWorldPos);
 	
-	if(distToLight > 30.0)
+	if(distToLight > 10.0)
 	{
-		//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
+		output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
 		//return output;	
 	}
 	float lightIntensity = 1.0f;
@@ -122,7 +122,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	// Get light direction for this fragment
 	float3 lightDir = normalize(worldPos - myData.lightWorldPos); // per pixel diffuse lighting - point light / spot light type
-	//lightDir = normalize(float3(0,-1,1)); // uncomment this line for directional lighting
+	lightDir = normalize(float3(0,-1,1)); // uncomment this line for directional lighting
 	
 	// Note: Non-uniform scaling not supported
 	float diffuseLighting = saturate(dot(normals.xyz, -lightDir));
@@ -132,7 +132,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 
 	float LightDistanceSquared = distToLight*distToLight;
 	// Introduce fall-off of light intensity
-	//diffuseLighting *= (LightDistanceSquared / dot(myData.lightWorldPos - worldPos, myData.lightWorldPos - worldPos));
+	diffuseLighting *= (LightDistanceSquared / dot(myData.lightWorldPos - worldPos, myData.lightWorldPos - worldPos));
 	
 	float3 CameraPos = myData.camPos.xyz;
 	// Using Blinn half angle modification for perofrmance over correctness
@@ -142,8 +142,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	float shadowBiasParam = 0.002f;
 	float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
-	shadowBias = clamp(shadowBias, 0.0f, 0.1f);
-	shadowBias = 0.0000005f;
+	shadowBias = clamp(shadowBias, 0.0f, 0.00001f);
+	shadowBias = 0.000001f;
 
 	if(projShadowDepth < shadowDepth - shadowBias) // hand tuned shadow bias
 	{
@@ -168,7 +168,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(input.uv.x, input.uv.y, 0.0f, 1.0f);
 	//output.color = float4(g_normaltexture.Sample(g_sampler, input.uv).xyz, 1.0f);
 	//output.color = float4(1.0f, 0.0f, 0.1f, 1.0f);
-	//output.color = float4(depth, depth, depth, 1.0f);	
+	//output.color = float4(depth, depth, depth, 1.0f) * 40.0f;	
 	//output.color = float4(viewPos.xyz, 1.0f);	
 	//output.color = float4(g_constData[0].xyz, 1.0f);	
 	//output.color = float4(distToLight, distToLight, distToLight, 1.0f);	

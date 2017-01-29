@@ -5,7 +5,7 @@
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 #include <ftglyph.h>
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 #include <vector>
 
 using namespace DirectX;
@@ -44,7 +44,7 @@ public:
 	~FFontManager();
 	static FFontManager* GetInstance();
 	const FFont& GetFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars);
-	void InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars, FD3DClass* aManager, ID3D12GraphicsCommandList* aCommandList);
+	void InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars, FD3d12Renderer* aManager, ID3D12GraphicsCommandList* aCommandList);
 	FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning);
 
 private:

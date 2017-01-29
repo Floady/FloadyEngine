@@ -76,7 +76,7 @@ FJobSystem::FJob * FJobSystem::GetNextJob()
 	return nullptr;
 }
 
-bool FJobSystem::QueueJob(const FDelegate& aDelegate)
+bool FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate)
 {
 	LONG curFreeIdx = myFreeIndex;
 	
@@ -104,8 +104,6 @@ void FJobSystem::ResetQueue()
 
 void FJobSystem::WaitForAllJobs()
 {
-	OutputDebugStringA("Started Waiting\n");
-
 	bool isDone = false;
 	while (!isDone)
 	{

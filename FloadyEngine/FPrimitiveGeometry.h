@@ -1,13 +1,24 @@
 #pragma once
 #include <DirectXMath.h>
-#include "FD3DClass.h"
+#include "FD3d12Renderer.h"
 
 using namespace DirectX;
 
 class FPrimitiveGeometry
 {
+public:
 	struct Vertex
 	{
+		Vertex()
+		{
+			position.x = 0; position.y = 0; position.z = 0;
+			normal.x = 0; normal.y = 0; normal.z = -1; uv.x = 0; uv.y = 0;
+			position.w = 1.0f;
+			normal.w = 1.0f;
+			uv.z = 0.0f;
+			uv.w = 0.0f;
+		}
+
 		Vertex(float x, float y, float z, float nx, float ny, float nz, float u, float v)
 		{
 			position.x = x; position.y = y; position.z = z; 

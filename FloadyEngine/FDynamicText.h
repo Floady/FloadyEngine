@@ -5,26 +5,25 @@
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 #include "FVector3.h"
+#include "FPrimitiveGeometry.h"
+#include "FRenderableObject.h"
 
 using namespace DirectX;
 class FCamera;
-class FD3DClass;
+class FD3d12Renderer;
 
-class FDynamicText
+class FDynamicText : public FRenderableObject
 {
 public:
-	struct Vertex
-	{
-		DirectX::XMFLOAT4 position;
-		XMFLOAT4 uv;
-	};
 
-	FDynamicText(FD3DClass* aManager, FVector3 aPos, const char* aText, bool aUseKerning);
+	FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, bool aUseKerning);
 	~FDynamicText();
-	void Init();
-	void Render();
+	void Init() override;
+	void Render() override;
+	void RenderShadows() override {}
 	void PopulateCommandList();
-	void PopulateCommandListAsync();
+	void PopulateCommandListAsync() override;
+	void PopulateCommandListAsyncShadows() override {}
 	void SetText(const char* aNewText);
 	void SetShader();
 
@@ -44,8 +43,8 @@ private:
 	ID3D12Resource* m_ModelProjMatrix;
 	
 	FVector3 myPos;
-	const char* myText;
-	FD3DClass* myManagerClass;
+	char myText[128];
+	FD3d12Renderer* myManagerClass;
 
 	int myHeapOffsetCBV;
 	int myHeapOffsetText;

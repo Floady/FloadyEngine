@@ -23,7 +23,7 @@ public:
 			InterlockedExchange(&myFinished, 0);
 		}
 
-		FDelegate myFunc; // this is never read+write concurrently (we increment the job idx after assignment)
+		FDelegate2<void()> myFunc; // this is never read+write concurrently (we increment the job idx after assignment)
 		volatile LONG myFinished;
 	};
 
@@ -33,7 +33,7 @@ public:
 	~FJobSystem();
 	static FJobSystem* GetInstance();
 	FJob* GetNextJob();
-	bool QueueJob(const FDelegate& aDelegate);
+	bool QueueJob(const FDelegate2<void()>& aDelegate);
 	void ResetQueue();
 	void WaitForAllJobs();
 	void UnPause() { myIsPaused = false; }
