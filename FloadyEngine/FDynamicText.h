@@ -16,7 +16,7 @@ class FDynamicText : public FRenderableObject
 {
 public:
 
-	FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, bool aUseKerning);
+	FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, float aWidth, float aHeight, bool aUseKerning, bool anIs2D);
 	~FDynamicText();
 	void Init() override;
 	void Render() override;
@@ -54,5 +54,11 @@ private:
 	
 	bool skipNextRender;
 	bool firstFrame;
+	bool myIs2D;
+	bool myIsDeferred;
+	const char* myShaderName;
+
+	float myWidth;
+	float myHeight;
 };
 

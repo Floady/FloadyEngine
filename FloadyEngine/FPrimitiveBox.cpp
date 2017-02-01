@@ -36,6 +36,8 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 	m_commandList = nullptr;
 
 	myType = aType;
+
+	myRotMatrix = XMMatrixIdentity();
 }
 
 FPrimitiveBox::~FPrimitiveBox()
@@ -263,7 +265,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	aCmdList->SetPipelineState(m_pipelineState);
 
 	// copy modelviewproj data to gpu
-	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, myYaw, 0);
+	XMMATRIX mtxRot = myRotMatrix;
 	XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
 	offset = scale * mtxRot * offset;

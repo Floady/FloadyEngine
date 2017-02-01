@@ -683,9 +683,16 @@ bool FD3d12Renderer::Render()
 			WaitForSingleObject(m_fenceEvent, INFINITE);
 		}
 
+
 		// deferred combine pass
 		myQuad->Render();
 	}
+
+	for (FRenderableObject* object : mySceneGraph.GetTransparantObjects())
+	{
+		object->Render();
+	}
+
 
 		
 	// Finally present the back buffer to the screen since rendering is complete.

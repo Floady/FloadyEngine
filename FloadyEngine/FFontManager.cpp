@@ -51,7 +51,7 @@ std::vector<UINT8> FFontManager::GenerateTextureData(const FT_Face& aFace, const
 				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
 				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
 				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j];
-				data[offset + counter++] = 255;
+				data[offset + counter++] = bitmap.buffer[i*bitmap.pitch + j]; // set alpha to 0 if there is no color value
 			}
 
 			offset += (TextureWidth - bitmap.pitch) * TexturePixelSize;

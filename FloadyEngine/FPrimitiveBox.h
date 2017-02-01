@@ -30,7 +30,9 @@ public:
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
-
+	void SetPos(FVector3 aPos) { myPos = aPos; }
+	void SetRotMatrix(XMMATRIX& m) { myRotMatrix = m; }
+	void SetRotMatrix(XMFLOAT4X4* m) { myRotMatrix = XMLoadFloat4x4(m); }
 private:
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12RootSignature* m_rootSignatureShadows;
@@ -38,6 +40,8 @@ private:
 	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
+	XMMATRIX myRotMatrix;
+
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;
 	

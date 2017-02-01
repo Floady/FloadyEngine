@@ -8,17 +8,15 @@
 #include "FFontManager.h"
 #include "FJobSystem.h"
 
-#define DEFERRED 1
-#if DEFERRED
-	const char* ourShaderName = "primitiveshader_deferred.hlsl";
-#else
-	const char* ourShaderName = "shaders.hlsl";
-#endif
+// probably wanna pull some things out here, and call init + populatecmdlist with a deferred bool so the renderer controls it from the scenegraphqueue
+// object is placed in queue so is not in control of when it is drawn
 
-FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, bool aUseKerning)
+FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, float aWidth, float aHeight, bool aUseKerning, bool anIs2D)
 {
 	myManagerClass = aManager;
 	myUseKerning = aUseKerning;
+	myIs2D = anIs2D;
+	myIsDeferred = !anIs2D;
 
 	m_ModelProjMatrix = nullptr;
 	m_vertexBuffer = nullptr;
@@ -32,6 +30,10 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
 	pVertexDataBegin = nullptr;
+	myShaderName = myIsDeferred ? "primitiveshader_deferred.hlsl" : "shaders.hlsl";
+
+	myWidth = aWidth;
+	myHeight = aHeight;
 }
 
 FDynamicText::~FDynamicText()
@@ -83,10 +85,11 @@ void FDynamicText::Init()
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
 		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
+		m_rootSignature->SetName(L"FDynamicText");
 	}
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload(ourShaderName, this, FDelegate2<void()>::from<FDynamicText, &FDynamicText::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload(myShaderName, this, FDelegate2<void()>::from<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
 	{
@@ -182,34 +185,55 @@ void FDynamicText::PopulateCommandList()
 {
 	HRESULT hr;
 	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
-#if DEFERRED
-	// copy modelviewproj data to gpu
-	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
-	XMMATRIX scale = XMMatrixScaling(1,1,1);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-	offset = scale * mtxRot * offset;
-
-	XMFLOAT4X4 ret;
-	offset = XMMatrixTranspose(offset);
-
-	XMStoreFloat4x4(&ret, offset);
-
-	float constData[32];
-	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
-	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
-	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
-#else
-	// copy modelviewproj data to gpu
-	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
-#endif
-
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	if (myIsDeferred)
 	{
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		// copy modelviewproj data to gpu
+		XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
+		XMMATRIX scale = XMMatrixScaling(1, 1, 1);
+		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+		offset = scale * mtxRot * offset;
+
+		XMFLOAT4X4 ret;
+		offset = XMMatrixTranspose(offset);
+
+		XMStoreFloat4x4(&ret, offset);
+
+		float constData[32];
+		if (myIs2D)
+		{
+			XMMATRIX viewproj = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+			XMFLOAT4X4 viewProjIdentity;
+			XMStoreFloat4x4(&viewProjIdentity, XMMatrixTranspose(viewproj));
+			memcpy(&constData[0], viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
+		}
+		else
+		{
+			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		}
+
+		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
+		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
+
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		{
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		}
 	}
-#endif
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	else
+	{
+		// copy modelviewproj data to gpu
+		if (myIs2D)
+		{
+			XMMATRIX viewproj = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+			XMFLOAT4X4 viewProjIdentity;
+			XMStoreFloat4x4(&viewProjIdentity, XMMatrixTranspose(viewproj));
+			memcpy(myConstantBufferPtr, viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
+		}
+		else
+			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	}
 
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature);
@@ -233,14 +257,22 @@ void FDynamicText::PopulateCommandList()
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
-#if DEFERRED
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
-	m_commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
-#else
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-#endif
-
+	if(myIsDeferred)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
+		if (myIs2D)
+			m_commandList->OMSetRenderTargets(4, rtvHandles, FALSE, NULL);
+		else
+			m_commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
+	}
+	else
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
+		if (myIs2D)
+			m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, NULL);
+		else
+			m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+	}
 
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -248,12 +280,14 @@ void FDynamicText::PopulateCommandList()
 	m_commandList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+
+	if (myIsDeferred)
 	{
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		{
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		}
 	}
-#endif
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -265,37 +299,57 @@ void FDynamicText::PopulateCommandListAsync()
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
-
+	
 	HRESULT hr;
-#if DEFERRED
-	// copy modelviewproj data to gpu
-	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
-	XMMATRIX scale = XMMatrixScaling(1, 1, 1);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-	offset = scale * mtxRot * offset;
-
-	XMFLOAT4X4 ret;
-	offset = XMMatrixTranspose(offset);
-
-	XMStoreFloat4x4(&ret, offset);
-
-	float constData[32];
-	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
-	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
-	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
-#else
-	// copy modelviewproj data to gpu
-	memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
-#endif
-
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	if (myIsDeferred)
 	{
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	}
-#endif
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		// copy modelviewproj data to gpu
+		XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, 0, 0);
+		XMMATRIX scale = XMMatrixScaling(1, 1, 1);
+		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+		offset = scale * mtxRot * offset;
 
+		XMMATRIX viewproj = XMMatrixIdentity();
+		XMFLOAT4X4 viewProjIdentity;
+
+		XMStoreFloat4x4(&viewProjIdentity, viewproj);
+
+		XMFLOAT4X4 ret;
+		offset = XMMatrixTranspose(offset);
+
+		XMStoreFloat4x4(&ret, offset);
+
+		float constData[32];
+		if (myIs2D)
+			memcpy(&constData[0], viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
+		else
+		{
+			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		}
+
+		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
+		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
+
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		{
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		}
+	}
+	else
+	{
+		// copy modelviewproj data to gpu
+		if (myIs2D)
+		{
+			XMMATRIX viewproj = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+			XMFLOAT4X4 viewProjIdentity;
+			XMStoreFloat4x4(&viewProjIdentity, XMMatrixTranspose(viewproj));
+			memcpy(myConstantBufferPtr, viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
+		}
+		else
+			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	}
 	// Set necessary state.
 	cmdList->SetGraphicsRootSignature(m_rootSignature);
 
@@ -318,14 +372,22 @@ void FDynamicText::PopulateCommandListAsync()
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
-#if DEFERRED
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
-	cmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
-#else
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-#endif
-
+	if (myIsDeferred)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
+		if (myIs2D)
+			cmdList->OMSetRenderTargets(4, rtvHandles, FALSE, NULL);
+		else
+			cmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
+	}
+	else
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
+		if (myIs2D)
+			cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, NULL);
+		else
+			cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
+	}
 
 	// Record commands.
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -333,12 +395,13 @@ void FDynamicText::PopulateCommandListAsync()
 	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	if (myIsDeferred)
 	{
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		{
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		}
 	}
-#endif
 
 	// Indicate that the back buffer will now be used to present.
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -352,8 +415,12 @@ void FDynamicText::SetText(const char * aNewText)
 	//myText = aNewText;
 	myWordLength = static_cast<UINT>(strlen(aNewText));
 	memcpy(&myText, aNewText, myWordLength);
+	myText[myWordLength] = 0;
 	const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
+
+	const float finalWidth = myWidth;
+	const float finalHeight = myHeight;
 
 	// Create the vertex buffer.
 	{
@@ -361,7 +428,9 @@ void FDynamicText::SetText(const char * aNewText)
 
 		float texWidth, texHeight;
 		FFontManager::FWordInfo wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
-		
+		float scaleFactorWidth = finalWidth / (texWidth);
+		float scaleFactorHeight = finalHeight / (texHeight);
+
 		const float quadZ = 0.0f;
 		FPrimitiveGeometry::Vertex uvTL;
 		uvTL.uv.x = 0;
@@ -384,21 +453,22 @@ void FDynamicText::SetText(const char * aNewText)
 			uvBR.uv.y = 1;
 
 			//why do we scale? should it be uniform or viewport? - viewproj matrix should handle viewport already
-			const float scale = 1000.0f;
-			float halfGlyphWidth = (wordInfo.myDimensions[i].x / scale) / 2.0f;
-			float halfGlyphHeight = (font.myHeight / scale) / 2.0f;
+			float halfGlyphWidth = wordInfo.myDimensions[i].x / 2.0f;
+			float glyphHeight = font.myHeight;
+			halfGlyphWidth = halfGlyphWidth * scaleFactorWidth;
+			glyphHeight = glyphHeight * scaleFactorHeight;
 
 			xoffset += halfGlyphWidth; // move half
-			xoffset += wordInfo.myKerningOffset[i] / scale;
+			xoffset += wordInfo.myKerningOffset[i] * scaleFactorWidth; // todo fix this with the scaling .. :) did an attempt, but current font has no kerning to double check with
 
 			// draw quad
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, halfGlyphHeight , quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, -halfGlyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, 0, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y);
 										 																											   
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, halfGlyphHeight, quadZ,  0,0,-1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, halfGlyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, -halfGlyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvBR.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ,  0,0,-1, uvTL.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, glyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvTL.uv.y);
+			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0,0,-1, uvBR.uv.x, uvBR.uv.y);
 
 			xoffset += halfGlyphWidth; // move half
 			//xoffset += 0.1; //custom spacing
@@ -416,7 +486,7 @@ void FDynamicText::SetShader()
 	skipNextRender = true;
 
 	// get shader ptr + layouts
-	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader(ourShaderName);
+	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader(myShaderName);
 
 	if(m_pipelineState)
 		m_pipelineState->Release();
@@ -433,22 +503,41 @@ void FDynamicText::SetShader()
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	if(myIs2D)
+		psoDesc.DepthStencilState.DepthEnable = FALSE;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-#if DEFERRED
-	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
-	for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+	
+	if(myIsDeferred)
 	{
-		psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
+		psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
+		for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+		{
+			psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
+		}
 	}
-#else
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-#endif
+	else
+	{
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	}
+
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
+	// enable alpha blend for 2d (non-deferred) - deferred has flickering, should fix it - and then only do alpha test (on/off) not blend
+	if(!myIsDeferred)
+	{
+		psoDesc.BlendState.RenderTarget[0] =
+		{
+			TRUE, FALSE,
+			D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+			D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+			D3D12_LOGIC_OP_NOOP,
+			D3D12_COLOR_WRITE_ENABLE_ALL,
+		};
+	}
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 	
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));

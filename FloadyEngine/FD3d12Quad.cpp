@@ -195,15 +195,15 @@ void FD3d12Quad::Render()
 
 	// set const data
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
-	float lightPos[] = { 10.0, 5.0f, -5.0f};
+	FVector3 lightPos = FLightManager::GetLightPos();
 	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
 		
 	float shaderConstData2[40];
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
-	shaderConstData2[32] = lightPos[0];
-	shaderConstData2[33] = lightPos[1];
-	shaderConstData2[34] = lightPos[2];
+	shaderConstData2[32] = lightPos.x;
+	shaderConstData2[33] = lightPos.y;
+	shaderConstData2[34] = lightPos.z;
 	shaderConstData2[35] = 1.0f;
 	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
 	shaderConstData2[36] = camPos.x;

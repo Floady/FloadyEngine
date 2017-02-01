@@ -35,10 +35,10 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 	
 	result.uv = uv;
 	result.normal = normal;
+	result.normal.w = 0.0f;
 	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform);
+	result.normal = normalize(result.normal);
 	result.normal = (result.normal + float4(1, 1, 1,1))/2.0f;
-	//result.normal = normalize(result.normal);
-	
 	return result;
 }
 

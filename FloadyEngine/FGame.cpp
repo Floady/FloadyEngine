@@ -8,6 +8,11 @@
 #include "FGameCamera.h"
 #include "FPrimitiveBox.h"
 #include "FDynamicText.h"
+#include "FBulletPhysics.h"
+#include "FGameEntity.h"
+#include "BulletDynamics\Dynamics\btRigidBody.h"
+
+FGame* FGame::ourInstance = nullptr;
 
 FGame::FGame()
 {
@@ -17,6 +22,9 @@ FGame::FGame()
 	myRenderWindow = new FRenderWindow(someDelegate);
 	myRenderer = new FD3d12Renderer();
 	myCamera = new FGameCamera(myInput, 800.0f, 600.0f);
+	myPhysics = new FBulletPhysics();
+
+	ourInstance = this;
 }
 
 FGame::~FGame()
@@ -46,14 +54,20 @@ void FGame::Init()
 		return;
 	}
 
-	myRenderer->Initialize(myRenderWindow->GetWindowWidth(), myRenderWindow->GetWindowHeight(), myRenderWindow->GetHWND(), false, false); // vsync + fullscreen here
+	// Init engine basics
+	myRenderer->Initialize(myRenderWindow->GetWindowHeight(), myRenderWindow->GetWindowWidth(), myRenderWindow->GetHWND(), false, false); // vsync + fullscreen here
 	myRenderer->SetCamera(myCamera);
+	myPhysics->Init();
 
-	myRenderer->GetSceneGraph().AddObject(new FPrimitiveBox(myRenderer, FVector3(0.0f, 0.0f, 0.0f), FVector3(50, 1, 50), FPrimitiveBox::PrimitiveType::Box), false);
-	myRenderer->GetSceneGraph().AddObject(new FPrimitiveBox(myRenderer, FVector3(2.5f, 2.0f, 2.5f), FVector3(1, 1, 1), FPrimitiveBox::PrimitiveType::Box), false);
-	myRenderer->GetSceneGraph().AddObject(new FPrimitiveBox(myRenderer, FVector3(5.0f, 2.0f, 2.5f), FVector3(1, 1, 1), FPrimitiveBox::PrimitiveType::Sphere), false);
-	myFpsCounter = new FDynamicText(myRenderer, FVector3(0, 2.0f, 0), "FPS Counter", true);
-	myRenderer->GetSceneGraph().AddObject(myFpsCounter, false);
+	// Add some objects to the scene
+	FVector3 boxPos = FVector3(2.5f, 12.0f, 2.5f);
+	myEntityContainer.push_back(new FGameEntity(FVector3(0.0f, -1.0f, 0.0f), FVector3(15, 0.1, 15), FGameEntity::ModelType::Box, 0.0f));
+	myEntityContainer.push_back(new FGameEntity(FVector3(2.0f, 12.0f, 2.1f), FVector3(1, 1, 1), FGameEntity::ModelType::Box, 10.0f));
+	myEntityContainer.push_back(new FGameEntity(FVector3(2.0f, 8.0f, 2.0f), FVector3(1, 1, 1), FGameEntity::ModelType::Sphere, 10.0f));
+	myFpsCounter = new FDynamicText(myRenderer, FVector3(-1.0f, -1.0f, 0.0),"FPS Counter", 1.0f, 0.2f , true, true);
+	myYoloSign = new FDynamicText(myRenderer, FVector3(0, 2.0f, -2.0), "FPS Counter", 5.0f, 1.0f, true, false);
+	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
+	myRenderer->GetSceneGraph().AddObject(myYoloSign, false);
 }
 
 bool FGame::Update(double aDeltaTime)
@@ -61,6 +75,8 @@ bool FGame::Update(double aDeltaTime)
 	// quit on escape
 	if (myInput->IsKeyDown(VK_ESCAPE))
 		return false;
+	if (myInput->IsKeyDown(VK_F2))
+		myRenderer->GetShaderManager().ReloadShaders();
 
 	// update input if we have focus
 	if (myRenderWindow->IsFocussed())
@@ -69,10 +85,29 @@ bool FGame::Update(double aDeltaTime)
 	// update camera
 	myCamera->Update(aDeltaTime);
 
+	for (FGameEntity* entity : myEntityContainer)
+	{
+		entity->Update();
+	}
+
+	// update input if we have focus
+	if (myInput->IsKeyDown(VK_SPACE))
+	{
+		/*myBoxPhys->applyImpulse(btVector3(0.1, 1, 0), btVector3(0, 0, 0));
+		myBoxPhys->activate();*/
+		myPhysics->Update(aDeltaTime);
+	}
+
+	for (FGameEntity* entity : myEntityContainer)
+	{
+		entity->PostPhysicsUpdate();
+	}
+
+
 	char buff[128];
 	sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f/static_cast<float>(aDeltaTime));
 	myFpsCounter->SetText(buff);
-
+	myYoloSign->SetText("yolo");
 	return true;
 }
 

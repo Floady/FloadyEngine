@@ -116,7 +116,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			memcpy(pIndexDataBegin, &indices, indexBufferSize);
 		}
 
-		// Box 2
+		// Sphere
 		{
 			UINT8* pVertexDataBegin;
 			UINT8* pIndexDataBegin;
@@ -125,8 +125,8 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			std::vector<int>& indices = FPrimitiveGeometry::Box2::GetIndices();
 			{
 				float radius = 1.0f;
-				int sliceCount = 10;
-				int stackCount = 10;
+				int sliceCount = 20;
+				int stackCount = 20;
 
 				ret.push_back(Vertex(0, radius, 0, 0, 1, 0, 0, 0));
 				float phiStep = PI / stackCount;
