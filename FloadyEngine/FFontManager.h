@@ -8,8 +8,6 @@
 #include "FD3d12Renderer.h"
 #include <vector>
 
-using namespace DirectX;
-
 class FFontManager
 {
 public:
@@ -26,16 +24,16 @@ public:
 		FFONT_TYPE myType;
 		int myWidth;
 		int myHeight;
-		std::vector<XMFLOAT2> myUVs;
+		std::vector<DirectX::XMFLOAT2> myUVs;
 		const char* myCharacters;
 		ID3D12Resource* myTexture;
 	};
 
 	struct FWordInfo
 	{
-		std::vector<XMFLOAT2> myUVTL;
-		std::vector<XMFLOAT2> myUVBR;
-		std::vector<XMFLOAT2> myDimensions;
+		std::vector<DirectX::XMFLOAT2> myUVTL;
+		std::vector<DirectX::XMFLOAT2> myUVBR;
+		std::vector<DirectX::XMFLOAT2> myDimensions;
 		std::vector<float> myKerningOffset;
 	};
 

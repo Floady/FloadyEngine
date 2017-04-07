@@ -1,4 +1,5 @@
 
+#pragma once
 #include "stdio.h"
 #include "windows.h"
 #include "math.h"
@@ -6,7 +7,6 @@
 #include <xmmintrin.h>
 #include <smmintrin.h>
 
-#pragma once
 #define PI				3.14159265358979323846264338327950288419716939937510582097494459072381640628620899862803482534211706798f
 #define DEGTORAD		PI / 180.0f
 
@@ -16,12 +16,13 @@ class FVector3
 {
 public:
 	inline FVector3() : x( 0.0f ), y( 0.0f ), z( 0.0f ) {}
-	inline FVector3( float a_X, float a_Y, float a_Z ) : x( a_X ), y( a_Y ), z( a_Z ) {}
+	inline FVector3( float a_X, float a_Y, float a_Z ) : x( a_X ), y( a_Y ), z( a_Z ), w(0) {}
 	inline FVector3(__m128 vec) : xyz(vec){}
 	FVector3(const FVector3& other) : x(other.x), y(other.y), z(other.z) {  }
 	FVector3(FVector3&& other) : x(other.x), y(other.y), z(other.z) {  }
 	FVector3& operator=(FVector3&& other) { x = other.x; y = other.y; z = other.z; return *this; }
-	FVector3& operator=(FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
+	//FVector3& operator=(FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
+	FVector3& operator=(const FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
 	
 	void Set( float a_X, float a_Y, float a_Z )
 	{
@@ -203,21 +204,21 @@ friend FVector3 operator-( const FVector3& v1, const FVector3& v2 )
 #endif
 }
 
-__forceinline friend FVector3 operator+ ( const FVector3& v1, const FVector3& v2 )
+__forceinline FVector3 operator+ ( const FVector3& v2 )
 {
 #if NONVECTORIZED
 	return FVector3( v1.x + v2.x, v1.y + v2.y, v1.z + v2.z ); 
 #else
-	return _mm_add_ps(v1.xyz, v2.xyz);
+	return _mm_add_ps(xyz, v2.xyz);
 #endif
 }
 
-__forceinline friend FVector3 operator+( const FVector3& v1, FVector3* v2 )
+__forceinline FVector3 operator+(FVector3* v2 )
 {
 #if NONVECTORIZED
 	return FVector3( v1.x + v2->x, v1.y + v2->y, v1.z + v2->z ); 
 #else
-	return _mm_add_ps(v1.xyz, v2->xyz);
+	return _mm_add_ps(xyz, v2->xyz);
 #endif
 }
 

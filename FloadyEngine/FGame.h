@@ -2,6 +2,7 @@
 
 #include <vector>
 
+class FScreenQuad;
 class FGameEntity;
 class FBulletPhysics;
 class FDynamicText;
@@ -12,6 +13,7 @@ class FRenderWindow;
 class FD3d12Renderer;
 class FPrimitiveBox;
 class btRigidBody;
+class F3DPicker;
 
 class FGame
 {
@@ -23,6 +25,7 @@ public:
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
 	FBulletPhysics* GetPhysics() { return myPhysics; }
+	void Test();
 	FGame();
 	~FGame();
 
@@ -36,9 +39,10 @@ private:
 	FTimer* myFrameTimer;
 	double myFrameTime;
 	FDynamicText* myFpsCounter;
-	FDynamicText* myYoloSign;
 
 	static FGame* ourInstance;
 	std::vector<FGameEntity*> myEntityContainer;
+	bool myIsMouseCaptured;
+	F3DPicker* myPicker;
 };
 

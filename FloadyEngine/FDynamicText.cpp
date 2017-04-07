@@ -11,6 +11,8 @@
 // probably wanna pull some things out here, and call init + populatecmdlist with a deferred bool so the renderer controls it from the scenegraphqueue
 // object is placed in queue so is not in control of when it is drawn
 
+using namespace DirectX;
+
 FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, float aWidth, float aHeight, bool aUseKerning, bool anIs2D)
 {
 	myManagerClass = aManager;
@@ -174,6 +176,9 @@ void FDynamicText::Render()
 		skipNextRender = false;
 		return;
 	}
+
+	if (!m_commandList)
+		return;
 
 	PopulateCommandList();
 
@@ -454,7 +459,7 @@ void FDynamicText::SetText(const char * aNewText)
 
 			//why do we scale? should it be uniform or viewport? - viewproj matrix should handle viewport already
 			float halfGlyphWidth = wordInfo.myDimensions[i].x / 2.0f;
-			float glyphHeight = font.myHeight;
+			float glyphHeight = texHeight;
 			halfGlyphWidth = halfGlyphWidth * scaleFactorWidth;
 			glyphHeight = glyphHeight * scaleFactorHeight;
 

@@ -41,6 +41,10 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
 	
+	float test = input.uv.x;
+	output.color = float4(test,test,test,1);
+	//return output;
+	
 	// to check if bound by shader performance
 	//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
 	//return output;
@@ -175,8 +179,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(worldPos.xyz, 1.0f);
 	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 500.0f;
 	float shadowmapval = 1.0f - g_shadowTexture.Sample(g_sampler, input.uv);
-	shadowmapval = worldPos.x / 15.0f;
-	output.color = float4(shadowmapval,shadowmapval,shadowmapval,1);
+	//shadowmapval = input.uv.x;
+	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1);
 	//output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f);
 	return output;	
 }

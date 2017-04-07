@@ -9,7 +9,7 @@
 class FLightManager
 {
 public:
-	static XMFLOAT4X4 GetLightViewProjMatrix(float x = 0.0f, float y = 0.0f, float z = 0.0f);
+	static DirectX::XMFLOAT4X4 GetLightViewProjMatrix(float x = 0.0f, float y = 0.0f, float z = 0.0f);
 	static FVector3 GetLightPos();
 private:
 	FLightManager();

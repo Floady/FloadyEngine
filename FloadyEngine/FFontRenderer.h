@@ -6,7 +6,6 @@
 #include "d3dx12.h"
 #include "FVector3.h"
 
-using namespace DirectX;
 class FCamera;
 class FD3d12Renderer;
 
@@ -16,7 +15,7 @@ public:
 	struct Vertex
 	{
 		DirectX::XMFLOAT3 position;
-		XMFLOAT2 uv;
+		DirectX::XMFLOAT2 uv;
 	};
 
 	FFontRenderer(UINT width, UINT height, FVector3 aPos, const char* aText);
@@ -27,7 +26,7 @@ public:
 private:
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
-	IDXGISwapChain3* m_swapChain;
+	
 	ID3D12Device* m_device;
 	ID3D12Resource* m_renderTargets;
 	ID3D12CommandAllocator* m_commandAllocator;

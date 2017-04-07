@@ -189,15 +189,25 @@ void FRenderWindow::InitializeWindows(int& screenHeight, int& screenWidth)
 	SetFocus(m_hwnd);
 
 	// Hide the mouse cursor.
-	ShowCursor(false);
+	SetCursorVisible(false);
 
 	return;
+}
+
+void FRenderWindow::SetCursorVisible(bool aVisible)
+{
+	if(myShouldShowCursor != aVisible)
+	{
+		// Hide the mouse cursor.
+		int curCounter = ShowCursor(aVisible);
+		myShouldShowCursor = aVisible;
+	}
 }
 
 void FRenderWindow::ShutdownWindows()
 {
 	// Show the mouse cursor.
-	ShowCursor(true);
+	SetCursorVisible(true);
 
 	// Fix the display settings if leaving full screen mode.
 	if (FULL_SCREEN)

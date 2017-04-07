@@ -8,7 +8,6 @@
 #include "FPrimitiveGeometry.h"
 #include "FRenderableObject.h"
 
-using namespace DirectX;
 class FCamera;
 class FD3d12Renderer;
 
@@ -27,6 +26,9 @@ public:
 	void SetText(const char* aNewText);
 	void SetShader();
 
+	// dont care for text - could use it to change font
+	virtual void SetTexture(const char* aFilename) {};
+	virtual void SetShader(const char* aFilename) {};
 private:
 	bool myUseKerning;
 

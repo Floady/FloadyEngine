@@ -1,5 +1,6 @@
 #include "FLightManager.h"
 
+using namespace DirectX;
 
 FLightManager* FLightManager::ourInstance = nullptr;
 FVector3 FLightManager::ourLightPos = FVector3(0.0, 5.0f, -10.0); // debugdraw frustrum with lines todo

@@ -1,0 +1,67 @@
+{
+"box1" : 
+{
+  "posX" : 2.0,
+  "posY" : 12.0,
+"posZ" : 2.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 10.0,
+"isNavBlocker" : true,
+"type" : 1,
+"tex" : "wood.png"
+},
+"obj2" : 
+{
+  "posX" : 2.0,
+  "posY" : 8.0,
+"posZ" : 2.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 10.0,
+"isNavBlocker" : true,
+"type" : 0,
+"tex" : "marble.png"
+},
+"box2" : 
+{
+  "posX" : 1.0,
+  "posY" : 1.0,
+"posZ" : 1.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 10.0,
+"isNavBlocker" : true,
+"type" : 1,
+"tex" : "wood.png"
+},
+"obj4" : 
+{
+  "posX" : 4.0,
+  "posY" : 1.0,
+"posZ" : 1.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 10.0,
+"isNavBlocker" : true,
+"type" : 0,
+"tex" : "marble.png"
+},
+"floor" : 
+{
+  "posX" : 0.0,
+  "posY" : -1.0,
+"posZ" : 0.0,
+"scaleX" : 15.0,
+"scaleY" : 0.1,
+"scaleZ" : 15.0,
+"mass" : 0.0,
+"isNavBlocker" : false,
+"type" : 1,
+"tex" : "marble.png"
+}
+}

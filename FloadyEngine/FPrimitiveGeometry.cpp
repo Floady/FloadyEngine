@@ -125,8 +125,8 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			std::vector<int>& indices = FPrimitiveGeometry::Box2::GetIndices();
 			{
 				float radius = 1.0f;
-				int sliceCount = 20;
-				int stackCount = 20;
+				int sliceCount = 10;
+				int stackCount = 10;
 
 				ret.push_back(Vertex(0, radius, 0, 0, 1, 0, 0, 0));
 				float phiStep = PI / stackCount;
@@ -210,7 +210,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 				CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 				hr = FPrimitiveGeometry::Box2::GetIndicesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin));
 				const UINT indexBufferSize = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
-				memcpy(pIndexDataBegin, &indices[0], indexBufferSize);
+				memcpy(pIndexDataBegin, &indices[0], indexBufferSize); // this was crashing with 20x20 1.0f radius
 			}
 		}
 	}

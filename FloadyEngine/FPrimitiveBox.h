@@ -6,8 +6,9 @@
 #include "d3dx12.h"
 #include "FVector3.h"
 #include "FRenderableObject.h"
+#include <string>
 
-using namespace DirectX;
+
 class FCamera;
 class FD3d12Renderer;
 
@@ -31,8 +32,14 @@ public:
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
 	void SetPos(FVector3 aPos) { myPos = aPos; }
-	void SetRotMatrix(XMMATRIX& m) { myRotMatrix = m; }
-	void SetRotMatrix(XMFLOAT4X4* m) { myRotMatrix = XMLoadFloat4x4(m); }
+	void SetRotMatrix(DirectX::XMMATRIX& m) { myRotMatrix = m; }
+	void SetRotMatrix(DirectX::XMFLOAT4X4* m) { myRotMatrix = XMLoadFloat4x4(m); }
+	void SetRotMatrix(float* m) override {
+		DirectX::XMFLOAT4X4 matrix(m); SetRotMatrix(&matrix);
+	}
+
+	void SetTexture(const char* aFilename) override;
+	void SetShader(const char* aFilename) override;
 private:
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12RootSignature* m_rootSignatureShadows;
@@ -40,13 +47,15 @@ private:
 	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
-	XMMATRIX myRotMatrix;
+	DirectX::XMMATRIX myRotMatrix;
 
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;
 	
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
+	std::string myTexName;
 
 	ID3D12Resource* m_ModelProjMatrix;
 	ID3D12Resource* m_ModelProjMatrixShadow;

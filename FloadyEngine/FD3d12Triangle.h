@@ -5,15 +5,13 @@
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 
-using namespace DirectX;
-
 class FD3d12Triangle
 {
 public:
 	struct Vertex
 	{
 		DirectX::XMFLOAT3 position;
-		XMFLOAT2 uv;
+		DirectX::XMFLOAT2 uv;
 	};
 
 	FD3d12Triangle(UINT width, UINT height);
@@ -26,7 +24,7 @@ public:
 private:
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
-	IDXGISwapChain3* m_swapChain;
+	
 	ID3D12Device* m_device;
 	ID3D12Resource* m_renderTargets;
 	ID3D12CommandAllocator* m_commandAllocator;

@@ -11,6 +11,8 @@
 #include "FMatrix.h"
 #include "FVector3.h"
 
+using namespace DirectX;
+
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.
 
 

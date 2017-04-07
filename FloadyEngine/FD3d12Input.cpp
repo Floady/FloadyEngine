@@ -33,6 +33,9 @@ void FD3d12Input::Initialize()
 		m_keys[i] = false;
 	}
 
+	myLMouseButtonDown = false;
+	myRMouseButtonDown = false;
+
 	return;
 }
 
@@ -100,6 +103,18 @@ void FD3d12Input::MessageHandler(UINT umsg, WPARAM wparam, LPARAM lparam)
 			KeyDown((unsigned int)wparam);
 		}
 		break;
+		case WM_LBUTTONDOWN:
+			myLMouseButtonDown = true;
+			break;
+		case WM_RBUTTONDOWN:
+			myRMouseButtonDown = true;
+			break;
+		case WM_LBUTTONUP:
+			myLMouseButtonDown = false;
+			break;
+		case WM_RBUTTONUP:
+			myRMouseButtonDown = false;
+			break;
 		case WM_MOUSEMOVE:
 		{
 			if(myMouseWasJustSet)

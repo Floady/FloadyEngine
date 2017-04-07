@@ -2,7 +2,8 @@
 
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
-
+#include "FDebugDrawer.h"
+#include "FD3d12Renderer.h"
 
 FBulletPhysics::FBulletPhysics()
 {
@@ -57,7 +58,7 @@ FBulletPhysics::~FBulletPhysics()
 	m_collisionConfiguration = 0;
 }
 
-void FBulletPhysics::Init()
+void FBulletPhysics::Init(FD3d12Renderer* aRendererForDebug)
 {
 	///collision configuration contains default setup for memory, collision setup
 	m_collisionConfiguration = new btDefaultCollisionConfiguration();
@@ -75,6 +76,9 @@ void FBulletPhysics::Init()
 	m_dynamicsWorld = new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_solver, m_collisionConfiguration);
 
 	m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
+
+	myDebugDrawer = new FDebugDrawer(aRendererForDebug);
+	m_dynamicsWorld->setDebugDrawer(myDebugDrawer);
 }
 
 void FBulletPhysics::Update(double aDeltaTime)
@@ -83,21 +87,30 @@ void FBulletPhysics::Update(double aDeltaTime)
 	{
 		m_dynamicsWorld->stepSimulation(static_cast<float>(aDeltaTime));
 	}
-
 }
 
-btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim)
+void FBulletPhysics::DebugDrawWorld()
+{
+	if (m_dynamicsWorld)
+	{
+		m_dynamicsWorld->debugDrawWorld();
+	}
+}
+btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/)
 {
 	btCollisionShape* shape;
 	if(aPrim == FBulletPhysics::CollisionPrimitiveType::Box)
 		shape = new btBoxShape(btVector3(btScalar(aScale.x), btScalar(aScale.y), btScalar(aScale.z)));
-	else if(aPrim == FBulletPhysics::CollisionPrimitiveType::Capsule)
-		shape = new btCapsuleShape(aScale.x, aScale.y/2.0f);
+	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Capsule)
+		shape = new btCapsuleShape(aScale.x, aScale.y / 2.0f);
+	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Sphere)
+	{
+		shape = new btSphereShape(aScale.x);
+	}
 	else // default
 		shape = new btBoxShape(btVector3(btScalar(aScale.x), btScalar(aScale.y), btScalar(aScale.z)));
 
 	btScalar mass(aMass);
-
 	m_collisionShapes.push_back(shape);
 
 	btTransform groundTransform;
@@ -128,6 +141,36 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 #endif
 	body->setUserIndex(-1);
 	m_dynamicsWorld->addRigidBody(body);
-
+	
+	FBulletPhysics::FPhysicsBody fbody;
+	fbody.myRigidBody = body;
+	fbody.myShouldBlockNavMesh = aShouldBlockNav;
+	myRigidBodies.push_back(fbody);
 	return body;
+}
+
+std::vector<FBulletPhysics::AABB> FBulletPhysics::GetAABBs()
+{
+	std::vector<FBulletPhysics::AABB> aabbs;
+	
+	for (int i = 0; i < myRigidBodies.size(); i++)
+	{
+		FBulletPhysics::AABB aabb;
+		btTransform t;
+		btVector3 min;
+		btVector3 max;
+		btTransform trans = myRigidBodies[i].myRigidBody->getWorldTransform();
+		m_collisionShapes[i]->getAabb(trans, min, max);
+		
+		if (!myRigidBodies[i].myShouldBlockNavMesh) // HACK, anything below 0 x is ignored for navmesh to hack floor in
+			continue;
+		
+		//min = trans * min;
+		//max = trans * max;
+		aabb.myMax = FVector3(max.getX(), max.getY(), max.getZ());
+		aabb.myMin = FVector3(min.getX(), min.getY(), min.getZ());
+		aabbs.push_back(aabb);
+	}
+	
+	return aabbs;
 }

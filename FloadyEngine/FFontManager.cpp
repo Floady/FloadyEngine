@@ -5,6 +5,9 @@
 #include "FCamera.h"
 #include <vector>
 
+
+using namespace DirectX;
+
 FFontManager* myInstance = nullptr;
 
 const char* getErrorMessage(FT_Error err)

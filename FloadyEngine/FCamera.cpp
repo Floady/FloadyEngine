@@ -1,5 +1,6 @@
 #include "FCamera.h"
 
+using namespace DirectX;
 
 FCamera::FCamera(float aWidth, float aHeight)
 	: myPos(0, 0, 0)

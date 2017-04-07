@@ -358,6 +358,11 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	}
 
 	// Create a render target view for the first back buffer.
+	D3D12_RENDER_TARGET_VIEW_DESC desc;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipSlice = 0;
+	desc.Texture2D.PlaneSlice = 0;
 	m_device->CreateRenderTargetView(m_backBufferRenderTarget[0], NULL, myRenderTargetViewHandle);
 
 	// Increment the view handle to the next descriptor location in the render target view heap.

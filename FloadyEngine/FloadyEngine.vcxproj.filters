@@ -28,6 +28,9 @@
     <Filter Include="Collision">
       <UniqueIdentifier>{ba019494-b22c-4123-90ee-0de5434034dc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI">
+      <UniqueIdentifier>{881d32c8-7c4f-4ad1-9e49-ab3f48efc576}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -104,6 +107,22 @@
     </ClCompile>
     <ClCompile Include="FGameEntity.cpp">
       <Filter>Game\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FScreenQuad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\FGUIButton.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\FGUIManager.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FDebugDrawer.cpp" />
+    <ClCompile Include="FDelaunayTriangulate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="F3DPicker.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -184,6 +203,22 @@
     </ClInclude>
     <ClInclude Include="FGameEntity.h">
       <Filter>Game\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FScreenQuad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\FGUIButton.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\FGUIManager.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FDebugDrawer.h" />
+    <ClInclude Include="FDelaunayTriangulate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="F3DPicker.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

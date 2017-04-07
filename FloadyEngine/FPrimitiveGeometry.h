@@ -2,8 +2,6 @@
 #include <DirectXMath.h>
 #include "FD3d12Renderer.h"
 
-using namespace DirectX;
-
 class FPrimitiveGeometry
 {
 public:
@@ -29,9 +27,9 @@ public:
 			uv.w = 0.0f;
 		}
 
-		XMFLOAT4 position;
-		XMFLOAT4 normal;
-		XMFLOAT4 uv;
+		DirectX::XMFLOAT4 position;
+		DirectX::XMFLOAT4 normal;
+		DirectX::XMFLOAT4 uv;
 	};
 
 public:

@@ -10,7 +10,7 @@
 #include "FTextureManager.h"
 #include "FLightManager.h"
 #include "FPrimitiveGeometry.h"
-
+using namespace DirectX;
 #define DEFERRED 1
 #if DEFERRED
 const char* shaderfilename = "primitiveshader_deferred.hlsl";
@@ -20,6 +20,8 @@ const char* shaderfilename = "primitiveshader.hlsl";
 
 FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, FPrimitiveBox::PrimitiveType aType)
 {
+	myTexName = "testtexture2.png"; // something default
+
 	myManagerClass = aManager;
 	myYaw = 0.0f; // test
 	m_ModelProjMatrix = nullptr;
@@ -187,7 +189,7 @@ void FPrimitiveBox::Init()
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-		myManagerClass->GetDevice()->CreateShaderResourceView(FTextureManager::GetInstance()->GetTextureD3D("testtexture2.png"), &srvDesc, srvHandle0);
+		myManagerClass->GetDevice()->CreateShaderResourceView(FTextureManager::GetInstance()->GetTextureD3D(myTexName.c_str()), &srvDesc, srvHandle0);
 	}
 	
 	skipNextRender = false;
@@ -465,4 +467,25 @@ void FPrimitiveBox::SetShader()
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
 	m_commandList->Close();
 	m_commandList->SetName(L"PrimitiveBox");
+}
+
+void FPrimitiveBox::SetTexture(const char * aFilename)
+{
+	/*skipNextRender = true;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(FTextureManager::GetInstance()->GetTextureD3D(aFilename), &srvDesc, srvHandle0);
+*/
+	myTexName = aFilename;
+}
+
+void FPrimitiveBox::SetShader(const char * aFilename)
+{
 }

@@ -22,6 +22,11 @@ public:
 	int GetScreenWidth() { return myScreenWidth; }
 	int GetScreenHeight() { return myScreenHeight; }
 
+	int GetPosX() { return posX; }
+	int GetPosY() { return posY; }
+
+	void SetCursorVisible(bool aVisible);
+
 	LRESULT CALLBACK MessageHandler(HWND, UINT, WPARAM, LPARAM);
 
 	bool CheckForQuit();
@@ -42,5 +47,6 @@ private:
 	FDelegate2<void(UINT, WPARAM, LPARAM)> myInputCallback;
 	int myScreenHeight;
 	int myScreenWidth;
+	bool myShouldShowCursor;
 };
 
