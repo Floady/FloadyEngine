@@ -5,6 +5,8 @@
 #include "FSceneGraph.h"
 
 class FCamera;
+class FDebugDrawer;
+class FPostProcessEffect;
 
 class FD3d12Renderer
 {
@@ -15,21 +17,23 @@ public:
 		Gbuffer_normals,
 		Gbuffer_Depth,
 		Gbuffer_Shadow,
+		Gbuffer_Combined,
 		Gbuffer_count
 	};
-	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT };
-	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow" };
+	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM };
+	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow", L"GBufferCombined" };
 
 	FD3d12Renderer();
 	~FD3d12Renderer();
 
-	FD3d12Renderer* GetInstance() { return ourInstance; }
+	static FD3d12Renderer* GetInstance() { return ourInstance; }
 
 	bool Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen);
 	void Shutdown();
 	void SetCamera(FCamera* aCam) { myCamera = aCam; }
 	FCamera* GetCamera() { return myCamera; }
 	bool Render();
+	void RegisterPostEffect(FPostProcessEffect* aPostEffect) { myPostEffects.push_back(aPostEffect); }
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV heap
 	
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
@@ -53,11 +57,12 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetShadowMapHandle() { return myShadowMapViewHandle; }
 	ID3D12CommandAllocator* GetCommandAllocatorForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdAllocators[aWorkerThreadId]; }
 	ID3D12GraphicsCommandList* GetCommandListForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdLists[aWorkerThreadId]; }
-
+	FDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
 	FSceneGraph& GetSceneGraph() { return mySceneGraph; }
 
 private:
 	static FD3d12Renderer* ourInstance;
+	FDebugDrawer* myDebugDrawer;
 	D3D12_CPU_DESCRIPTOR_HANDLE myRenderTargetViewHandle;
 	D3D12_CPU_DESCRIPTOR_HANDLE myShadowMapViewHandle;
 	volatile unsigned int myInt;
@@ -99,5 +104,7 @@ private:
 	FShaderManager myShaderManager;
 
 	FSceneGraph mySceneGraph;
+
+	std::vector<FPostProcessEffect*> myPostEffects;
 };
 

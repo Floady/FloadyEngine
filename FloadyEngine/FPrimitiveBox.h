@@ -31,7 +31,6 @@ public:
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
-	void SetPos(FVector3 aPos) { myPos = aPos; }
 	void SetRotMatrix(DirectX::XMMATRIX& m) { myRotMatrix = m; }
 	void SetRotMatrix(DirectX::XMFLOAT4X4* m) { myRotMatrix = XMLoadFloat4x4(m); }
 	void SetRotMatrix(float* m) override {
@@ -60,7 +59,6 @@ private:
 	ID3D12Resource* m_ModelProjMatrix;
 	ID3D12Resource* m_ModelProjMatrixShadow;
 	
-	FVector3 myPos;
 	FVector3 myScale;
 	FD3d12Renderer* myManagerClass;
 	

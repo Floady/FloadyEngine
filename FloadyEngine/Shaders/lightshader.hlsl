@@ -10,12 +10,6 @@ struct PSOutput
 	float4 color;
 };
 
-Texture2D<float4> g_colortexture : register(t0);
-Texture2D<float4> g_normaltexture : register(t1);
-Texture2D<float> g_depthTexture : register(t2);
-Texture2D<float> g_shadowTexture : register(t3);
-SamplerState g_sampler : register(s0);
-
 struct MyData
 {
 	float4x4 g_invProjMatrix;
@@ -24,12 +18,17 @@ struct MyData
     float4 camPos;
 };
 
+Texture2D<float4> g_colortexture : register(t0);
+Texture2D<float4> g_normaltexture : register(t1);
+Texture2D<float> g_depthTexture : register(t2);
+Texture2D<float> g_shadowTexture : register(t3);
+SamplerState g_sampler : register(s0);
+
 ConstantBuffer<MyData> myData : register(b0);
 float4 g_constData[4] : register(b1);
 
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 {
-	float4 invProjMatrix = g_constData[0];
 	PSInput result;
 
 	result.position = float4(position, 1.0f);
@@ -41,8 +40,10 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
 	
-	float test = input.uv.x;
-	output.color = float4(test,test,test,1);
+	output.color = float4(input.uv.xy,0,1);
+	//return output;
+	
+	output.color = g_colortexture.Sample(g_sampler, input.uv);
 	//return output;
 	
 	// to check if bound by shader performance
@@ -58,10 +59,24 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	// get linear depth
 	float depth = g_depthTexture.Sample(g_sampler, input.uv);  // low precision here will cause banding in shadows and specular (currently aweful precision) rebnder this out and see :)
 	
+	float testDepth = (depth*100.0f);
+	float zNear = 0.01;
+	float zFar = 60.0;
+	//depth = (depth-zNear)/(zFar-zNear);
+	//testDepth = (depth  * 10000.0f);
+	output.color = float4(testDepth,testDepth,testDepth,1);
+	//return output;
+	
+	output.color = colors;
+	//return output;
+	
 	float4 H = float4(input.uv.x * 2 - 1, (1.0f - input.uv.y) * 2 - 1, depth , 1);
 	float4 D = mul(H, myData.g_invProjMatrix); 
 	float4 worldPos = D / D.w;
 	worldPos.w = 1.0f;
+	
+	output.color = float4(worldPos.xyz,1);
+	//return output;
  
 	float4 projShadowMapPos = mul(worldPos, myData.g_ProjMatrixLight);
 	float3 projShadowMapPos2 = projShadowMapPos.xyz;
@@ -99,10 +114,12 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//return output;
  
 	// try get positions
-    float3 viewPos = worldPos.xyz;
-	float distToLight = length(viewPos - myData.lightWorldPos);
+    float4 viewPos = worldPos;
+	float4 lightPosTest = mul(myData.lightWorldPos, myData.g_ProjMatrixLight);
+	lightPosTest = myData.lightWorldPos;
+	float distToLight = length(viewPos.xyz - lightPosTest.xyz);
 	
-	if(distToLight > 40.0)
+	if(distToLight > 21.8)
 	{
 		output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	// todo weird artifact in the sky
 		return output;	
@@ -124,7 +141,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	// and http://en.wikipedia.org/wiki/Phong_shading
 	
 	// Get light direction for this fragment
-	float3 lightDir = normalize(worldPos - myData.lightWorldPos); // per pixel diffuse lighting - point light / spot light type
+	float3 lightDir = normalize(worldPos - lightPosTest); // per pixel diffuse lighting - point light / spot light type
 	lightDir = normalize(float3(0,-1,1)); // uncomment this line for directional lighting
 	
 	// Note: Non-uniform scaling not supported
@@ -135,7 +152,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 
 	float LightDistanceSquared = distToLight*distToLight;
 	// Introduce fall-off of light intensity
-	diffuseLighting *= ((LightDistanceSquared / dot(myData.lightWorldPos - worldPos, myData.lightWorldPos - worldPos)));
+	diffuseLighting *= ((LightDistanceSquared / dot(lightPosTest - worldPos, lightPosTest - worldPos)));
 	
 	float3 CameraPos = myData.camPos.xyz;
 	// Using Blinn half angle modification for perofrmance over correctness
@@ -171,7 +188,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(input.uv.x, input.uv.y, 0.0f, 1.0f);
 	//output.color = float4(g_normaltexture.Sample(g_sampler, input.uv).xyz, 1.0f);
 	//output.color = float4(1.0f, 0.0f, 0.1f, 1.0f);
-	//output.color = float4(depth, depth, depth, 1.0f) * 40.0f;	
+	//output.color = float4(depth, depth, depth, 1.0f) * 100.0f;	
 	//output.color = float4(viewPos.xyz, 1.0f);	
 	//output.color = float4(normals.xyz, 1.0f);	
 	//output.color = float4(g_constData[0].xyz, 1.0f);	
@@ -179,8 +196,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(worldPos.xyz, 1.0f);
 	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 500.0f;
 	float shadowmapval = 1.0f - g_shadowTexture.Sample(g_sampler, input.uv);
-	//shadowmapval = input.uv.x;
-	//output.color = float4(shadowmapval,shadowmapval,shadowmapval,1);
+	
+	//output.color = float4(input.uv.xy, 1.0f, 1.0f);
 	//output.color = float4(projShadowMapPos2.xy, 0.0f, 1.0f);
+	//output.color = g_shadowTexture.Sample(g_sampler, input.uv);
 	return output;	
 }

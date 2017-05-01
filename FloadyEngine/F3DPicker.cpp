@@ -16,16 +16,15 @@ F3DPicker::~F3DPicker()
 {
 }
 
-FVector3 F3DPicker::PickNavMeshPos(FVector3 aMousePos)
+FVector3 F3DPicker::PickNavMeshPos(FVector3 a2DPos)
 {
-	// build ray
-	FVector3 farPos = aMousePos;
-	farPos.z = 1.0f;
+	FVector3 pickPosNear = UnProject(FVector3(a2DPos.x, a2DPos.y, 0.0f));
+	FVector3 pickPosFar = UnProject(FVector3(a2DPos.x, a2DPos.y, 1.0f));
+	FVector3 direction = (pickPosFar - pickPosNear).Normalized();
 
-	FVector3 nearPos = aMousePos;
-	nearPos.z = 0.0f;
-
-	return UnProject(aMousePos);
+	FVector3 line = pickPosNear + (direction * -(pickPosNear.y / direction.y));
+	
+	return line;
 }
 
 FVector3 F3DPicker::UnProject(FVector3 aMousePos)

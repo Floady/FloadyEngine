@@ -26,6 +26,7 @@ public:
 	const FJsonObject* GetFirstChild() const { myCurrentChildId = 0;  return myChildren.size() ? myChildren[0] : nullptr; }
 	const FJsonObject* GetNextChild() const { myCurrentChildId++;  return myChildren.size() > myCurrentChildId ? myChildren[myCurrentChildId] : nullptr; }
 	~FJsonObject();
+	const std::string& GetName() const { return myName; }
 private:
 	std::string myName;
 	FJsonObject* myParent;

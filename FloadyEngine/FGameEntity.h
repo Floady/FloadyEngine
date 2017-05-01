@@ -1,29 +1,39 @@
 #pragma once
 #include "..\FJson\FJsonObject.h"
+#include "FPathfindComponent.h"
+#include "FGameEntityFactory.h"
 
 class FRenderableObject;
 class btRigidBody;
+class FPathfindComponent;
 
 class FGameEntity
 {
 public:
+	REGISTER_GAMEENTITY(FGameEntity);
+
 	enum class ModelType : char
 	{
 		Sphere = 0,
 		Box = 1
 	};
 
+	FGameEntity() { myPos.x = 10.0f; myPos.y = 1.0f; myPos.z = 10.0f; myGraphicsObject = nullptr; myPhysicsObject = nullptr;}
 	FGameEntity(FVector3 aPos, FVector3 aScale, ModelType aType, float aMass = 0.0f, bool aIsNavBlocker = false);
-	FGameEntity(const FJsonObject& anObj);
-	void Update();
-	void PostPhysicsUpdate();
+	virtual void Init(const FJsonObject& anObj);
+	virtual void Update(double aDeltaTime);
+	virtual void PostPhysicsUpdate();
+	void SetPhysicsActive(bool anIsActive) { myIsPhysicsActive = anIsActive; }
+	FVector3 GetPos() { return myPos; }
 
 	~FGameEntity();
 
-private:
+protected:
 	void Init(FVector3 aPos, FVector3 aScale, ModelType aType, float aMass = 0.0f, bool aIsNavBlocker = false);
 	
 	FRenderableObject* myGraphicsObject;
 	btRigidBody* myPhysicsObject;
+	bool myIsPhysicsActive;
+	FVector3 myPos;
 };
 

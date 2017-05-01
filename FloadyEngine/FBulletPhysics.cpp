@@ -4,6 +4,7 @@
 #include "LinearMath/btVector3.h"
 #include "FDebugDrawer.h"
 #include "FD3d12Renderer.h"
+#include "FGameEntity.h"
 
 FBulletPhysics::FBulletPhysics()
 {
@@ -77,7 +78,7 @@ void FBulletPhysics::Init(FD3d12Renderer* aRendererForDebug)
 
 	m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
-	myDebugDrawer = new FDebugDrawer(aRendererForDebug);
+	myDebugDrawer = new FPhysicsDebugDrawer(aRendererForDebug->GetDebugDrawer());
 	m_dynamicsWorld->setDebugDrawer(myDebugDrawer);
 }
 
@@ -96,7 +97,7 @@ void FBulletPhysics::DebugDrawWorld()
 		m_dynamicsWorld->debugDrawWorld();
 	}
 }
-btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/)
+btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/, FGameEntity* anEntity /*= nullptr*/)
 {
 	btCollisionShape* shape;
 	if(aPrim == FBulletPhysics::CollisionPrimitiveType::Box)
@@ -117,7 +118,6 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	groundTransform.setIdentity();
 	groundTransform.setOrigin(btVector3(aPos.x, aPos.y, aPos.z));
 
-	
 	bool isDynamic = (mass != 0.f);
 
 	btVector3 localInertia(0, 0, 0);
@@ -144,9 +144,43 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	
 	FBulletPhysics::FPhysicsBody fbody;
 	fbody.myRigidBody = body;
+	fbody.myCollisionEntity = shape;
+	fbody.myGameEntity = anEntity;
 	fbody.myShouldBlockNavMesh = aShouldBlockNav;
 	myRigidBodies.push_back(fbody);
 	return body;
+}
+
+FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
+{
+	btVector3 start = btVector3(aStart.x, aStart.y, aStart.z);
+	btVector3 end = btVector3(anEnd.x, anEnd.y, anEnd.z);
+
+	btCollisionWorld::AllHitsRayResultCallback cb(start, end);
+	m_dynamicsWorld->rayTest(start, end, cb);
+	if (cb.hasHit()) 
+	{
+		for (int j = 0; j < cb.m_collisionObjects.size(); j++)
+		{
+			if (cb.m_collisionObjects[j]->isStaticObject())
+				continue;
+
+			for (int i = 0; i < myRigidBodies.size(); i++)
+			{				
+				if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObjects[j]->getCollisionShape())
+					return myRigidBodies[i].myGameEntity;
+			}
+		}
+	}
+
+	//myDebugDrawer->drawLine(start, end, btVector3(1, 1, 1));
+	//float size = 0.1f;
+	//aStart = aStart + (anEnd - aStart).Normalized() * 3.0f;
+	//myDebugDrawer->DrawTriangle(aStart + FVector3(-size, 0, -size), aStart + FVector3(-size, 0, size), aStart + FVector3(size, 0, size), FVector3(1, 0, 0));
+	//size = 0.5f;
+	//myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
+
+	return nullptr;
 }
 
 std::vector<FBulletPhysics::AABB> FBulletPhysics::GetAABBs()
@@ -162,11 +196,9 @@ std::vector<FBulletPhysics::AABB> FBulletPhysics::GetAABBs()
 		btTransform trans = myRigidBodies[i].myRigidBody->getWorldTransform();
 		m_collisionShapes[i]->getAabb(trans, min, max);
 		
-		if (!myRigidBodies[i].myShouldBlockNavMesh) // HACK, anything below 0 x is ignored for navmesh to hack floor in
+		if (!myRigidBodies[i].myShouldBlockNavMesh)
 			continue;
 		
-		//min = trans * min;
-		//max = trans * max;
 		aabb.myMax = FVector3(max.getX(), max.getY(), max.getZ());
 		aabb.myMin = FVector3(min.getX(), min.getY(), min.getZ());
 		aabbs.push_back(aabb);

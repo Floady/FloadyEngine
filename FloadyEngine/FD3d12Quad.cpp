@@ -16,7 +16,6 @@ using namespace DirectX;
 FD3d12Quad::FD3d12Quad(FD3d12Renderer* aManager, FVector3 aPos)
 {
 	myManagerClass = aManager;
-	myHeapOffsetCBV = aManager->GetNextOffset();
 	int tmp = aManager->GetNextOffset();
 }
 
@@ -127,13 +126,36 @@ void FD3d12Quad::Init()
 		m_vertexBufferView.SizeInBytes = vertexBufferSize;
 		
 		m_commandList->Close();
-
-		// do we need this?
-		ID3D12CommandList* ppCommandLists[] = { m_commandList };
-		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-		// should have  a fence (or pass cmd list to init function so we can init all at the same time
 	}
+
+	myHeapOffsetCBV = myManagerClass->GetNextOffset();
+	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	// create continuous handles to gbuffer for shader
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	int myHeapOffsetBuffers = myHeapOffsetCBV;
+	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_color];
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), &srvDesc, srvHandle0);
+
+	myHeapOffsetBuffers = myManagerClass->GetNextOffset();
+	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_normals];
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle1(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_normals), &srvDesc, srvHandle1);
+
+	myHeapOffsetBuffers = myManagerClass->GetNextOffset();
+	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Depth];
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle2(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Depth), &srvDesc, srvHandle2);
+
+	myHeapOffsetBuffers = myManagerClass->GetNextOffset();
+	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Shadow];
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle3(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetShadowMapBuffer(), &srvDesc, srvHandle3);
 
 	// buffer for invproj + 3 lights (4x4 float)
 	{
@@ -148,13 +170,11 @@ void FD3d12Quad::Init()
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		hr = myConstDataShader->Map(0, &readRange, reinterpret_cast<void**>(&myConstBufferShaderPtr));
 
-		//myHeapOffsetCBV = myManagerClass->GetNextOffset();
 		// Describe and create a constant buffer view.
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = myConstDataShader->GetGPUVirtualAddress();
 		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
-		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myManagerClass->GetNextOffset(), srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
 
@@ -171,13 +191,13 @@ void FD3d12Quad::Init()
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		hr = myInvProjData->Map(0, &readRange, reinterpret_cast<void**>(&myInvProjDataShaderPtr));
 
-		//myHeapOffsetCBV = myManagerClass->GetNextOffset();
 		// Describe and create a constant buffer view.
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = myInvProjData->GetGPUVirtualAddress();
 		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV+1, srvSize);
+		int nextOffset = myManagerClass->GetNextOffset();
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), nextOffset, srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
 }
@@ -197,10 +217,12 @@ void FD3d12Quad::Render()
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
 	FVector3 lightPos = FLightManager::GetLightPos();
 	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
+	XMFLOAT4X4 invProjMatrix2 = myManagerClass->GetCamera()->GetViewProjMatrixTransposed();
 		
 	float shaderConstData2[40];
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
+	//memcpy(&shaderConstData2[16], invProjMatrix2.m, sizeof(invProjMatrix2.m));
 	shaderConstData2[32] = lightPos.x;
 	shaderConstData2[33] = lightPos.y;
 	shaderConstData2[34] = lightPos.z;
@@ -226,7 +248,7 @@ void FD3d12Quad::Render()
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE handle(myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart(), 0, srvSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE handle(myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
 	m_commandList->SetGraphicsRootDescriptorTable(0, handle);
 
 	// set viewport/scissor
@@ -236,8 +258,11 @@ void FD3d12Quad::Render()
 
 	// Indicate that the back buffer will be used as a render target.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Combined), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	m_commandList->OMSetRenderTargets(1, &myManagerClass->GetRTVHandle(), FALSE, nullptr);
+	m_commandList->OMSetRenderTargets(1, &myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_Combined), FALSE, nullptr);
+	//D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
+	//m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -246,6 +271,7 @@ void FD3d12Quad::Render()
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Combined), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 	hr = m_commandList->Close();
 

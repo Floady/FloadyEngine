@@ -140,5 +140,6 @@ void FCamera::UpdateViewProj()
 
 	// store
 	XMStoreFloat4x4(&myViewProjMatrix, (_viewProjMatrix));
+	XMStoreFloat4x4(&myViewProjMatrixTransposed, XMMatrixTranspose(_viewProjMatrix));
 	XMStoreFloat4x4(&myInvViewProjMatrix, XMMatrixTranspose(invProj)); // this one is for hlsl
 }

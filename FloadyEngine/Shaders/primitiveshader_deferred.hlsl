@@ -28,10 +28,10 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 {
 	PSInput result;
 
-	result.position = position;
+	result.position = float4(position.xyz, 1);
 	result.position = mul(result.position, myData.g_transform);
 	result.position = mul(result.position, myData.g_viewProjMatrix);
-	result.depth    = (result.position.z / result.position.w);
+	result.depth    = (result.position.z);
 	
 	result.uv = uv;
 	result.normal = normal;
@@ -49,6 +49,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = input.normal; // debug normal draw
 	output.normal = input.normal;
 	output.depth	 = input.depth;
+	output.depth = input.position.z;
 	//output.color = float4(1.0f, 1.0f, 0.1f, 1.0f);		
 	return output;
 }

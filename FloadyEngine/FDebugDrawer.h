@@ -12,22 +12,14 @@ struct ID3D12GraphicsCommandList;
 struct D3D12_VERTEX_BUFFER_VIEW;
 struct D3D12_INDEX_BUFFER_VIEW;
 
-class FDebugDrawer : public btIDebugDraw, public FRenderableObject
+class FDebugDrawer :public FRenderableObject
 {
 public:
 	FDebugDrawer(FD3d12Renderer* aManager);
 	~FDebugDrawer();
 
-	void	drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override;
-	void	drawLine(const FVector3 & from, const FVector3 & to, const FVector3 & color);
-	void	reportErrorWarning(const char* warningString) override;
-	void	draw3dText(const btVector3& location, const char* textString) override;
-	void	setDebugMode(int debugMode) override;
-	int		getDebugMode() const override;
-	void	drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color) override;
-
 	void	DrawTriangle(const FVector3& aV1, const FVector3& aV2, const FVector3& aV3, const FVector3& aColor);
-
+	void drawLine(const FVector3 & from, const FVector3 & to, const FVector3 & color);
 	// FRenderableObject
 	void Init() override;
 	void Render() override;

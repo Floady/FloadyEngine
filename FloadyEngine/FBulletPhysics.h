@@ -1,6 +1,7 @@
 #pragma once
 #include "FVector3.h"
 #include "LinearMath/btAlignedObjectArray.h"
+#include "FPhysicsDebugDrawer.h"
 #include <vector>
 
 class btDiscreteDynamicsWorld;
@@ -12,6 +13,7 @@ class btCollisionShape;
 class btRigidBody;
 class FDebugDrawer;
 class FD3d12Renderer;
+class FGameEntity;
 
 class FBulletPhysics
 {
@@ -36,8 +38,10 @@ public:
 	void Init(FD3d12Renderer* aRendererForDebug);
 	void Update(double aDeltaTime);
 	void DebugDrawWorld();
-	btRigidBody* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false);
-	FDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
+	btRigidBody* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false, FGameEntity* anEntity = nullptr);
+	FPhysicsDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
+	FGameEntity* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);
+
 	std::vector<FBulletPhysics::AABB> GetAABBs();
 private:
 	btBroadphaseInterface*	m_broadphase;
@@ -45,13 +49,15 @@ private:
 	btConstraintSolver*	m_solver;
 	btDefaultCollisionConfiguration* m_collisionConfiguration;
 	btDiscreteDynamicsWorld* m_dynamicsWorld;
-	FDebugDrawer* myDebugDrawer;
+	FPhysicsDebugDrawer* myDebugDrawer;
 	btAlignedObjectArray<btCollisionShape*>	m_collisionShapes;
 
 	struct FPhysicsBody
 	{
 		btRigidBody* myRigidBody;
 		bool myShouldBlockNavMesh; // should this be generic flags?
+		FGameEntity* myGameEntity;
+		btCollisionShape* myCollisionEntity;
 	};
 	btAlignedObjectArray<FPhysicsBody>	myRigidBodies;
 	

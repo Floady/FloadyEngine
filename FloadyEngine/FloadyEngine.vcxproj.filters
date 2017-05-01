@@ -118,10 +118,28 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="FDebugDrawer.cpp" />
-    <ClCompile Include="FDelaunayTriangulate.cpp">
+    <ClCompile Include="F3DPicker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="F3DPicker.cpp">
+    <ClCompile Include="FPhysicsDebugDrawer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPathfindComponent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FNavMeshManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameAgent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameTerrain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameEntityFactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPostProcessEffect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -214,10 +232,28 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="FDebugDrawer.h" />
-    <ClInclude Include="FDelaunayTriangulate.h">
+    <ClInclude Include="F3DPicker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="F3DPicker.h">
+    <ClInclude Include="FPhysicsDebugDrawer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPathfindComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FNavMeshManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameAgent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameTerrain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameEntityFactory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPostProcessEffect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

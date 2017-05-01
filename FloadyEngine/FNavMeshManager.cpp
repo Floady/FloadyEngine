@@ -1,4 +1,5 @@
-﻿#include "FDelaunayTriangulate.h"
+﻿#include "FNavMeshManager.h"
+#include "FDebugDrawer.h"
 
 #include <iostream>
 //#include <hash_set.h>
@@ -2004,13 +2005,16 @@ bool pointComparisonPredicate(const Shx& a, const Shx& b)
 	return a.r == b.r && a.c == b.c;
 }
 
-void FDelaunayTriangulate::AddBlockingAABB(FVector3 aMin, FVector3 aMax)
+void FNavMeshManager::AddBlockingAABB(FVector3 aMin, FVector3 aMax)
 {
 	AABB aabb;
 	FVector3 aDimensions = aMax - aMin;
 
-	aabb.myMin = aMin - (aDimensions * 0.1f);
-	aabb.myMax = aMax + (aDimensions * 0.1f);
+	aMin = aMin - (aDimensions.Normalized() * 0.2f);
+	aMax = aMax + (aDimensions.Normalized() * 0.2f);
+	
+	aabb.myMin = aMin;
+	aabb.myMax = aMax;
 	myAABBList.push_back(aabb);
 
 	aMin.y = 0;
@@ -2022,13 +2026,13 @@ void FDelaunayTriangulate::AddBlockingAABB(FVector3 aMin, FVector3 aMax)
 	myPointList.push_back(FVector3(aMax.x, 0, aMin.z));
 }
 
-void FDelaunayTriangulate::RemoveAllBlockingAABB()
+void FNavMeshManager::RemoveAllBlockingAABB()
 {
 	myAABBList.clear();
 	myPointList.clear();
 }
 
-void FDelaunayTriangulate::GenerateMesh(FVector3 aMin, FVector3 aMax)
+void FNavMeshManager::GenerateMesh(FVector3 aMin, FVector3 aMax)
 {
 	Shx pt;
 	srand(1);
@@ -2114,7 +2118,15 @@ void FDelaunayTriangulate::GenerateMesh(FVector3 aMin, FVector3 aMax)
 	}
 }
 
-FDelaunayTriangulate::FDelaunayTriangulate()
+FNavMeshManager* FNavMeshManager::myInstance = nullptr;
+FNavMeshManager * FNavMeshManager::GetInstance()
+{
+	if (!myInstance)
+		myInstance = new FNavMeshManager();
+	return myInstance;
+}
+
+FNavMeshManager::FNavMeshManager()
 {
 	Shx pt;
 	srand(1);
@@ -2157,11 +2169,78 @@ FDelaunayTriangulate::FDelaunayTriangulate()
 }
 
 
-FDelaunayTriangulate::~FDelaunayTriangulate()
+FNavMeshManager::~FNavMeshManager()
 {
 }
 
-bool FDelaunayTriangulate::IsInsideTriangle(FVector3 aPos, FVector3 aV1, FVector3 aV2, FVector3 aV3)
+void FNavMeshManager::DebugDraw(FDebugDrawer * aDebugDrawer)
+{
+
+	for (int i = 0; i < pts.size(); i++)
+	{
+		FVector3 pos = FVector3(pts[i].r, 0.1f, pts[i].c);
+		float size = 0.1f;
+		aDebugDrawer->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(1, 1, 0));
+	}
+
+	for (int i = 0; i < triads.size(); i++)
+	{
+		Shx& pointA = hull[triads[i].a];
+		Shx& pointB = hull[triads[i].b];
+		Shx& pointC = hull[triads[i].c];
+		FVector3 vPointA = FVector3(pointA.r, 0, pointA.c);
+		FVector3 vPointB = FVector3(pointB.r, 0, pointB.c);
+		FVector3 vPointC = FVector3(pointC.r, 0, pointC.c);
+		FVector3 vCenter = (vPointA + vPointB + vPointC) / 3.0f;
+		float shrinkFact = 0.0f;
+		vPointA -= (vPointA - vCenter) * shrinkFact;
+		vPointB -= (vPointB - vCenter) * shrinkFact;
+		vPointC -= (vPointC - vCenter) * shrinkFact;
+
+		FVector3 color = FVector3(0, 0.3f + (i % 20) / 20.0f, 0);
+
+		// this was for highlighting the triangle winding
+		int highlightTri = 9999; // 4,0,2,8
+		if (IsBlocked(i))
+			color = FVector3(0.3f + ((i % 20) / 20.0f), 0, 0);
+		if (highlightTri == i)
+			color = FVector3(0, 0, (i % 20) / 20.0f);
+		aDebugDrawer->DrawTriangle(vPointA, vPointB, vPointC, color);
+
+		if (i == highlightTri)
+		{
+			float size = 0.3f;
+			aDebugDrawer->DrawTriangle(vPointA + FVector3(-size, 0, -size), vPointA + FVector3(-size, 0, size), vPointA + FVector3(size, 0, size), FVector3(1, 0, 0));
+			aDebugDrawer->DrawTriangle(vPointB + FVector3(-size, 0, -size), vPointB + FVector3(-size, 0, size), vPointB + FVector3(size, 0, size), FVector3(0, 1, 0));
+			aDebugDrawer->DrawTriangle(vPointC + FVector3(-size, 0, -size), vPointC + FVector3(-size, 0, size), vPointC + FVector3(size, 0, size), FVector3(0, 0, 1));
+		}
+
+	}
+
+	for (int i = 1; i < myPathList.myPathPoints.size(); i++)
+	{
+		float shade = 0.5f + (i * (0.5f / myPathList.myPathPoints.size()));
+		FVector3 from = FVector3(myPathList.myPathPoints[i - 1].x, 0.1f, myPathList.myPathPoints[i - 1].z);
+		FVector3 to = FVector3(myPathList.myPathPoints[i].x, 0.1f, myPathList.myPathPoints[i].z);
+		aDebugDrawer->drawLine(from, to, FVector3(shade, shade, shade));
+	}
+
+	for (int i = 0; i < myPathList.myFunnel.size(); i++)
+	{
+		float shade = 0.5f + (i * (0.5f / myPathList.myFunnel.size()));
+		float size = 0.1f;
+		FVector3 pos = myPathList.myFunnel[i].aLeft;
+		pos.y = 0.2f;
+		aDebugDrawer->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(1, 0.5f, 0.5f));
+		pos = myPathList.myFunnel[i].aRight;
+		pos.y = 0.15f;
+		size = 0.15f;
+		aDebugDrawer->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(0, 1, 0));
+	}
+
+}
+
+bool FNavMeshManager::IsInsideTriangle(FVector3 aPos, FVector3 aV1, FVector3 aV2, FVector3 aV3)
 {
 	float p0x = aV1.x;
 	float p0y = aV1.z;
@@ -2181,7 +2260,7 @@ bool FDelaunayTriangulate::IsInsideTriangle(FVector3 aPos, FVector3 aV1, FVector
 	return false;
 }
 
-FVector3 FDelaunayTriangulate::GetCenter(int aTriangleIdx)
+FVector3 FNavMeshManager::GetCenter(int aTriangleIdx)
 {
 	Shx& pointA = hull[triads[aTriangleIdx].a];
 	Shx& pointB = hull[triads[aTriangleIdx].b];
@@ -2191,7 +2270,7 @@ FVector3 FDelaunayTriangulate::GetCenter(int aTriangleIdx)
 	FVector3 vPointC = FVector3(pointC.r, 0, pointC.c);
 	return (vPointA + vPointB + vPointC) / 3.0f;
 }
-int FDelaunayTriangulate::GetTriangleForPoint(FVector3 aPos)
+int FNavMeshManager::GetTriangleForPoint(FVector3 aPos)
 {
 	for (int i = 0; i < triads.size(); i++)
 	{
@@ -2208,7 +2287,7 @@ int FDelaunayTriangulate::GetTriangleForPoint(FVector3 aPos)
 	return -1;
 }
 
-float FDelaunayTriangulate::GetDistanceTriangleToPoint(int aTriangleIdx, FVector3 aPos)
+float FNavMeshManager::GetDistanceTriangleToPoint(int aTriangleIdx, FVector3 aPos)
 {
 	std::vector<Shx> points;
 	Shx& pointA = hull[triads[aTriangleIdx].a];
@@ -2264,7 +2343,7 @@ float FDelaunayTriangulate::GetDistanceTriangleToPoint(int aTriangleIdx, FVector
 	//return (GetCenter(aTriangleIdx) - aPos).Length();
 }
 
-FVector3 FDelaunayTriangulate::GetClosestPointOnTriToPointAllowedTri(int aTriangleIdx, FVector3 aPos, int aFromTriangle)
+FVector3 FNavMeshManager::GetClosestPointOnTriToPointAllowedTri(int aTriangleIdx, FVector3 aPos, int aFromTriangle)
 {
 	std::vector<Shx> points;
 	Shx& pointA = hull[triads[aTriangleIdx].a];
@@ -2343,7 +2422,7 @@ FVector3 FDelaunayTriangulate::GetClosestPointOnTriToPointAllowedTri(int aTriang
 	return posOnLine;
 }
 
-FVector3 FDelaunayTriangulate::GetClosestPointOnTriToPoint(int aTriangleIdx, FVector3 aPos)
+FVector3 FNavMeshManager::GetClosestPointOnTriToPoint(int aTriangleIdx, FVector3 aPos)
 {
 	std::vector<Shx> points;
 	Shx& pointA = hull[triads[aTriangleIdx].a];
@@ -2403,7 +2482,7 @@ FVector3 FDelaunayTriangulate::GetClosestPointOnTriToPoint(int aTriangleIdx, FVe
 	return posOnLine;
 }
 
-std::vector<FVector3> FDelaunayTriangulate::FindPath(FVector3 aStart, FVector3 anEnd)
+std::vector<FVector3> FNavMeshManager::FindPath(FVector3 aStart, FVector3 anEnd)
 {
 	const float infDist = 1000000.0f;
 
@@ -2631,6 +2710,9 @@ std::vector<FVector3> FDelaunayTriangulate::FindPath(FVector3 aStart, FVector3 a
 			i++; // nothing changed, all nodes are inside funnel?
 	}
 	funnelResolvedPath.push_back(anEnd);
+
+	myPathList.myFunnel = myFunnel;
+	myPathList.myPathPoints = funnelResolvedPath;
 	return funnelResolvedPath; //todo: fix funnel algorithm
 	//return result;
 }

@@ -16,8 +16,11 @@
 #include "GUI\FGUIButton.h"
 #include "GUI\FGUIManager.h"
 #include "FDebugDrawer.h"
-#include "FDelaunayTriangulate.h"
+#include "FNavMeshManager.h"
 #include "F3DPicker.h"
+#include "FGameAgent.h"
+#include "FGameEntityFactory.h"
+#include "FPostProcessEffect.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -25,12 +28,13 @@ void FGame::Test()
 {
 	{ OutputDebugString(L"Test"); }
 
-	FGameEntity* gameEntity = new FGameEntity(myCamera->GetPos(), FVector3(1, 1, 1), FGameEntity::ModelType::Box, 15.0f, true);
-	myEntityContainer.push_back(gameEntity);
-	
+	//FGameEntity* gameEntity = new FGameEntity(myCamera->GetPos(), FVector3(1, 1, 1), FGameEntity::ModelType::Box, 15.0f, true);
+	//myEntityContainer.push_back(gameEntity);
+
+	FGameAgent* newAgent = new FGameAgent();
+	myEntityContainer.push_back(newAgent);	
 }
 
-static FDelaunayTriangulate ourTriangulator;
 FGame::FGame()
 {
 	// create the basics (renderer, input, camera) - and make the window message handler talk to our input system
@@ -41,9 +45,9 @@ FGame::FGame()
 	myCamera = new FGameCamera(myInput, 800.0f, 600.0f);
 	myPhysics = new FBulletPhysics();
 	myPicker = new F3DPicker(myCamera, myRenderWindow);
-
 	ourInstance = this;
 	myIsMouseCaptured = false;
+	myPickedEntity = nullptr;
 }
 
 FGame::~FGame()
@@ -82,7 +86,6 @@ void FGame::Init()
 
 	myRenderer->SetCamera(myCamera);
 	myPhysics->Init(myRenderer);
-	myRenderer->GetSceneGraph().AddObject(myPhysics->GetDebugDrawer(), true); // nondeferred debug
 	
 	FJson jsonObject;
 
@@ -96,13 +99,19 @@ void FGame::Init()
 	const FJsonObject* child = level->GetFirstChild();
 	while (child)
 	{
-		myEntityContainer.push_back(new FGameEntity(*child));
+		FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
+		newEntity->Init(*child);
+		myEntityContainer.push_back(newEntity);
 		child = level->GetNextChild();
 	}
 
 	// init navmesh
-	ourTriangulator.AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
-	ourTriangulator.GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
+	
+	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
+	FNavMeshManager::GetInstance()->GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
+
+	FGameEntity* newEnt = FGameEntityFactory::GetInstance()->Create("FGameEntity");
+	myRenderer->RegisterPostEffect(new FPostProcessEffect(FPostProcessEffect::BindBufferMaskAll, "lightshader2.hlsl", "PostProcess1"));
 }
 
 bool FGame::Update(double aDeltaTime)
@@ -121,17 +130,17 @@ bool FGame::Update(double aDeltaTime)
 	{
 		// re-init navmesh
 		std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
-		ourTriangulator.RemoveAllBlockingAABB();
+		FNavMeshManager::GetInstance()->RemoveAllBlockingAABB();
 		for (FBulletPhysics::AABB& aabb : aabbs)
 		{
-			ourTriangulator.AddBlockingAABB(aabb.myMin, aabb.myMax);
+			FNavMeshManager::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
 		}
 
-		ourTriangulator.GenerateMesh(FVector3(-20, 0, -20), FVector3(20, 0, 20));
+		FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(20, 0, 20));
 	}
 
-	static FVector3 PickPosFromNav;
-	static FVector3 StartPickPosFromNav;
+	static FVector3 vNavEnd;
+	static FVector3 vNavStart;
 	// Control captures mouse and moves camera, otherwise update UI
 	if (myRenderWindow->IsFocussed() && myInput->IsKeyDown(VK_CONTROL))
 	{
@@ -164,96 +173,45 @@ bool FGame::Update(double aDeltaTime)
 		FGUIManager::GetInstance()->Update(windowMouseX, windowMouseY, myInput->IsMouseButtonDown(true), myInput->IsMouseButtonDown(false));
 
 		// Picker
-		FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
-		FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 1.0f));
-		FVector3 direction = (pickPosFar - pickPosNear).Normalized();
-		float dist = (pickPosFar - pickPosNear).Length();
-		FVector3 line = pickPosNear + (direction * -(pickPosNear.y / direction.y));
-		float size = 0.1f;
-		myPhysics->GetDebugDrawer()->DrawTriangle(line + FVector3(-size, 0, -size), line + FVector3(-size, 0, size), line + FVector3(size, 0, size), FVector3(1, 1, 0));
-		myPhysics->GetDebugDrawer()->drawLine(pickPosNear, line, FVector3(1, 1, 0));
-		PickPosFromNav = line;
+		FVector3 line = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
 		if (myInput->IsMouseButtonDown(false))
 		{
-			StartPickPosFromNav = line;
+			vNavStart = line;
 		}
-	}
 
-	for (int i = 0; i < ourTriangulator.pts.size(); i++)
-	{
-		FVector3 pos = FVector3(ourTriangulator.pts[i].r, 0.1f, ourTriangulator.pts[i].c);
-		float size = 0.1f;
-		myPhysics->GetDebugDrawer()->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(1, 1, 0));
-	}
-
-	for (int i = 0; i < ourTriangulator.triads.size(); i++)
-	{
-		Shx& pointA = ourTriangulator.hull[ourTriangulator.triads[i].a];
-		Shx& pointB = ourTriangulator.hull[ourTriangulator.triads[i].b];
-		Shx& pointC = ourTriangulator.hull[ourTriangulator.triads[i].c];
-		FVector3 vPointA = FVector3(pointA.r, 0, pointA.c);
-		FVector3 vPointB = FVector3(pointB.r, 0, pointB.c);
-		FVector3 vPointC = FVector3(pointC.r, 0, pointC.c);
-		FVector3 vCenter = (vPointA + vPointB + vPointC) / 3.0f;
-		float shrinkFact = 0.0f;
-		vPointA -= (vPointA - vCenter) * shrinkFact;
-		vPointB -= (vPointB - vCenter) * shrinkFact;
-		vPointC -= (vPointC - vCenter) * shrinkFact;
-		
-		FVector3 color = FVector3(0, 0.3f + (i % 20) / 20.0f, 0);
-		
-		// this was for highlighting the triangle winding
-		int highlightTri = 9999; // 4,0,2,8
-		if (ourTriangulator.IsBlocked(i))
-			color = FVector3(0.3f + ((i % 20) / 20.0f), 0, 0);
-		if (highlightTri == i)
-			color = FVector3(0, 0, (i % 20) / 20.0f);
-		myPhysics->GetDebugDrawer()->DrawTriangle(vPointA, vPointB, vPointC, color);
-
-		if (i == highlightTri)
+		// example entity picking
+		if (myInput->IsMouseButtonDown(true))
 		{
-			float size = 0.3f;
-			myPhysics->GetDebugDrawer()->DrawTriangle(vPointA + FVector3(-size, 0, -size), vPointA + FVector3(-size, 0, size), vPointA + FVector3(size, 0, size), FVector3(1, 0, 0));
-			myPhysics->GetDebugDrawer()->DrawTriangle(vPointB + FVector3(-size, 0, -size), vPointB + FVector3(-size, 0, size), vPointB + FVector3(size, 0, size), FVector3(0, 1, 0));
-			myPhysics->GetDebugDrawer()->DrawTriangle(vPointC + FVector3(-size, 0, -size), vPointC + FVector3(-size, 0, size), vPointC + FVector3(size, 0, size), FVector3(0, 0, 1));
+			FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
+			FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
+			FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
+			if (entity)
+			{
+				entity->SetPhysicsActive(false);
+				myPickedEntity = dynamic_cast<FGameAgent*>(entity);
+				vNavStart = entity->GetPos();
+				vNavEnd = vNavStart; // reset, or make sure no pathfinding is done
+			}
+			else if(myPickedEntity) 			// if something is picked and there is no other entity under mouse, find navpos
+			{
+				vNavEnd = line;
+				if(FPathfindComponent* pathFindComponent = myPickedEntity->GetPathFindingComponent())
+				{ 
+					vNavStart = myPickedEntity->GetPos();
+					pathFindComponent->FindPath(vNavStart, vNavEnd);
+				}
+			}
 		}
-
 	}
+	
+	std::vector<FVector3> pathPoints = FNavMeshManager::GetInstance()->FindPath(vNavStart, vNavEnd);
 
-	FVector3 vNavStart = FVector3(5.0f, 0.1f, 2.0f);
-	vNavStart = StartPickPosFromNav;
-	FVector3 vNavEnd = FVector3(3.5f, 0.1f, 15.0f);
-	vNavEnd = PickPosFromNav;
-	float size = 0.1f;
-	myPhysics->GetDebugDrawer()->DrawTriangle(vNavStart + FVector3(-size, 0, -size), vNavStart + FVector3(-size, 0, size), vNavStart + FVector3(size, 0, size), FVector3(1, 1, 1));
-	myPhysics->GetDebugDrawer()->DrawTriangle(vNavEnd + FVector3(-size, 0, -size), vNavEnd + FVector3(-size, 0, size), vNavEnd + FVector3(size, 0, size), FVector3(1, 1, 1));
-	std::vector<FVector3> pathPoints = ourTriangulator.FindPath(vNavStart, vNavEnd);
-
-	for (int i = 1; i < pathPoints.size(); i++)
-	{
-		float shade = 0.5f + (i * (0.5f / pathPoints.size()));
-		FVector3 from = FVector3(pathPoints[i - 1].x, 0.1f, pathPoints[i - 1].z);
-		FVector3 to = FVector3(pathPoints[i].x, 0.1f, pathPoints[i].z);
-		myPhysics->GetDebugDrawer()->drawLine(from, to, FVector3(shade, shade, shade));
-	}
-
-	for (int i = 0; i < ourTriangulator.myFunnel.size(); i++)
-	{
-		float shade = 0.5f + (i * (0.5f / pathPoints.size()));
-		float size = 0.1f;
-		FVector3 pos = ourTriangulator.myFunnel[i].aLeft;
-		pos.y = 0.2f;
-		myPhysics->GetDebugDrawer()->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(1, 0.5f, 0.5f));
-		pos = ourTriangulator.myFunnel[i].aRight;
-		pos.y = 0.15f;
-		 size = 0.15f;
-		myPhysics->GetDebugDrawer()->DrawTriangle(pos + FVector3(-size, 0, -size), pos + FVector3(-size, 0, size), pos + FVector3(size, 0, size), FVector3(0, 1, 0));
-	}
+	//FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
 
 	// Update world
 	for (FGameEntity* entity : myEntityContainer)
 	{
-		entity->Update();
+		entity->Update(aDeltaTime);
 	}
 
 	// Step physics

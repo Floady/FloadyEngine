@@ -5,9 +5,15 @@
 #include "FBulletPhysics.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FGameEntity.h"
+#include "FPathfindComponent.h"
+
+REGISTER_GAMEENTITY2(FGameEntity);
+
 using namespace DirectX;
 FGameEntity::FGameEntity(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
+	myPos = aPos;
+	myIsPhysicsActive = true;
 	Init(aPos, aScale, aType, aMass, aIsNavBlocker);
 }
 
@@ -18,18 +24,18 @@ void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aT
 	if(aType == ModelType::Sphere)
 	{
 		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), aPos, aScale, FPrimitiveBox::PrimitiveType::Sphere);
-		myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(aMass, aPos, aScale, FBulletPhysics::CollisionPrimitiveType::Sphere, aIsNavBlocker);
+		myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(aMass, aPos, aScale, FBulletPhysics::CollisionPrimitiveType::Sphere, aIsNavBlocker, this);
 	}
 	else
 	{
 		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), aPos, aScale, FPrimitiveBox::PrimitiveType::Box); // default to box
-		myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(aMass, aPos, aScale, FBulletPhysics::CollisionPrimitiveType::Box, aIsNavBlocker);
+		myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(aMass, aPos, aScale, FBulletPhysics::CollisionPrimitiveType::Box, aIsNavBlocker, this);
 	}
 	
 	FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myGraphicsObject, false);
 }
 
-FGameEntity::FGameEntity(const FJsonObject & anObj)
+void FGameEntity::Init(const FJsonObject & anObj)
 {
 	FVector3 pos, scale;
 	FGameEntity::ModelType type;
@@ -45,23 +51,27 @@ FGameEntity::FGameEntity(const FJsonObject & anObj)
 
 	mass = anObj.GetItem("mass").GetAs<double>();
 	bool isNavBlocking = anObj.GetItem("isNavBlocker").GetAs<bool>();
+	bool canMove = anObj.GetItem("canMove").GetAs<bool>();
 
 	type = static_cast<FGameEntity::ModelType>(anObj.GetItem("type").GetAs<int>()); // 0 spehere, 1 box
 
 	Init(pos, scale, type, mass, isNavBlocking);
-
+	
 	string tex = anObj.GetItem("tex").GetAs<string>();
 	myGraphicsObject->SetTexture(tex.c_str());
 }
 
-void FGameEntity::Update()
+void FGameEntity::Update(double aDeltaTime)
 {
 }
 
 void FGameEntity::PostPhysicsUpdate()
 {
-	if (!myPhysicsObject)
+	if (!myPhysicsObject || !myIsPhysicsActive)
+	{
+		myIsPhysicsActive = true;
 		return;
+	}
 
 	// update graphics from physics if needed
 
@@ -76,6 +86,7 @@ void FGameEntity::PostPhysicsUpdate()
 
 	XMFLOAT4X4 matrix(m);
 	myGraphicsObject->SetRotMatrix(m);
+	myPos = FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ());
 	myGraphicsObject->SetPos(FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ()));
 }
 

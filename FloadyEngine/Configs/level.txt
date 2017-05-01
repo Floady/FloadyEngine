@@ -1,5 +1,5 @@
 {
-"box1" : 
+"FGameEntity" : 
 {
   "posX" : 2.0,
   "posY" : 12.0,
@@ -9,10 +9,11 @@
 "scaleZ" : 1.0,
 "mass" : 10.0,
 "isNavBlocker" : true,
+"canMove" : true,
 "type" : 1,
 "tex" : "wood.png"
 },
-"obj2" : 
+"FGameEntity" : 
 {
   "posX" : 2.0,
   "posY" : 8.0,
@@ -22,10 +23,11 @@
 "scaleZ" : 1.0,
 "mass" : 10.0,
 "isNavBlocker" : true,
+"canMove" : true,
 "type" : 0,
 "tex" : "marble.png"
 },
-"box2" : 
+"FGameEntity" : 
 {
   "posX" : 1.0,
   "posY" : 1.0,
@@ -35,10 +37,25 @@
 "scaleZ" : 1.0,
 "mass" : 10.0,
 "isNavBlocker" : true,
+"canMove" : true,
 "type" : 1,
 "tex" : "wood.png"
 },
-"obj4" : 
+"FGameEntity" : 
+{
+  "posX" : -5.0,
+  "posY" : 0.5,
+"posZ" : 1.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 10.0,
+"isNavBlocker" : true,
+"canMove" : true,
+"type" : 1,
+"tex" : "wood.png"
+},
+"FGameEntity" : 
 {
   "posX" : 4.0,
   "posY" : 1.0,
@@ -48,10 +65,11 @@
 "scaleZ" : 1.0,
 "mass" : 10.0,
 "isNavBlocker" : true,
+"canMove" : true,
 "type" : 0,
 "tex" : "marble.png"
 },
-"floor" : 
+"FGameTerrain" : 
 {
   "posX" : 0.0,
   "posY" : -1.0,
@@ -61,6 +79,7 @@
 "scaleZ" : 15.0,
 "mass" : 0.0,
 "isNavBlocker" : false,
+"canMove" : false,
 "type" : 1,
 "tex" : "marble.png"
 }

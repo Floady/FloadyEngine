@@ -14,6 +14,8 @@ class FD3d12Renderer;
 class FPrimitiveBox;
 class btRigidBody;
 class F3DPicker;
+class FNavMeshManager;
+class FGameAgent;
 
 class FGame
 {
@@ -44,5 +46,6 @@ private:
 	std::vector<FGameEntity*> myEntityContainer;
 	bool myIsMouseCaptured;
 	F3DPicker* myPicker;
+	FGameAgent* myPickedEntity;
 };
 

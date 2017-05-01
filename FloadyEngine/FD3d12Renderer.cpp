@@ -9,6 +9,8 @@
 #include "FTextureManager.h"
 #include "FPrimitiveGeometry.h"
 #include "FTimer.h"
+#include "FDebugDrawer.h"
+#include "FPostProcessEffect.h"
 
 #include <functional>
 
@@ -42,6 +44,7 @@ FD3d12Renderer::FD3d12Renderer()
 	myInt = 0;
 	
 	FTextureManager::GetInstance();
+	myDebugDrawer = new FDebugDrawer(this);
 }
 
 FD3d12Renderer::~FD3d12Renderer()
@@ -499,7 +502,8 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	myQuad = new FD3d12Quad(this, FVector3(10, 0, 0));
 
 	result = m_commandList->Reset(m_commandAllocator, m_pipelineState); // how do we deal with this.. passing commandlist around?
-	
+
+
 	// Init resources for managers, they record in cmd list and execute alltogether
 	{
 		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.", this, m_commandList);
@@ -604,6 +608,13 @@ bool FD3d12Renderer::Render()
 	{
 		myQuad->Init();
 
+		myDebugDrawer->Init();
+
+		for (FPostProcessEffect* postEffect : myPostEffects)
+		{
+			postEffect->Init();
+		}
+		
 		firstFrame = false;
 	}
 	else
@@ -688,9 +699,17 @@ bool FD3d12Renderer::Render()
 			WaitForSingleObject(m_fenceEvent, INFINITE);
 		}
 
-
 		// deferred combine pass
 		myQuad->Render();
+
+		//post effects
+		for (FPostProcessEffect* postEffect : myPostEffects)
+		{
+			postEffect->Render();
+		}
+
+		// debug draws
+		myDebugDrawer->Render();
 	}
 
 	for (FRenderableObject* object : mySceneGraph.GetTransparantObjects())

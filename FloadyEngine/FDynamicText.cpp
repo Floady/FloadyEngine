@@ -219,7 +219,7 @@ void FDynamicText::PopulateCommandList()
 		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
 		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
 
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 		{
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		}
@@ -288,7 +288,7 @@ void FDynamicText::PopulateCommandList()
 
 	if (myIsDeferred)
 	{
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 		{
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 		}
@@ -335,7 +335,7 @@ void FDynamicText::PopulateCommandListAsync()
 		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
 		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
 
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 		{
 			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		}
@@ -402,7 +402,7 @@ void FDynamicText::PopulateCommandListAsync()
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	if (myIsDeferred)
 	{
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 		{
 			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 		}
@@ -516,8 +516,8 @@ void FDynamicText::SetShader()
 	
 	if(myIsDeferred)
 	{
-		psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
-		for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+		psoDesc.NumRenderTargets = myManagerClass->Gbuffer_Combined;
+		for (size_t i = 0; i < myManagerClass->Gbuffer_Combined; i++)
 		{
 			psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
 		}

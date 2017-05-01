@@ -14,9 +14,13 @@ public:
 	virtual void SetShader(const char* aFilename) = 0;
 
 	// todo: this needs some base implementation (pull modelmatrix here, any renderable has a matrix to set and to render with)
-	virtual void SetPos(FVector3 aPos) {  }
+	virtual void SetPos(FVector3 aPos) { myPos = aPos; }
+	FVector3 GetPos() { return myPos; }
 	virtual void SetRotMatrix(float* m) { }
 	FRenderableObject();
 	virtual ~FRenderableObject();
+
+protected:
+	FVector3 myPos;
 };
 

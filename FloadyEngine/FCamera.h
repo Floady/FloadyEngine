@@ -14,6 +14,7 @@ public:
 	void Pitch(float angle);
 	const FVector3& GetPos() const { return myPos;  }
 	const DirectX::XMFLOAT4X4& GetViewProjMatrix() { return myViewProjMatrix; }
+	const DirectX::XMFLOAT4X4& GetViewProjMatrixTransposed() { return myViewProjMatrixTransposed; }
 	const DirectX::XMFLOAT4X4& GetInvViewProjMatrix() { return myInvViewProjMatrix; }
 	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose = true);
 	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(const DirectX::XMMATRIX& anObjectMatrix);
@@ -27,6 +28,7 @@ private:
 	DirectX::XMFLOAT4X4  myProjMatrixFloatVersion;
 	DirectX::XMMATRIX myViewMatrix;
 	DirectX::XMFLOAT4X4 myViewProjMatrix;
+	DirectX::XMFLOAT4X4 myViewProjMatrixTransposed;
 	DirectX::XMFLOAT4X4 myInvViewProjMatrix;
 	FVector3 myPos;
 	FVector3 myDir;

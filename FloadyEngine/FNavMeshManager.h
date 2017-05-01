@@ -159,12 +159,13 @@ int  test_center(Shx &pt0, Shx &pt1, Shx &pt2);
 int T_flip_edge(std::vector<Shx> &pts, std::vector<Triad> &triads, std::vector<int> &slump,
 	int numt, int start, std::vector<int> &ids);
 
+class FDebugDrawer;
+
 #pragma once
-class FDelaunayTriangulate
+class FNavMeshManager
 {
 public:
-	FDelaunayTriangulate();
-	~FDelaunayTriangulate();
+	void DebugDraw(FDebugDrawer* aDebugDrawer);
 	std::vector<FVector3> FindPath(FVector3 aStart, FVector3 anEnd);
 	void AddBlockingAABB(FVector3 aMin, FVector3 aMax);
 	void RemoveAllBlockingAABB();
@@ -190,9 +191,18 @@ public:
 		}
 	};
 
+	struct Path
+	{
+		std::vector<FunnelNode> myFunnel;
+		std::vector<FVector3> myPathPoints;
+	};
+
 	std::vector<FunnelNode> myFunnel;
 
+	static FNavMeshManager* GetInstance();
 private:
+	FNavMeshManager();
+	~FNavMeshManager();
 	bool IsInsideTriangle(FVector3 aPos, FVector3 aV1, FVector3 aV2, FVector3 aV3);
 	int GetTriangleForPoint(FVector3 aPos);
 	FVector3 GetClosestPointOnTriToPoint(int aTriangleIdx, FVector3 aPos);
@@ -203,5 +213,8 @@ private:
 	std::vector<AABB> myAABBList;
 	std::vector<FVector3> myPointList;
 	std::vector<bool> myBlockedTriangleList;
+
+	Path myPathList;
+	static FNavMeshManager* myInstance;
 };
 

@@ -283,7 +283,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
 
 #if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 	{
 		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
@@ -331,7 +331,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 #if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_count; i++)
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
 	{
 		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	}
@@ -430,8 +430,8 @@ void FPrimitiveBox::SetShader()
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 #if DEFERRED
-	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_count;
-	for (size_t i = 0; i < myManagerClass->Gbuffer_count; i++)
+	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_Combined;
+	for (size_t i = 0; i < myManagerClass->Gbuffer_Combined; i++)
 	{
 		psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
 	}
