@@ -287,6 +287,8 @@ void FD3d12Quad::Render()
 	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
 	m_fence->SetEventOnCompletion(1, m_fenceEvent);
 	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
+	CloseHandle(m_fenceEvent);
 }
 
 void FD3d12Quad::SetShader()

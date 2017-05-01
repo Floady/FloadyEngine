@@ -220,6 +220,7 @@ void FPrimitiveBox::Render()
 	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
 	m_fence->SetEventOnCompletion(1, m_fenceEvent);
 	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 }
 
 void FPrimitiveBox::RenderShadows()
@@ -246,6 +247,7 @@ void FPrimitiveBox::RenderShadows()
 	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
 	m_fence->SetEventOnCompletion(1, m_fenceEvent);
 	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 }
 
 void FPrimitiveBox::PopulateCommandListAsync()

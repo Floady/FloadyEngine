@@ -196,6 +196,9 @@ void FDebugDrawer::PopulateCommandListAsync()
 
 void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
 {
+	if (myLines.size() == 0 && myTriangles.size() == 0)
+		return;
+
 	// copy data to GPU
 	std::vector<FVector3> verticesLines;
 	for (size_t i = 0; i < myLines.size(); i++)

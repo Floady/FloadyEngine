@@ -650,14 +650,16 @@ bool FD3d12Renderer::Render()
 			}
 
 			// wait for cmdlist to be done before returning
-			ID3D12Fence* m_fence;
-			HANDLE m_fenceEvent;
-			m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			ID3D12Fence* m_fence2;
+			HANDLE m_fenceEvent2;
+			m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
 			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-			result = GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-			m_fence->SetEventOnCompletion(1, m_fenceEvent);
-			WaitForSingleObject(m_fenceEvent, INFINITE);
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
+			result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor);
+			m_fence2->SetEventOnCompletion(1, m_fenceEvent2);
+			WaitForSingleObject(m_fenceEvent2, INFINITE);
+			m_fence2->Release();
+			CloseHandle(m_fenceEvent2);		
 		}
 
 		{
@@ -689,14 +691,16 @@ bool FD3d12Renderer::Render()
 			}
 
 			// wait for cmdlist to be done before returning
-			ID3D12Fence* m_fence;
-			HANDLE m_fenceEvent;
-			m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			ID3D12Fence* m_fence3;
+			HANDLE m_fenceEvent3;
+			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
 			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-			result = GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-			m_fence->SetEventOnCompletion(1, m_fenceEvent);
-			WaitForSingleObject(m_fenceEvent, INFINITE);
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
+			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
+			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
+			WaitForSingleObject(m_fenceEvent3, INFINITE);
+			m_fence3->Release();
+			CloseHandle(m_fenceEvent3);
 		}
 
 		// deferred combine pass

@@ -283,4 +283,6 @@ void FPostProcessEffect::Render()
 	result = FD3d12Renderer::GetInstance()->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
 	m_fence->SetEventOnCompletion(1, m_fenceEvent);
 	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
+	CloseHandle(m_fenceEvent);
 }

@@ -24,6 +24,18 @@
 
 FGame* FGame::ourInstance = nullptr;
 
+void * operator new(std::size_t n) throw(std::bad_alloc)
+{
+	//...
+	void* p = malloc(n);
+	return p;
+}
+void operator delete(void * p) throw()
+{
+	//...
+	free(p);
+}
+
 void FGame::Test()
 {
 	{ OutputDebugString(L"Test"); }
