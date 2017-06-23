@@ -15,6 +15,7 @@ Texture2D<float4> g_normaltexture : register(t1);
 Texture2D<float> g_depthTexture : register(t2);
 Texture2D<float> g_shadowTexture : register(t3);
 Texture2D<float4> g_combinedTexture : register(t4);
+Texture2D<float4> scratchbuff : register(t5);
 
 SamplerState g_sampler : register(s0);
 
@@ -144,7 +145,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			doBlur = true;
 			
 			// debug draw luma edge detection
-			output.color = float4(abs(dir.x), abs(dir.y), 0.0f, 1.0f);
+		//	output.color = float4(abs(normalizedDir.x), abs(normalizedDir.y), 0.0f, 1.0f);
+		//	return output;
 		}
 		
 	}
@@ -152,9 +154,10 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	// FXAA blur over direction
 	if(doBlur)
 	{
-		float totalColor = 0.0f; 
+		float4 totalColor = float4(0, 0, 0, 0); 
+		//float totalColor = 0;
 		const float maxBlurDist = 5;
-		float scale = 5.0f;
+		float scale = 3.0f;
 		int extendsX = min(maxBlurDist, abs(normalizedDir.x) * scale);
 		int extendsY = min(maxBlurDist, abs(normalizedDir.y) * scale);
 		//extendsX = 5; extendsY = 1;
@@ -169,18 +172,22 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				counter++;
 			}
 		}
-		
-		
+				
 		output.color = totalColor / counter;
+		
+		// DEBUG OVERRIDE
 		float4 debugColor = float4(normalizedDir, 1);
 		debugColor = debugColor / 2.0f;
 		debugColor = debugColor + float4(0.5, 0.5, 0, 0);
 		//output.color = debugColor;
 		
+		// TEST
 		float4 colorFinal = g_combinedTexture.Sample(g_sampler, input.uv + float2(uvStride.x * dir.x, uvStride.y * dir.y));
 		colorFinal += g_combinedTexture.Sample(g_sampler, input.uv - float2(uvStride.x * dir.x, uvStride.y * dir.y));
-		//output.color = colorFinal / 2.0;
+		output.color = colorFinal / 2.0;
 	}	
+	
+	output.color += scratchbuff.Sample(g_sampler, input.uv) * float4(0.1,0.1,0.5,1);
 	
 	return output;	
 }

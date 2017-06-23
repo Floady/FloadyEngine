@@ -7,7 +7,9 @@ class FGameAgent :
 {
 public:
 	FGameAgent();
+	FGameAgent(const FVector3& aPos);
 	~FGameAgent();
+	virtual void Init(const FJsonObject& anObj) override;
 	void Update(double aDeltaTime) override;
 	void PostPhysicsUpdate() override;
 	FPathfindComponent* GetPathFindingComponent() { return myPathFindingComponent; }

@@ -11,8 +11,9 @@
 #include "FTimer.h"
 #include "FDebugDrawer.h"
 #include "FPostProcessEffect.h"
-
+#include "FLightManager.h"
 #include <functional>
+#include "windows.h"
 
 FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
 
@@ -53,6 +54,180 @@ FD3d12Renderer::~FD3d12Renderer()
 
 static FD3d12Quad* myQuad = nullptr;
 
+void FD3d12Renderer::CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DESCRIPTOR_HANDLE & aHandle)
+{
+	CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
+		static_cast<UINT>(m_viewport.Width), static_cast<UINT>(m_viewport.Height), 1, 1,
+		DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+	D3D12_CLEAR_VALUE clear_value;
+	clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clear_value.Color[0] = 0.0f;
+	clear_value.Color[1] = 0.0f;
+	clear_value.Color[2] = 0.0f;
+	clear_value.Color[3] = 1.0f;
+
+	HRESULT result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clear_value,
+		IID_PPV_ARGS(&aResource));
+	aResource->SetName(L"Runtime RT");
+	// Describe and create a SRV for the texture.
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	
+	int renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	aHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
+	m_device->CreateRenderTargetView(aResource, NULL, aHandle);
+
+	myCurrentRTVHeapOffset++;
+	assert(result == S_OK && "CREATING scratch buffer FAILED");
+}
+
+int FD3d12Renderer::CreateConstantBuffer(ID3D12Resource *& aResource, UINT8 *& aMapToPtr)
+{
+	HRESULT hr = GetDevice()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(256),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&aResource));
+
+	CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+	hr = aResource->Map(0, &readRange, reinterpret_cast<void**>(&aMapToPtr));
+
+	int heapOffset = GetNextOffset();
+
+	// Describe and create a constant buffer view.
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
+	cbvDesc[0].BufferLocation = aResource->GetGPUVirtualAddress();
+	cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
+	unsigned int srvSize = GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), heapOffset, srvSize);
+	GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
+
+	return heapOffset;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE FD3d12Renderer::CreateHeapDescriptorHandleSRV(ID3D12Resource * aResource, DXGI_FORMAT aFormat)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = aFormat;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	m_device->CreateShaderResourceView(aResource, &srvDesc, handle);
+
+	myCurrentHeapOffset++;
+
+	return handle;
+}
+
+ID3D12PipelineState* FD3d12Renderer::GetPsoObject(int aNrOfRenderTargets, DXGI_FORMAT * aFormats, const char * aShader, ID3D12RootSignature * aRootSignature, bool aDepthEnabled)
+{
+	FShaderManager::FShader shader = myShaderManager.GetShader(aShader);
+
+	ID3D12PipelineState* pso;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.InputLayout = { &shader.myInputElementDescs[0], (UINT)shader.myInputElementDescs.size() };
+	psoDesc.pRootSignature = aRootSignature;
+	psoDesc.VS = CD3DX12_SHADER_BYTECODE(shader.myVertexShader);
+	psoDesc.PS = CD3DX12_SHADER_BYTECODE(shader.myPixelShader);
+	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+	if (!aDepthEnabled)
+	{
+		psoDesc.DepthStencilState.DepthEnable = FALSE;
+	}
+	psoDesc.SampleMask = UINT_MAX;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	psoDesc.NumRenderTargets = aNrOfRenderTargets;
+	for (size_t i = 0; i < aNrOfRenderTargets; i++)
+	{
+		psoDesc.RTVFormats[i] = aFormats[i];
+	}
+
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	psoDesc.SampleDesc.Count = 1;
+
+	HRESULT hr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso));
+	return pso;
+}
+
+ID3D12RootSignature* FD3d12Renderer::GetRootSignature(int aNumberOfSamplers, int aNumberOfCBs)
+{
+	if (aNumberOfSamplers + aNumberOfCBs == 0) // shouldnt happen
+		return nullptr;
+
+	int nrOfDescriptors = aNumberOfSamplers > 0 && aNumberOfCBs > 0 ? 2 : 1;
+	ID3D12RootSignature* rootSignature = nullptr;
+
+	CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+	if (aNumberOfSamplers)
+	{
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, aNumberOfSamplers, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	}
+	if (aNumberOfCBs)
+	{
+		ranges[aNumberOfSamplers == 0 ? 0 : 1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, aNumberOfCBs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	}
+
+	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+	rootParameters[0].InitAsDescriptorTable(nrOfDescriptors, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
+
+	D3D12_STATIC_SAMPLER_DESC sampler = {};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	sampler.MipLODBias = 0;
+	sampler.MaxAnisotropy = 0;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	sampler.MinLOD = 0.0f;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+	sampler.ShaderRegister = 0;
+	sampler.RegisterSpace = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDesc;
+	rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+	// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+	if (FAILED(GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+	{
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+	}
+
+	ID3DBlob* signature;
+	ID3DBlob* error;
+	HRESULT hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
+	hr = GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+
+	return rootSignature;
+}
+
+ID3D12GraphicsCommandList * FD3d12Renderer::CreateCommandList()
+{
+	ID3D12GraphicsCommandList* cmdList;
+	HRESULT hr = GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, GetCommandAllocator(), nullptr, IID_PPV_ARGS(&cmdList));
+
+	return cmdList;
+}
+
 bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
 	m_viewport.Width = static_cast<float>(screenWidth);
@@ -84,9 +259,6 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	// Set the feature level to DirectX 12.1 to enable using all the DirectX 12 features.
 	// Note: Not all cards support full DirectX 12, this feature level may need to be reduced on some cards to 12.0.
 	featureLevel = D3D_FEATURE_LEVEL_11_0;
-
-
-
 	{
 #ifdef _DEBUG
 		ID3D12Debug* debugController;
@@ -290,7 +462,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	ZeroMemory(&renderTargetViewHeapDesc, sizeof(renderTargetViewHeapDesc));
 
 	// Set the number of descriptors to two for our two back buffers.  Also set the heap tyupe to render target views.
-	renderTargetViewHeapDesc.NumDescriptors = 2 + Gbuffer_count; // 2 backbuffers
+	renderTargetViewHeapDesc.NumDescriptors = 2 + Gbuffer_count + 10; // 2 backbuffers + gbuffers + 2 postprocess scratchbuffs + 8 randoms for game or whatever
 	renderTargetViewHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	renderTargetViewHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -380,13 +552,15 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	// Create a render target view for the second back buffer.
 	m_device->CreateRenderTargetView(m_backBufferRenderTarget[1], NULL, myRenderTargetViewHandle);
+	m_backBufferRenderTarget[0]->SetName(L"BackBuffer0");
+	m_backBufferRenderTarget[1]->SetName(L"BackBuffer1");
 
 	// Finally get the initial index to which buffer is the current back buffer.
 	m_bufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 	// SETUP Depth Stencil View
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 2; // how many depth buffers you need? (1 depth, 1 shadow) 
+	dsvHeapDesc.NumDescriptors = 12; // how many depth buffers you need? (1 depth, 1 shadow) + 10 shadow 
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	result = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap));
@@ -407,34 +581,77 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		IID_PPV_ARGS(&m_depthStencil));
 	assert(result == S_OK && "CREATING THE DEPTH STENCIL FAILED");
 
-	result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE, &depth_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value,
-		IID_PPV_ARGS(&myShadowMap));
-	assert(result == S_OK && "CREATING THE SHADOW MAP FAILED");
-
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE depth_handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	myShadowMapViewHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
 	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, depth_handle);
-	m_device->CreateDepthStencilView(myShadowMap, &dsvDesc, myShadowMapViewHandle); // you cna bind these straight into the gbuffer handles (currently we rebind the gbuffer views to these resources and leave the 2 targets unused
 	m_depthStencil->SetName(L"m_depthStencil");
-	myShadowMap->SetName(L"shadow map");
-
+	
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = gbufferFormat[Gbuffer_Depth];
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
+	
+	for (int i = 0; i < 10; i++)
+	{
+		result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE, &depth_texture, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value,
+			IID_PPV_ARGS(&myShadowMap[i]));
+		assert(result == S_OK && "CREATING THE SHADOW MAP FAILED");
+
+		myShadowMapViewHandle[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1+i, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
+		m_device->CreateDepthStencilView(myShadowMap[i], &dsvDesc, myShadowMapViewHandle[i]); // you cna bind these straight into the gbuffer handles (currently we rebind the gbuffer views to these resources and leave the 2 targets unused
+		wchar_t* buff = new wchar_t[20];
+		wsprintf(buff, L"shadow map %i", i);
+		myShadowMap[i]->SetName(buff);
+	}
 
 	//	m_gbufferViewsSRV[Gbuffer_Depth] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_device->CreateShaderResourceView(m_depthStencil, &srvDesc, m_gbufferViewsSRV[Gbuffer_Depth]); // Depth tex has better precision than my custom one :(
-	m_device->CreateShaderResourceView(myShadowMap, &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]);
+	//m_device->CreateShaderResourceView(myShadowMap[0], &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]);
 	//	myCurrentHeapOffset++;
 		// ~ SETUP DSV
+
+	// SETUP PostProcess scratch Buffers
+	myCurrentPostProcessBufferIdx = 0;
+
+	//*
+	for (int i = 0; i < 2; i++)
+	{
+		CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
+			static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
+			DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+		D3D12_CLEAR_VALUE clear_value;
+		clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		clear_value.Color[0] = 0.0f;
+		clear_value.Color[1] = 0.0f;
+		clear_value.Color[2] = 0.0f;
+		clear_value.Color[3] = 1.0f;
+
+		result = m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clear_value,
+			IID_PPV_ARGS(&myPostProcessScratchBuffers[i]));
+		myPostProcessScratchBuffers[i]->SetName(L"PostEffectScratch");
+		// Describe and create a SRV for the texture.
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		myPostProcessScratchBufferViews[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
+		m_device->CreateRenderTargetView(myPostProcessScratchBuffers[i], NULL, myPostProcessScratchBufferViews[i]);
+		
+		myCurrentRTVHeapOffset++;
+		assert(result == S_OK && "CREATING PostProcess scratch buffer FAILED");
+	}
+	//*/
 
 		// Create a command allocator.
 	result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_commandAllocator);
@@ -580,11 +797,15 @@ bool FD3d12Renderer::Render()
 	}
 
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
-	m_commandList->ClearDepthStencilView(myShadowMapViewHandle, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	
+	for (int i = 0; i < 10; i++)
+	{
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		m_commandList->ClearDepthStencilView(myShadowMapViewHandle[i], D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
 
 	// Indicate that the back buffer will now be used to present.
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -610,9 +831,11 @@ bool FD3d12Renderer::Render()
 
 		myDebugDrawer->Init();
 
+		int i = 1;
 		for (FPostProcessEffect* postEffect : myPostEffects)
 		{
-			postEffect->Init();
+			postEffect->Init(i);
+			i = i == 0 ? 1 : 0;
 		}
 		
 		firstFrame = false;
@@ -622,44 +845,54 @@ bool FD3d12Renderer::Render()
 		
 		mySceneGraph.InitNewObjects();
 		{
-			FJobSystem* test = FJobSystem::GetInstance();
-			int nrWorkerThreads = test->GetNrWorkerThreads();
-			for (int i = 0; i < nrWorkerThreads; i++)
+
+			//@todo: only shadowcasting lights.. improve
+			const std::vector<FLightManager::PointLight>& pointlights = FLightManager::GetInstance()->GetPointLights();
+			FLightManager::GetInstance()->SetActiveLight(-1);
+			for (int i = 0; i < pointlights.size() + 1; i++)
 			{
-				m_workerThreadCmdAllocators[i]->Reset();
-				m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+				FJobSystem* test = FJobSystem::GetInstance();
+				int nrWorkerThreads = test->GetNrWorkerThreads();
+				for (int i = 0; i < nrWorkerThreads; i++)
+				{
+					m_workerThreadCmdAllocators[i]->Reset();
+					m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+				}
+
+				test->Pause();
+				test->ResetQueue();
+
+				for (FRenderableObject* object : mySceneGraph.GetObjects())
+				{
+					test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
+				}
+
+				test->UnPause();
+
+				test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
+				
+				for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
+				{
+					m_workerThreadCmdLists[i]->Close();
+					ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
+					GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+				}
+
+				// wait for cmdlist to be done before returning
+				ID3D12Fence* m_fence2;
+				HANDLE m_fenceEvent2;
+				m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+				int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
+				HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
+				result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor);
+				m_fence2->SetEventOnCompletion(1, m_fenceEvent2);
+				WaitForSingleObject(m_fenceEvent2, INFINITE);
+				m_fence2->Release();
+				CloseHandle(m_fenceEvent2);
+
+				FLightManager::GetInstance()->SetActiveLight(i);
 			}
 
-			test->Pause();
-			test->ResetQueue();
-
-			for (FRenderableObject* object : mySceneGraph.GetObjects())
-			{
-				test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
-			}
-
-			test->UnPause();
-
-			test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-
-			for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
-			{
-				m_workerThreadCmdLists[i]->Close();
-				ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-			}
-
-			// wait for cmdlist to be done before returning
-			ID3D12Fence* m_fence2;
-			HANDLE m_fenceEvent2;
-			m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
-			result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor);
-			m_fence2->SetEventOnCompletion(1, m_fenceEvent2);
-			WaitForSingleObject(m_fenceEvent2, INFINITE);
-			m_fence2->Release();
-			CloseHandle(m_fenceEvent2);		
 		}
 
 		{
@@ -707,9 +940,87 @@ bool FD3d12Renderer::Render()
 		myQuad->Render();
 
 		//post effects
+
+		// copy combined onto first scratch
+		myCurrentPostProcessBufferIdx = 1; // 0 is the one we render to, 1 is the one we bind as resource
+		{
+			m_commandList->Reset(m_commandAllocator, m_pipelineState);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_gbuffer[Gbuffer_Combined], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			m_commandList->CopyResource(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], m_gbuffer[Gbuffer_Combined]);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_gbuffer[Gbuffer_Combined], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			m_commandList->Close();
+			ID3D12Fence* m_fence3;
+			HANDLE m_fenceEvent3;
+			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			int fenceToWaitFor = 17; // what value? per-thread counter or something in case you execute multiple ones
+			ID3D12CommandList* ppCommandLists[] = { m_commandList };
+			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
+			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
+			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
+			WaitForSingleObject(m_fenceEvent3, INFINITE);
+			m_fence3->Release();
+			CloseHandle(m_fenceEvent3);
+		}
+
+		myCurrentPostProcessBufferIdx = 0;
+
+		// render all post effects while swapping back/forth between scratch - copy result over for next posteffect
 		for (FPostProcessEffect* postEffect : myPostEffects)
 		{
 			postEffect->Render();
+
+			{
+				int nextScratchBuffIdx = myCurrentPostProcessBufferIdx == 0 ? 1 : 0; // nrOfScratchBuffers
+				m_commandList->Reset(m_commandAllocator, m_pipelineState);
+				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+				m_commandList->CopyResource(myPostProcessScratchBuffers[nextScratchBuffIdx], myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
+				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+				m_commandList->Close();
+				ID3D12Fence* m_fence3;
+				HANDLE m_fenceEvent3;
+				m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+				int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
+				ID3D12CommandList* ppCommandLists[] = { m_commandList };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+
+				HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
+				result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
+				m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
+				WaitForSingleObject(m_fenceEvent3, INFINITE);
+				m_fence3->Release();
+				CloseHandle(m_fenceEvent3);
+
+				myCurrentPostProcessBufferIdx = nextScratchBuffIdx;
+			}
+		}
+
+		{
+			m_commandList->Reset(m_commandAllocator, m_pipelineState);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST));
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			m_commandList->CopyResource(GetRenderTarget(), myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			m_commandList->Close();
+			ID3D12Fence* m_fence3;
+			HANDLE m_fenceEvent3;
+			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
+			ID3D12CommandList* ppCommandLists[] = { m_commandList };
+			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+
+			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
+			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
+			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
+			WaitForSingleObject(m_fenceEvent3, INFINITE);
+			m_fence3->Release();
+			CloseHandle(m_fenceEvent3);
 		}
 
 		// debug draws
@@ -720,7 +1031,6 @@ bool FD3d12Renderer::Render()
 	{
 		object->Render();
 	}
-
 
 		
 	// Finally present the back buffer to the screen since rendering is complete.
@@ -763,7 +1073,7 @@ bool FD3d12Renderer::Render()
 	}
 
 	// Alternate the back buffer index back and forth between 0 and 1 each frame.
-	m_bufferIndex == 0 ? m_bufferIndex = 1 : m_bufferIndex = 0;
+	m_bufferIndex = m_bufferIndex == 0 ? 1 : 0;
 
 	return true;
 }

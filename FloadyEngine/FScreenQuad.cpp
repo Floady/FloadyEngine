@@ -42,6 +42,22 @@ FScreenQuad::FScreenQuad(FD3d12Renderer* aManager, FVector3 aPos, const char* aT
 
 FScreenQuad::~FScreenQuad()
 {
+	myManagerClass->GetShaderManager().UnregisterForHotReload(this);
+
+	if (m_pipelineState)
+		m_pipelineState->Release();
+
+	if (m_commandList)
+		m_commandList->Release();
+
+	if (m_ModelProjMatrix)
+		m_ModelProjMatrix->Release();
+
+	if (m_vertexBuffer)
+		m_vertexBuffer->Release();
+
+	if (m_rootSignature)
+		m_rootSignature->Release();
 }
 
 void FScreenQuad::Init()

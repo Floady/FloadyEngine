@@ -8,6 +8,7 @@ public:
 	FSceneGraph();
 	void InitNewObjects();
 	void AddObject(FRenderableObject* anObject, bool anIsTransparant);
+	void RemoveObject(FRenderableObject * anObject);
 	const std::vector<FRenderableObject*>& GetObjects() { return myObjects; }
 	const std::vector<FRenderableObject*>& GetTransparantObjects() { return myTransparantObjects; }
 	~FSceneGraph();

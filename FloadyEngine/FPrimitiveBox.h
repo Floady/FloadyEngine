@@ -39,6 +39,12 @@ public:
 
 	void SetTexture(const char* aFilename) override;
 	void SetShader(const char* aFilename) override;
+
+	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return m_vertexBufferView; }
+	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
+	int GetIndicesCount() { return myIndicesCount; }
+	bool IsInitialized() { return myIsInitialized; }
+
 private:
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12RootSignature* m_rootSignatureShadows;
@@ -56,10 +62,8 @@ private:
 
 	std::string myTexName;
 
-	ID3D12Resource* m_ModelProjMatrix;
 	ID3D12Resource* m_ModelProjMatrixShadow;
 	
-	FVector3 myScale;
 	FD3d12Renderer* myManagerClass;
 	
 	int myHeapOffsetCBV;
@@ -70,5 +74,9 @@ private:
 	bool skipNextRender;
 	int myIndicesCount;
 	PrimitiveType myType;
+
+	const char* shaderfilename;
+	const char* shaderfilenameShadow;
+	bool myIsInitialized;
 };
 

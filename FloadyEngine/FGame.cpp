@@ -21,6 +21,12 @@
 #include "FGameAgent.h"
 #include "FGameEntityFactory.h"
 #include "FPostProcessEffect.h"
+#include "FGameHighlightManager.h"
+#include "FPlacingManager.h"
+#include "FGameBuilding.h"
+#include "FGameBuildingManager.h"
+#include "FGameUIManager.h"
+#include "FLightManager.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -36,15 +42,56 @@ void operator delete(void * p) throw()
 	free(p);
 }
 
+void FGame::ConstructBuilding(FVector3 aPos)
+{
+	if (!myBuildingName)
+		return;
+
+	myPlacingManager->ClearPlacable();
+
+	OutputDebugString(L"ConstructBuilding:  ");
+	OutputDebugStringA(myBuildingName);	
+	OutputDebugString(L"\n");
+
+	FGameEntity* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->GetEntity();
+	entity->SetPos(aPos);
+	myEntityContainer.push_back(entity);
+
+	myBuildingName = nullptr;
+}
+
+void FGame::ConstructBuilding(const char * aBuildingName)
+{
+	OutputDebugString(L"ConstructBuilding:  ");
+	OutputDebugStringA(aBuildingName);
+	OutputDebugString(L"\n");
+	
+	myBuildingName = aBuildingName;
+	myPlacingManager->SetPlacable(true, FVector3(2, 1, 1), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this));
+}
+
 void FGame::Test()
 {
-	{ OutputDebugString(L"Test"); }
-
-	//FGameEntity* gameEntity = new FGameEntity(myCamera->GetPos(), FVector3(1, 1, 1), FGameEntity::ModelType::Box, 15.0f, true);
-	//myEntityContainer.push_back(gameEntity);
+	OutputDebugString(L"Test\n");
 
 	FGameAgent* newAgent = new FGameAgent();
-	myEntityContainer.push_back(newAgent);	
+	myEntityContainer.push_back(newAgent);
+}
+
+void FGame::Test(FVector3 aPos)
+{
+	OutputDebugString(L"Test aPos\n");
+
+	FGameAgent* newAgent = new FGameAgent(aPos);
+	
+	myEntityContainer.push_back(newAgent);
+
+	FGameBuilding* someBuilding = new FGameBuilding("Configs//buildings//firstbuilding.json");
+}
+
+void FGame::AddEntity(FGameEntity * anEntity)
+{
+	myEntityContainer.push_back(anEntity);
 }
 
 FGame::FGame()
@@ -60,6 +107,11 @@ FGame::FGame()
 	ourInstance = this;
 	myIsMouseCaptured = false;
 	myPickedEntity = nullptr;
+	myHighlightManager = nullptr;
+	myPlacingManager = nullptr;
+	myBuildingManager = nullptr;
+	myGameUIManager = nullptr;
+	myPickedAgent = nullptr;
 }
 
 FGame::~FGame()
@@ -98,13 +150,16 @@ void FGame::Init()
 
 	myRenderer->SetCamera(myCamera);
 	myPhysics->Init(myRenderer);
-	
+	myHighlightManager = new FGameHighlightManager();
+	myBuildingManager = new FGameBuildingManager();
+	myGameUIManager = new FGameUIManager();
+
 	FJson jsonObject;
 
 	// Add some objects to the scene
 	myFpsCounter = new FDynamicText(myRenderer, FVector3(-1.0f, -1.0f, 0.0),"FPS Counter", 0.3f, 0.05f , true, true);
-	FGUIButton* button = new FGUIButton(FVector3(0.3f, 0.95f, 0.0), FVector3(0.5f, 1.0f, 0.0), "button.png", FDelegate2<void()>::from<FGame, &FGame::Test>(this));
-	FGUIManager::GetInstance()->AddObject(button);
+	//FGUIButton* button = new FGUIButton(FVector3(0.3f, 0.95f, 0.0), FVector3(0.5f, 1.0f, 0.0), "button.png", FDelegate2<void()>::from<FGame, &FGame::Test>(this));
+	//FGUIManager::GetInstance()->AddObject(button);
 	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
 
 	FJsonObject* level = FJson::Parse("Configs//level.txt");
@@ -117,13 +172,33 @@ void FGame::Init()
 		child = level->GetNextChild();
 	}
 
+	int stepX = 15;
+	int stepY = 15;
+	int gridSize = 3;
+	for (int i = 0; i < gridSize; i++)
+	{
+		for (int j = 0; j < gridSize; j++)
+		{
+//			FLightManager::GetInstance()->AddLight(FVector3(i * stepX, 2.0f, j * stepY), 10.0f);
+		}
+	}
+
+	FLightManager::GetInstance()->AddLight(FVector3(15, 15.0f, 0), 10.0f);
 	// init navmesh
 	
 	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
 	FNavMeshManager::GetInstance()->GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
 
-	FGameEntity* newEnt = FGameEntityFactory::GetInstance()->Create("FGameEntity");
-	myRenderer->RegisterPostEffect(new FPostProcessEffect(FPostProcessEffect::BindBufferMaskAll, "lightshader2.hlsl", "PostProcess1"));
+	std::vector<FPostProcessEffect::BindInfo> resources;
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(0), myRenderer->gbufferFormat[0]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(1), myRenderer->gbufferFormat[1]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(2), myRenderer->gbufferFormat[2]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(3), myRenderer->gbufferFormat[3]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(4), myRenderer->gbufferFormat[4]));
+	myRenderer->RegisterPostEffect(new FPostProcessEffect(resources, "lightshader2.hlsl", "PostProcess1"));
+
+	myPlacingManager = new FPlacingManager();
+	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
 }
 
 bool FGame::Update(double aDeltaTime)
@@ -140,6 +215,7 @@ bool FGame::Update(double aDeltaTime)
 
 	if (myInput->IsKeyDown(VK_F3))
 	{
+		myGameUIManager->SetState(FGameUIManager::GuiState::MainScreen);
 		// re-init navmesh
 		std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
 		FNavMeshManager::GetInstance()->RemoveAllBlockingAABB();
@@ -150,6 +226,17 @@ bool FGame::Update(double aDeltaTime)
 
 		FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(20, 0, 20));
 	}
+
+	myGameUIManager->Update();
+
+	if (myInput->IsKeyDown(VK_F4))
+		myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
+
+	if (myInput->IsKeyDown(VK_F5))
+		myPlacingManager->ClearPlacable();
+
+	if (myInput->IsKeyDown(VK_F6))
+		myPlacingManager->SetPlacable(true, FVector3(2,1,1), FDelegate2<void(FVector3)>::from<FGame, &FGame::Test>(this));
 
 	static FVector3 vNavEnd;
 	static FVector3 vNavStart;
@@ -182,43 +269,54 @@ bool FGame::Update(double aDeltaTime)
 		windowMouseY = windowMouseY < 0.0f ? 0.0f : windowMouseY;
 
 		// update UI
-		FGUIManager::GetInstance()->Update(windowMouseX, windowMouseY, myInput->IsMouseButtonDown(true), myInput->IsMouseButtonDown(false));
-
-		// Picker
-		FVector3 line = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
-		if (myInput->IsMouseButtonDown(false))
-		{
-			vNavStart = line;
-		}
+		bool isonUI = FGUIManager::GetInstance()->Update(windowMouseX, windowMouseY, myInput->IsMouseButtonDown(true), myInput->IsMouseButtonDown(false));
 
 		// example entity picking
 		if (myInput->IsMouseButtonDown(true))
 		{
-			FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
-			FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
-			FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
-			if (entity)
+			FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+			
+			if(!isonUI)
 			{
-				entity->SetPhysicsActive(false);
-				myPickedEntity = dynamic_cast<FGameAgent*>(entity);
-				vNavStart = entity->GetPos();
-				vNavEnd = vNavStart; // reset, or make sure no pathfinding is done
-			}
-			else if(myPickedEntity) 			// if something is picked and there is no other entity under mouse, find navpos
-			{
-				vNavEnd = line;
-				if(FPathfindComponent* pathFindComponent = myPickedEntity->GetPathFindingComponent())
-				{ 
-					vNavStart = myPickedEntity->GetPos();
-					pathFindComponent->FindPath(vNavStart, vNavEnd);
+				myPlacingManager->MouseDown(navPos);
+
+				FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
+				FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
+				FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
+				if (entity != myPickedEntity)
+				{
+					myHighlightManager->RemoveSelectableObject(myPickedEntity);
+					myHighlightManager->AddSelectableObject(entity);
+					myPickedEntity = entity;
+
+					if (entity && dynamic_cast<FGameAgent*>(entity))
+					{
+						vNavStart = entity->GetPos();
+						vNavEnd = vNavStart; // reset, or make sure no pathfinding is done
+
+						myPickedAgent = dynamic_cast<FGameAgent*>(entity);
+					}
 				}
 			}
 		}
+
+		if (myPickedAgent && myInput->IsMouseButtonDown(false)) 			// if something is picked and there is no other entity under mouse, find navpos
+		{
+			FVector3 line = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+			vNavEnd = line;
+			if (FPathfindComponent* pathFindComponent = myPickedAgent->GetPathFindingComponent())
+			{
+				vNavStart = myPickedAgent->GetPos();
+				pathFindComponent->FindPath(vNavStart, vNavEnd);
+			}
+		}
+
+		FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+		myPlacingManager->UpdateMousePos(navPos);
 	}
 	
 	std::vector<FVector3> pathPoints = FNavMeshManager::GetInstance()->FindPath(vNavStart, vNavEnd);
 
-	//FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
 
 	// Update world
 	for (FGameEntity* entity : myEntityContainer)
@@ -229,11 +327,16 @@ bool FGame::Update(double aDeltaTime)
 	// Step physics
 	if (myInput->IsKeyDown(VK_SPACE))
 	{
-		myPhysics->Update(aDeltaTime);
+		myPhysics->TogglePaused();
 	}
 
+	myPhysics->Update(aDeltaTime);
+
 	if (myInput->IsKeyDown(VK_SHIFT))
+	{
+		FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
 		myPhysics->DebugDrawWorld();
+	}
 
 	for (FGameEntity* entity : myEntityContainer)
 	{
@@ -250,6 +353,8 @@ bool FGame::Update(double aDeltaTime)
 
 void FGame::Render()
 {
+	//FD3d12Renderer::GetInstance()->GetCommandAllocator()->Reset();
 	myRenderWindow->CheckForQuit();
+	myHighlightManager->Render();
 	myRenderer->Render();
 }

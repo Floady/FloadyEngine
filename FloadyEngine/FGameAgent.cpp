@@ -4,7 +4,14 @@
 
 
 FGameAgent::FGameAgent()
-	: FGameEntity(FVector3(0,0,0), FVector3(1,1,1), FGameEntity::ModelType::Sphere, 10.0f, false)
+	: FGameEntity(FVector3(0, 0, 0), FVector3(1, 1, 1), FGameEntity::ModelType::Sphere, 10.0f, false)
+{
+	myPathFindingComponent = new FPathfindComponent(this);
+	myWasPathing = false;
+}
+
+FGameAgent::FGameAgent(const FVector3& aPos)
+	: FGameEntity(aPos, FVector3(1, 1, 1), FGameEntity::ModelType::Sphere, 10.0f, false)
 {
 	myPathFindingComponent = new FPathfindComponent(this);
 	myWasPathing = false;
@@ -13,6 +20,11 @@ FGameAgent::FGameAgent()
 
 FGameAgent::~FGameAgent()
 {
+}
+
+void FGameAgent::Init(const FJsonObject & anObj)
+{
+	FGameEntity::Init(anObj);
 }
 
 void FGameAgent::Update(double aDeltaTime)

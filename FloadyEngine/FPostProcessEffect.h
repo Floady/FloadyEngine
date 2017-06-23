@@ -1,5 +1,12 @@
 #pragma once
 #include <d3d12.h>
+#include <vector>
+
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include "FShaderManager.h"
+#include "FSceneGraph.h"
+
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -19,14 +26,24 @@ public:
 		Buffer_Count = 5 // FIX WHEN PRESENT BUFFER COPY IS DONE
 	};
 
+	struct BindInfo
+	{
+		BindInfo(ID3D12Resource* aResource, DXGI_FORMAT aResourceFormat) : myResource(aResource), myResourceFormat(aResourceFormat) {}
+		ID3D12Resource* myResource;
+		DXGI_FORMAT myResourceFormat;
+	};
+
+
 	typedef int BindBufferMask;
 	static const BindBufferMask BindBufferMaskAll = Buffer_color | Buffer_normals | Buffer_Depth | Buffer_Shadow | Buffer_Present;
 
-	FPostProcessEffect(BindBufferMask aBindMask, const char* shaderName, const char* aDebugName = nullptr);
+	FPostProcessEffect(BindBufferMask aBindMask, const char* aShaderName, const char* aDebugName = nullptr);
+	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, const char* aDebugName = nullptr);
 	~FPostProcessEffect();
 	void Render();
-	void Init();
+	void Init(int aPostEffectBufferIdx);
 	void SetShader();
+
 protected:
 	ID3D12RootSignature* myRootSignature;
 	ID3D12PipelineState* myPipelineState;
@@ -41,5 +58,14 @@ protected:
 	BindBufferMask myBindMask;
 	const char* myShaderName;
 	const char* myDebugName;
+
+	bool myUseResource;
+	struct BindResource
+	{
+		ID3D12Resource* myResource;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE myResourceHandle;
+		DXGI_FORMAT myResourceFormat;
+	};
+	std::vector<BindResource> myResources;
 };
 

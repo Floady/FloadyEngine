@@ -12,14 +12,16 @@
 #include "FPrimitiveGeometry.h"
 using namespace DirectX;
 #define DEFERRED 1
-#if DEFERRED
-const char* shaderfilename = "primitiveshader_deferred.hlsl";
-#else
-const char* shaderfilename = "primitiveshader.hlsl";
-#endif
 
 FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, FPrimitiveBox::PrimitiveType aType)
 {
+#if DEFERRED
+	shaderfilename = "primitiveshader_deferred.hlsl";
+#else
+	shaderfilename = "primitiveshader.hlsl";
+#endif
+	shaderfilenameShadow = "primitiveshader_deferredShadows.hlsl";
+
 	myTexName = "testtexture2.png"; // something default
 
 	myManagerClass = aManager;
@@ -40,10 +42,12 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 	myType = aType;
 
 	myRotMatrix = XMMatrixIdentity();
+	myIsInitialized = false;
 }
 
 FPrimitiveBox::~FPrimitiveBox()
 {
+	myManagerClass->GetShaderManager().UnregisterForHotReload(this);
 }
 
 void FPrimitiveBox::Init()
@@ -136,47 +140,12 @@ void FPrimitiveBox::Init()
 		}
 	}
 
-	myHeapOffsetCBV = myManagerClass->GetNextOffset();
-	myHeapOffsetAll = myHeapOffsetCBV;
-	myHeapOffsetText = myManagerClass->GetNextOffset();
-	myHeapOffsetCBVShadow = myManagerClass->GetNextOffset();
-	// create constant buffer for modelviewproj
+	// create constant buffer for modelview
 	{
-		hr = myManagerClass->GetDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(256),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_ModelProjMatrix));
-
-		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
-		hr = m_ModelProjMatrix->Map(0, &readRange, reinterpret_cast<void**>(&myConstantBufferPtr));
-
-		// Describe and create a constant buffer view.
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
-		cbvDesc[0].BufferLocation = m_ModelProjMatrix->GetGPUVirtualAddress();
-		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
-		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
-		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
-
-		// need seperate memory for shadowmodelviewproj cause gpu executes deferred and copying mem is not part of cmd list (move to light manager?)
-		hr = myManagerClass->GetDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(256),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_ModelProjMatrixShadow));
-
-		hr = m_ModelProjMatrixShadow->Map(0, &readRange, reinterpret_cast<void**>(&myConstantBufferShadowsPtr));
-
-		// Describe and create a constant buffer view.
-		cbvDesc[0].BufferLocation = m_ModelProjMatrixShadow->GetGPUVirtualAddress();
-		srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandleShadow(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBVShadow, srvSize);
-		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandleShadow);
+		myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr);
+		myHeapOffsetAll = myHeapOffsetCBV;
+		myHeapOffsetText = myManagerClass->GetNextOffset();
+		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
 	}
 	
 	// create SRV for texture
@@ -193,6 +162,7 @@ void FPrimitiveBox::Init()
 	}
 	
 	skipNextRender = false;
+	myIsInitialized = true;
 }
 
 void FPrimitiveBox::Render()
@@ -353,14 +323,14 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	XMStoreFloat4x4(&ret, offset);
 
 	float constData[32];
-	memcpy(&constData[0], FLightManager::GetLightViewProjMatrix(0, 0, 0).m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[0], FLightManager::GetInstance()->GetCurrentActiveLightViewProjMatrix().m, sizeof(XMFLOAT4X4));
 	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
 	memcpy(myConstantBufferShadowsPtr, &constData[0], sizeof(float) * 32);
 	
 	// set pipeline  to shadow shaders
 	aCmdList->SetPipelineState(m_pipelineStateShadows);
 
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(FLightManager::GetInstance()->GetActiveLight()), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Set necessary state.
 	aCmdList->SetGraphicsRootSignature(m_rootSignatureShadows);
@@ -382,7 +352,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 
 	// Indicate that the back buffer will be used as a render target.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle(FLightManager::GetInstance()->GetActiveLight());
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color);
 	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
@@ -398,7 +368,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 
 	// Indicate that the back buffer will now be used to present.
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(FLightManager::GetInstance()->GetActiveLight()), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
 #define DEPTH_BIAS_D32_FLOAT(d) (d/(1/pow(2,23)))
@@ -408,7 +378,7 @@ void FPrimitiveBox::SetShader()
 
 	// get shader ptr + layouts
 	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader(shaderfilename);
-	FShaderManager::FShader shaderShadows = myManagerClass->GetShaderManager().GetShader("primitiveshader_deferredShadows.hlsl");
+	FShaderManager::FShader shaderShadows = myManagerClass->GetShaderManager().GetShader(shaderfilenameShadow);
 
 	if (m_pipelineState)
 		m_pipelineState->Release();
@@ -490,4 +460,5 @@ void FPrimitiveBox::SetTexture(const char * aFilename)
 
 void FPrimitiveBox::SetShader(const char * aFilename)
 {
+	shaderfilename = aFilename;
 }

@@ -27,14 +27,20 @@ public:
 	~FD3d12Renderer();
 
 	static FD3d12Renderer* GetInstance() { return ourInstance; }
-
+	int CreateConstantBuffer(ID3D12Resource*& aResource, UINT8*& aMapToPtr); // returns heapoffset
+	void CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DESCRIPTOR_HANDLE& aHandle);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE CreateHeapDescriptorHandleSRV(ID3D12Resource* aResource, DXGI_FORMAT aFormat);
+	ID3D12PipelineState* GetPsoObject(int aNrOfRenderTargets, DXGI_FORMAT* aFormats, const char* aShader, ID3D12RootSignature* aRootSignature, bool aDepthEnabled);
+	ID3D12RootSignature* GetRootSignature(int aNumberOfSamplers, int aNumberOfCBs);
+	ID3D12GraphicsCommandList* CreateCommandList();
 	bool Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen);
 	void Shutdown();
 	void SetCamera(FCamera* aCam) { myCamera = aCam; }
 	FCamera* GetCamera() { return myCamera; }
 	bool Render();
 	void RegisterPostEffect(FPostProcessEffect* aPostEffect) { myPostEffects.push_back(aPostEffect); }
-	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV heap
+	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV+SRV heap
+	int GetCurHeapOffset() { return myCurrentHeapOffset; }
 	
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
 	ID3D12CommandAllocator* GetCommandAllocator() { return m_commandAllocator; }
@@ -49,12 +55,16 @@ public:
 	ID3D12Resource* GetRenderTarget() { return m_backBufferRenderTarget[m_bufferIndex]; }
 	ID3D12Resource* GetGBufferTarget(int i) { return m_gbuffer[i]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
-	ID3D12Resource* GetShadowMapBuffer() { return myShadowMap; }
+	ID3D12Resource* GetShadowMapBuffer(int i) { return myShadowMap[i]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetRTVHandle() { return myRenderTargetViewHandle; }
+	D3D12_CPU_DESCRIPTOR_HANDLE& GetPostProcessScratchBufferHandle() { return myPostProcessScratchBufferViews[myCurrentPostProcessBufferIdx]; }
+
+	ID3D12Resource* GetPostProcessBuffer() { return myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]; };
+	ID3D12Resource* GetPostProcessBuffer(int aIdx) { return myPostProcessScratchBuffers[aIdx]; };
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandle(int anIdx) { return m_gbufferViews[anIdx]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetGBufferHandleSRV(int anIdx) { return m_gbufferViewsSRV[anIdx]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetDSVHandle() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
-	D3D12_CPU_DESCRIPTOR_HANDLE& GetShadowMapHandle() { return myShadowMapViewHandle; }
+	D3D12_CPU_DESCRIPTOR_HANDLE& GetShadowMapHandle(int i) { return myShadowMapViewHandle[i]; }
 	ID3D12CommandAllocator* GetCommandAllocatorForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdAllocators[aWorkerThreadId]; }
 	ID3D12GraphicsCommandList* GetCommandListForWorkerThread(int aWorkerThreadId) { return m_workerThreadCmdLists[aWorkerThreadId]; }
 	FDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
@@ -64,7 +74,7 @@ private:
 	static FD3d12Renderer* ourInstance;
 	FDebugDrawer* myDebugDrawer;
 	D3D12_CPU_DESCRIPTOR_HANDLE myRenderTargetViewHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE myShadowMapViewHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowMapViewHandle[10];
 	volatile unsigned int myInt;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
@@ -91,11 +101,15 @@ private:
 	ID3D12DescriptorHeap* m_srvHeap; // shader resource view
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
-	ID3D12Resource* myShadowMap;
+	ID3D12Resource* myShadowMap[10];
 
 	ID3D12Resource* m_gbuffer[Gbuffer_count];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViews[Gbuffer_count];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViewsSRV[Gbuffer_count];
+
+	ID3D12Resource* myPostProcessScratchBuffers[2];
+	D3D12_CPU_DESCRIPTOR_HANDLE myPostProcessScratchBufferViews[2];
+	unsigned int myCurrentPostProcessBufferIdx;
 
 	FCamera* myCamera;
 	int myCurrentHeapOffset; //for SRV CBV UAV heap

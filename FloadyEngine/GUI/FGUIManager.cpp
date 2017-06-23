@@ -11,14 +11,17 @@ FGUIManager::FGUIManager()
 {
 }
 
-void FGUIManager::Update(float aMouseX, float aMouseY, bool aIsLMouseDown, bool aIsRMouseDown) // normalized screen coords
+bool FGUIManager::Update(float aMouseX, float aMouseY, bool aIsLMouseDown, bool aIsRMouseDown) // normalized screen coords
 {
+	bool isInsideUI = false;
 	for (FGUIObjectStatus& objStatus : myGuiItems)
 	{
 		FGUIObject* obj = objStatus.myObject;
 		
 		if (obj->IsInside(aMouseX,aMouseY))
 		{
+			isInsideUI = true;
+
 			if(!objStatus.myIsInside)
 				obj->OnMouseEnter(aMouseX - 1.0f, -aMouseY);
 
@@ -37,6 +40,8 @@ void FGUIManager::Update(float aMouseX, float aMouseY, bool aIsLMouseDown, bool 
 			objStatus.myIsInside = false;
 		}
 	}
+
+	return isInsideUI;
 }
 
 FGUIManager::~FGUIManager()
@@ -51,4 +56,32 @@ FGUIManager* FGUIManager::GetInstance()
 		myInstance = new FGUIManager();
 
 	return myInstance;
+}
+
+void FGUIManager::AddObject(FGUIObject * anObject)
+{
+	myGuiItems.push_back(FGUIObjectStatus(anObject));
+	anObject->Show();
+}
+
+void FGUIManager::RemoveObject(FGUIObject * anObject)
+{
+	for (auto it = myGuiItems.begin(); it != myGuiItems.end(); ++it)
+	{
+		if ((*it).myObject == anObject)
+		{
+			(*it).myObject->Hide();
+			myGuiItems.erase(it);
+			return;
+		}
+	}
+}
+
+void FGUIManager::ClearAll()
+{
+	for (auto it = myGuiItems.begin(); it != myGuiItems.end(); ++it)
+	{
+		delete (*it).myObject;
+	}
+	myGuiItems.clear();
 }

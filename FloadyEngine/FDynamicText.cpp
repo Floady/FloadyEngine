@@ -27,7 +27,8 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
 
-	myText[0] = '\0';
+	memcpy(myText, aText, strlen(aText));
+	myText[strlen(aText)] = '\0';
 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
@@ -40,6 +41,8 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 
 FDynamicText::~FDynamicText()
 {
+	myManagerClass->GetShaderManager().UnregisterForHotReload(this);
+
 }
 
 void FDynamicText::Init()

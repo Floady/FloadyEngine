@@ -1,6 +1,7 @@
 #pragma once
 #include "FVector3.h"
 
+struct ID3D12Resource;
 class FRenderableObject
 {
 public:
@@ -16,11 +17,15 @@ public:
 	// todo: this needs some base implementation (pull modelmatrix here, any renderable has a matrix to set and to render with)
 	virtual void SetPos(FVector3 aPos) { myPos = aPos; }
 	FVector3 GetPos() { return myPos; }
+	FVector3 GetScale() { return myScale; }
 	virtual void SetRotMatrix(float* m) { }
 	FRenderableObject();
 	virtual ~FRenderableObject();
 
+	ID3D12Resource* GetModelViewMatrix() { return m_ModelProjMatrix; }
 protected:
+	ID3D12Resource* m_ModelProjMatrix;
 	FVector3 myPos;
+	FVector3 myScale;
 };
 

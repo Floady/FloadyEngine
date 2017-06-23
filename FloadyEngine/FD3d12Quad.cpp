@@ -45,7 +45,7 @@ void FD3d12Quad::Init()
 		}
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 13, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 		
 		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
@@ -152,17 +152,19 @@ void FD3d12Quad::Init()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle2(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
 	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Depth), &srvDesc, srvHandle2);
 
-	myHeapOffsetBuffers = myManagerClass->GetNextOffset();
-	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Shadow];
-	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle3(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
-	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetShadowMapBuffer(), &srvDesc, srvHandle3);
-
+	for (int i = 0; i < 10; i++)
+	{
+		myHeapOffsetBuffers = myManagerClass->GetNextOffset();
+		srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Shadow];
+		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle3(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+		myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetShadowMapBuffer(i), &srvDesc, srvHandle3);
+	}
 	// buffer for invproj + 3 lights (4x4 float)
 	{
 		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(256),
+			&CD3DX12_RESOURCE_DESC::Buffer(1024),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&myConstDataShader));
@@ -173,7 +175,7 @@ void FD3d12Quad::Init()
 		// Describe and create a constant buffer view.
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = myConstDataShader->GetGPUVirtualAddress();
-		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
+		cbvDesc[0].SizeInBytes = 1024; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myManagerClass->GetNextOffset(), srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
@@ -215,23 +217,39 @@ void FD3d12Quad::Render()
 
 	// set const data
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
-	FVector3 lightPos = FLightManager::GetLightPos();
-	XMFLOAT4X4 lightViewProj = FLightManager::GetLightViewProjMatrix();
+	FVector3 lightPos = FLightManager::GetInstance()->GetLightPos();
+	XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetLightViewProjMatrix();
+	XMFLOAT4X4 lightViewProjOrtho = FLightManager::GetInstance()->GetLightViewProjMatrixOrtho();
 	XMFLOAT4X4 invProjMatrix2 = myManagerClass->GetCamera()->GetViewProjMatrixTransposed();
 		
-	float shaderConstData2[40];
+	float shaderConstData2[256];
+	memset(&shaderConstData2, 0.0f, sizeof(float) * 256);
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 	memcpy(&shaderConstData2[16], lightViewProj.m, sizeof(lightViewProj.m));
-	//memcpy(&shaderConstData2[16], invProjMatrix2.m, sizeof(invProjMatrix2.m));
-	shaderConstData2[32] = lightPos.x;
-	shaderConstData2[33] = lightPos.y;
-	shaderConstData2[34] = lightPos.z;
-	shaderConstData2[35] = 1.0f;
+	memcpy(&shaderConstData2[32], lightViewProjOrtho.m, sizeof(lightViewProjOrtho.m));
+	int idx = 48;
+
+	shaderConstData2[idx++] = lightPos.x;
+	shaderConstData2[idx++] = lightPos.y;
+	shaderConstData2[idx++] = lightPos.z;
+	shaderConstData2[idx++] = 0.0f;
+
+	const std::vector<FLightManager::PointLight>& pointLights = FLightManager::GetInstance()->GetPointLights();
+	for (const FLightManager::PointLight& pointLight : pointLights)
+	{
+		shaderConstData2[idx++] = pointLight.myPos.x;
+		shaderConstData2[idx++] = pointLight.myPos.y;
+		shaderConstData2[idx++] = pointLight.myPos.z;
+		shaderConstData2[idx++] = pointLight.myRadius;
+	}
+
 	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
-	shaderConstData2[36] = camPos.x;
-	shaderConstData2[37] = camPos.y;
-	shaderConstData2[38] = camPos.z;
-	shaderConstData2[39] = 1.0f;
+	
+	idx += (4 * (10 - (pointLights.size() + 1)));
+	shaderConstData2[idx++] = camPos.x;
+	shaderConstData2[idx++] = camPos.y;
+	shaderConstData2[idx++] = camPos.z;
+	shaderConstData2[idx++] = 1.0f;
 
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));
 

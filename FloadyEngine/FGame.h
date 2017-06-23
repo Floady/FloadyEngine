@@ -1,7 +1,9 @@
 #pragma once
 
 #include <vector>
+#include "FVector3.h"
 
+class FPlacingManager;
 class FScreenQuad;
 class FGameEntity;
 class FBulletPhysics;
@@ -16,6 +18,9 @@ class btRigidBody;
 class F3DPicker;
 class FNavMeshManager;
 class FGameAgent;
+class FGameHighlightManager;
+class FGameBuildingManager;
+class FGameUIManager;
 
 class FGame
 {
@@ -27,10 +32,17 @@ public:
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
 	FBulletPhysics* GetPhysics() { return myPhysics; }
+	void ConstructBuilding(const char* aBuildingName);
+	void ConstructBuilding(FVector3 aPos);
+	FGameBuildingManager* GetBuildingManager() { return myBuildingManager; }
 	void Test();
+	void Test(FVector3 aPos);
+	void AddEntity(FGameEntity* anEntity);
 	FGame();
 	~FGame();
-
+	const FGameEntity* GetSelectedEntity() const { return myPickedEntity; }
+private:
+	const char* myBuildingName;
 private:
 	FRenderWindow* myRenderWindow;
 	FD3d12Renderer* myRenderer;
@@ -46,6 +58,11 @@ private:
 	std::vector<FGameEntity*> myEntityContainer;
 	bool myIsMouseCaptured;
 	F3DPicker* myPicker;
-	FGameAgent* myPickedEntity;
+	FGameEntity* myPickedEntity;
+	FGameAgent* myPickedAgent;
+	FGameHighlightManager* myHighlightManager;
+	FPlacingManager* myPlacingManager;
+	FGameBuildingManager* myBuildingManager;
+	FGameUIManager* myGameUIManager;
 };
 

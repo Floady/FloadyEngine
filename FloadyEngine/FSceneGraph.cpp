@@ -26,6 +26,35 @@ void FSceneGraph::AddObject(FRenderableObject * anObject, bool anIsTransparant)
 	myInitObjects.push_back(anObject);
 }
 
+void FSceneGraph::RemoveObject(FRenderableObject * anObject)
+{
+	for (std::vector<FRenderableObject*>::iterator it = myTransparantObjects.begin(); it != myTransparantObjects.end(); ++it)
+	{
+		if (*it == anObject)
+		{
+			myTransparantObjects.erase(it);
+			break;
+		}
+	}
+
+	for (std::vector<FRenderableObject*>::iterator it = myObjects.begin(); it != myObjects.end(); ++it)
+	{
+		if (*it == anObject)
+		{
+			myObjects.erase(it);
+			break;
+		}
+	}
+
+	for (std::vector<FRenderableObject*>::iterator it = myInitObjects.begin(); it != myInitObjects.end(); ++it)
+	{
+		if (*it == anObject)
+		{
+			myInitObjects.erase(it);
+			break;
+		}
+	}
+}
 
 FSceneGraph::~FSceneGraph()
 {

@@ -186,3 +186,18 @@ void FShaderManager::RegisterForHotReload(const char * aShaderName, void * anObj
 {
 	myHotReloadMap[std::string(aShaderName)].push_back(std::make_pair(anObject, aReloadDelegate));
 }
+
+void FShaderManager::UnregisterForHotReload(void * anObject)
+{
+	for (std::map<std::string, std::vector<std::pair<void*, FDelegate2<void()>> > >::iterator it = myHotReloadMap.begin(); it != myHotReloadMap.end(); ++it)
+	{
+		for(auto it2 = (*it).second.begin(); it2 != (*it).second.end(); ++it2)
+		{
+			if ((*it2).first == anObject)
+			{
+				it2 = (*it).second.erase(it2);
+				return;
+			}
+		}
+	}
+}

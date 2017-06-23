@@ -23,6 +23,7 @@ public:
 	void ReloadShaders();
 	const FShader& GetShader(const char* aShaderName) const { return myShaders.find(std::string(aShaderName))->second; }
 	void RegisterForHotReload(const char* aShaderName, void* anObject, FDelegate2<void()>& aReloadDelegate);
+	void UnregisterForHotReload(void* anObject);
 private:
 	std::map<std::string, FShader> myShaders;
 	std::map<std::string, std::vector<std::pair<void*, FDelegate2<void()>> > > myHotReloadMap;

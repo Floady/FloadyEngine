@@ -8,6 +8,7 @@
 
 FBulletPhysics::FBulletPhysics()
 {
+	myEnabled = true;
 }
 
 
@@ -84,7 +85,7 @@ void FBulletPhysics::Init(FD3d12Renderer* aRendererForDebug)
 
 void FBulletPhysics::Update(double aDeltaTime)
 {
-	if (m_dynamicsWorld)
+	if (myEnabled && m_dynamicsWorld)
 	{
 		m_dynamicsWorld->stepSimulation(static_cast<float>(aDeltaTime));
 	}
@@ -111,7 +112,10 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	else // default
 		shape = new btBoxShape(btVector3(btScalar(aScale.x), btScalar(aScale.y), btScalar(aScale.z)));
 
+	
+
 	btScalar mass(aMass);
+	
 	m_collisionShapes.push_back(shape);
 
 	btTransform groundTransform;
@@ -151,25 +155,34 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	return body;
 }
 
+void FBulletPhysics::RemoveObject(btRigidBody * aBody)
+{
+	for (int i = m_dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
+	{
+		btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[i];
+		btRigidBody* body = btRigidBody::upcast(obj);
+		if(body == aBody)
+		{
+			m_dynamicsWorld->removeCollisionObject(obj);
+			delete obj;
+			return;
+		}
+	}
+}
+
 FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 {
 	btVector3 start = btVector3(aStart.x, aStart.y, aStart.z);
 	btVector3 end = btVector3(anEnd.x, anEnd.y, anEnd.z);
 
-	btCollisionWorld::AllHitsRayResultCallback cb(start, end);
+	btCollisionWorld::ClosestRayResultCallback cb(start, end);
 	m_dynamicsWorld->rayTest(start, end, cb);
 	if (cb.hasHit()) 
 	{
-		for (int j = 0; j < cb.m_collisionObjects.size(); j++)
-		{
-			if (cb.m_collisionObjects[j]->isStaticObject())
-				continue;
-
-			for (int i = 0; i < myRigidBodies.size(); i++)
-			{				
-				if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObjects[j]->getCollisionShape())
-					return myRigidBodies[i].myGameEntity;
-			}
+		for (int i = 0; i < myRigidBodies.size(); i++)
+		{				
+			if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObject->getCollisionShape())
+				return myRigidBodies[i].myGameEntity->GetOwnerEntity() ? myRigidBodies[i].myGameEntity->GetOwnerEntity() : myRigidBodies[i].myGameEntity;
 		}
 	}
 

@@ -24,6 +24,7 @@ public:
 	FJsonObject* AddChild(const std::string& aName) { myChildren.push_back(new FJsonObject(aName, this)); return myChildren[myChildren.size() - 1]; }
 	FJsonObject* GetParent() { return myParent; }
 	const FJsonObject* GetFirstChild() const { myCurrentChildId = 0;  return myChildren.size() ? myChildren[0] : nullptr; }
+	const FJsonObject* GetChildByName(const char* aName) const;
 	const FJsonObject* GetNextChild() const { myCurrentChildId++;  return myChildren.size() > myCurrentChildId ? myChildren[myCurrentChildId] : nullptr; }
 	~FJsonObject();
 	const std::string& GetName() const { return myName; }

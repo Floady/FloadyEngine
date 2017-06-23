@@ -15,7 +15,7 @@
 class FVector3
 {
 public:
-	inline FVector3() : x( 0.0f ), y( 0.0f ), z( 0.0f ) {}
+	inline FVector3() : x( 0.0f ), y( 0.0f ), z( 0.0f ), w( 0.0f ) {}
 	inline FVector3( float a_X, float a_Y, float a_Z ) : x( a_X ), y( a_Y ), z( a_Z ), w(0) {}
 	inline FVector3(__m128 vec) : xyz(vec){}
 	FVector3(const FVector3& other) : x(other.x), y(other.y), z(other.z) {  }

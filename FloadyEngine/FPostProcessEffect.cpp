@@ -66,6 +66,26 @@ FPostProcessEffect::FPostProcessEffect(BindBufferMask aBindMask, const char* aSh
 	myRootSignature = nullptr;
 	myCommandList = nullptr;
 	myDebugName = aDebugName;
+	myUseResource = false;
+}
+
+FPostProcessEffect::FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char * aShaderName, const char * aDebugName)
+{
+	myUseResource = true;
+	myShaderName = aShaderName;
+	myPipelineState = nullptr;
+	myRootSignature = nullptr;
+	myCommandList = nullptr;
+	myDebugName = aDebugName;
+
+	for (const BindInfo& resource : aResourcesToBind)
+	{
+		BindResource bindResource;
+		bindResource.myResource = resource.myResource;
+		//bindResource.myResourceHandle = FD3d12Renderer::GetInstance()->CreateHeapDescriptorHandleSRV(resource.myResource, resource.myResourceFormat);
+		bindResource.myResourceFormat = resource.myResourceFormat;
+		myResources.push_back(bindResource);
+	}
 }
 
 
@@ -73,8 +93,24 @@ FPostProcessEffect::~FPostProcessEffect()
 {
 }
 
-void FPostProcessEffect::Init()
+void FPostProcessEffect::Init(int aPostEffectBufferIdx)
 {
+	myHeapOffsetAll = 0;
+	if (myUseResource)
+	{
+		myHeapOffsetAll = FD3d12Renderer::GetInstance()->GetCurHeapOffset();
+		BindResource bindResource;
+		bindResource.myResource = FD3d12Renderer::GetInstance()->GetPostProcessBuffer(aPostEffectBufferIdx);
+		bindResource.myResourceFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		myResources.push_back(bindResource);
+
+		// get handles in a linear fashion so we can bind to shader
+		for (BindResource& resource : myResources)
+		{
+			resource.myResourceHandle = FD3d12Renderer::GetInstance()->CreateHeapDescriptorHandleSRV(resource.myResource, resource.myResourceFormat);
+		}
+	}
+
 	HRESULT hr;
 	{
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -93,6 +129,9 @@ void FPostProcessEffect::Init()
 			if (myBindMask & (1 << i) != 0)
 				nrOfSRVs++;
 		}
+
+		if (myUseResource)
+			nrOfSRVs = myResources.size();
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
 		
@@ -198,7 +237,6 @@ void FPostProcessEffect::SetShader()
 {
 	FShaderManager::FShader shader = FD3d12Renderer::GetInstance()->GetShaderManager().GetShader(myShaderName);
 
-
 	if (myPipelineState)
 		myPipelineState->Release();
 
@@ -242,14 +280,13 @@ void FPostProcessEffect::Render()
 	// Set necessary state.
 	myCommandList->SetGraphicsRootSignature(myRootSignature);
 
-	// is this how we bind textures?	
 	ID3D12DescriptorHeap* ppHeaps[] = { FD3d12Renderer::GetInstance()->GetSRVHeap() };
 	myCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = FD3d12Renderer::GetInstance()->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE handle(FD3d12Renderer::GetInstance()->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart(), 0, srvSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE handle(FD3d12Renderer::GetInstance()->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart(), myHeapOffsetAll, srvSize);
 	myCommandList->SetGraphicsRootDescriptorTable(0, handle);
 
 	// set viewport/scissor
@@ -257,9 +294,14 @@ void FPostProcessEffect::Render()
 	myCommandList->RSSetScissorRects(1, &FD3d12Renderer::GetInstance()->GetScissorRect());
 
 
+	for (int i = 0; i < myResources.size(); i++)
+	{
+		//myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myResources[i].myResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
 	// Indicate that the back buffer will be used as a render target.
-	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	myCommandList->OMSetRenderTargets(1, &FD3d12Renderer::GetInstance()->GetRTVHandle(), FALSE, nullptr);
+	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	myCommandList->OMSetRenderTargets(1, &FD3d12Renderer::GetInstance()->GetPostProcessScratchBufferHandle(), FALSE, nullptr);
 
 	// Record commands.
 	myCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -267,7 +309,12 @@ void FPostProcessEffect::Render()
 	myCommandList->DrawInstanced(6, 1, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
-	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+	for (int i = 0; i < myResources.size(); i++)
+	{
+		//myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myResources[i].myResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
 
 	hr = myCommandList->Close();
 

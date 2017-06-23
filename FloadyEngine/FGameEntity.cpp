@@ -12,14 +12,31 @@ REGISTER_GAMEENTITY2(FGameEntity);
 using namespace DirectX;
 FGameEntity::FGameEntity(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
+	myOwner = nullptr;
 	myPos = aPos;
 	myIsPhysicsActive = true;
+	myGraphicsObject = nullptr;
+	myPhysicsObject = nullptr;
 	Init(aPos, aScale, aType, aMass, aIsNavBlocker);
 }
 
 void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
+	if (myPhysicsObject)
+	{
+		FGame::GetInstance()->GetPhysics()->RemoveObject(myPhysicsObject);
+		myPhysicsObject = nullptr;
+	}
+
+	if (myGraphicsObject)
+	{
+		FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
+		delete myGraphicsObject;
+	}
+
+	myOwner = nullptr;
 	myPhysicsObject = nullptr;
+	myIsPhysicsActive = true;
 
 	if(aType == ModelType::Sphere)
 	{
@@ -69,7 +86,6 @@ void FGameEntity::PostPhysicsUpdate()
 {
 	if (!myPhysicsObject || !myIsPhysicsActive)
 	{
-		myIsPhysicsActive = true;
 		return;
 	}
 
@@ -90,6 +106,15 @@ void FGameEntity::PostPhysicsUpdate()
 	myGraphicsObject->SetPos(FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ()));
 }
 
+void FGameEntity::SetPos(FVector3 aPos)
+{
+	btTransform groundTransform;
+	groundTransform.setIdentity();
+	groundTransform.setOrigin(btVector3(aPos.x, aPos.y, aPos.z));
+
+	myPhysicsObject->setWorldTransform(groundTransform);
+	myGraphicsObject->SetPos(aPos);
+}
 
 FGameEntity::~FGameEntity()
 {
