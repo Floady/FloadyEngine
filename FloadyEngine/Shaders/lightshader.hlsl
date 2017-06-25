@@ -13,9 +13,8 @@ struct PSOutput
 struct MyData
 {
 	float4x4 g_invProjMatrix;
-	float4x4 g_ProjMatrixLight;
-	float4x4 g_ProjMatrixLightOrtho;
-    float4 lightWorldPos[10];
+	float4x4 g_ProjMatrixLightOrtho; // this is the global directional light
+	float4x4 g_ProjMatrixLight[10]; // spotlights, future other lights too (point?)
     float4 camPos;
 };
 
@@ -71,7 +70,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float4 worldPos = D / D.w;
 	worldPos.w = 1.0f;
  	
-	output.color = g_shadowTexture1.Sample(g_sampler, input.uv) * 160.0f;
+	float4 g_lightPos[4] = {float4(0, 0, 0, 1), float4(30, 15, 10, 1),float4(-20, 15, 10, 1), float4(300, 15, 100, 1)} ;
+	bool hasLightInf = false;
+	output.color = g_shadowTexture2.Sample(g_sampler, input.uv) * 160.0f;
 //	return output;
 	
 	output.color = float4(0,0,0,0);
@@ -79,22 +80,29 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	[loop]
 	for( int qh = 0; qh < 10; qh++ )
 	{
-		float4 lightPosTest = float4(myData.lightWorldPos[qh].xyz, 1.0f);
-		float distToLight = length(worldPos.xyz - lightPosTest.xyz);
-		float maxRange = myData.lightWorldPos[qh].w;
-		bool isOrtho = maxRange == 0;
+		bool isOrtho = qh == 0;
 		
-		//float coloredDist = distToLight / 10.0f;
-					
-		//if(distToLight < 9999 && (isOrtho || (distToLight < maxRange)) && (lightPosTest.x + lightPosTest.y + lightPosTest.z != 0))
-		if(distToLight < 9999  && (lightPosTest.x + lightPosTest.y + lightPosTest.z != 0))
+		bool isLightMatrixValid = true;
+		if(!isOrtho)
+			isLightMatrixValid = (myData.g_ProjMatrixLight[qh-1]._m03 + myData.g_ProjMatrixLight[qh-1]._m13 + myData.g_ProjMatrixLight[qh-1]._m23 + myData.g_ProjMatrixLight[qh-1]._m33) != 0;
+			
+		float4 lightPosTest = mul( float4(0,0,0, 1.0f), myData.g_ProjMatrixLightOrtho);
+		
+		if(qh > 0)
 		{
+			lightPosTest = mul( float4(0,0,0, 1.0f), myData.g_ProjMatrixLight[qh-1]);
+		}
+		float distToLight = length(worldPos.xyz - lightPosTest.xyz);
+		
+		if(isLightMatrixValid)
+		{
+			
 			float4 projShadowMapPos;
 			if(isOrtho)
 				projShadowMapPos = mul(worldPos, myData.g_ProjMatrixLightOrtho);
 			else
 			{
-				float4x4 test = myData.g_ProjMatrixLight;
+				float4x4 test = myData.g_ProjMatrixLight[qh-1];
 				projShadowMapPos = mul(worldPos, test);	
 			}
 			
@@ -110,7 +118,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			float shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy);
 			if(qh == 1)
 				shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos2.xy);
-				
+			if(qh == 2)
+				shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos2.xy);
+							
 			// get neighbor avg
 			if(false)
 			{
@@ -150,10 +160,12 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			// and http://en.wikipedia.org/wiki/Phong_shading
 			
 			// Get light direction for this fragment
-			float3 lightDir = normalize(worldPos.xyz - lightPosTest.xyz); // per pixel diffuse lighting - point light / spot light type
+			float3 lightDir = normalize(worldPos.xyz - g_lightPos[qh].xyz); // per pixel diffuse lighting - point light / spot light type
 			
 			if(qh == 0)
-				lightDir = normalize(float3(0,-1,1)); // uncomment this line for directional lighting
+				lightDir = normalize(float3(0,-1,1));
+			else
+				lightDir = normalize(worldPos.xyz - g_lightPos[qh].xyz); // todo: fix
 			
 			// Note: Non-uniform scaling not supported
 			float diffuseLighting = saturate(dot(normals.xyz, -lightDir));
@@ -163,7 +175,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 
 			float LightDistanceSquared = distToLight*distToLight;
 			// Introduce fall-off of light intensity
-			diffuseLighting *= ((LightDistanceSquared / dot(lightPosTest - worldPos, lightPosTest - worldPos)));
+			diffuseLighting *= ((LightDistanceSquared / dot(g_lightPos[qh] - worldPos, g_lightPos[qh] - worldPos)));
 			
 			float3 CameraPos = myData.camPos.xyz;
 			// Using Blinn half angle modification for perofrmance over correctness
@@ -174,20 +186,29 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			float shadowBiasParam = 0.00001f;
 			float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
 			shadowBias = clamp(shadowBias, 0.0f, 0.1f);
-			//shadowBias = -0.000005f;
-
-			bool isOutOfLightZone = false;
+			
+			bool isOutOfLightZone = shadowDepth == 0;
 			
 			// check for inside spotlight cone
-			if(qh == 1)
+			if(qh >= 1)
 			{			
-				float3 dirWorldToLight = worldPos.xyz - lightPosTest.xyz;
+				float3 dirWorldToLight = worldPos.xyz - g_lightPos[qh].xyz;
 				dirWorldToLight = normalize(dirWorldToLight);
-				float3 lightDir3 = mul(myData.g_ProjMatrixLight, float4(0,0,1,1)).xyz;	
+				float3 lightDir3 = float3(0, -1, 0);//mul(myData.g_ProjMatrixLight[qh-1], float4(0,0,1,1)).xyz;	
 				lightDir3 = normalize(lightDir3);
-				if(dot(lightDir3, dirWorldToLight) < 0.85)
-				{
+				float maxDot = 0.6;
+				if(dot(lightDir3, dirWorldToLight) < maxDot)
+				{	
 					isOutOfLightZone = true;						
+				}	
+				else
+				{
+					float band = 0.4;
+					if(dot(lightDir3, dirWorldToLight) - maxDot < band)
+					{
+						diffuseLighting = diffuseLighting * ((dot(lightDir3, dirWorldToLight) - maxDot) * 1/band);
+					}
+					isOutOfLightZone = false;
 				}
 				
 				shadowBias = -0.000005f; // test for spotlights, better shadows
@@ -199,14 +220,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				isOutOfLightZone = true;
 			}
 			
-			if(isOutOfLightZone) // hand tuned shadow bias
+			if(!isOutOfLightZone)
 			{
-				output.color += float4(saturate(texel * AmbientLightColor), texel.w);
-				//output.color = float4(1,0,0,0);
-				//return output;		
-			}
-			else
-			{
+				hasLightInf= true;
 				// light normally
 				output.color += float4(saturate(
 				texel * AmbientLightColor +
@@ -216,6 +232,13 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					
 			}
 		}
+	}
+	
+	if(!hasLightInf)
+	{
+		float3 AmbientLightColor = float3(0.1,0.1,0.1);
+		output.color = float4(saturate(colors * AmbientLightColor), colors.w);
+		return output;
 	}
 	
     // Determine the final amount of diffuse color based on the color of the pixel combined with the light intensity.

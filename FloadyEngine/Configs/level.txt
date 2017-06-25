@@ -29,9 +29,9 @@
 },
 "FGameEntity" : 
 {
-  "posX" : 15.0,
+  "posX" : 30.0,
   "posY" : 5.0,
-"posZ" : 15.0,
+"posZ" : 5.0,
 "scaleX" : 1.0,
 "scaleY" : 1.0,
 "scaleZ" : 1.0,

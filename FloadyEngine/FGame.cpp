@@ -183,7 +183,9 @@ void FGame::Init()
 		}
 	}
 
-	FLightManager::GetInstance()->AddLight(FVector3(15, 15.0f, 0), 10.0f);
+	FLightManager::GetInstance()->AddLight(FVector3(30, 15, 10), 10.0f);
+	FLightManager::GetInstance()->AddLight(FVector3(-20, 15, 10), 10.0f);
+	FLightManager::GetInstance()->AddLight(FVector3(300, 15, 100), 10.0f);
 	// init navmesh
 	
 	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));

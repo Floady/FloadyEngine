@@ -16,7 +16,7 @@ public:
 		float myRadius;
 	};
 
-	DirectX::XMFLOAT4X4 GetLightViewProjMatrix(float x = 0.0f, float y = 0.0f, float z = 0.0f);
+	DirectX::XMFLOAT4X4 GetSpotlightViewProjMatrix(int i);
 	DirectX::XMFLOAT4X4 GetCurrentActiveLightViewProjMatrix();
 	DirectX::XMFLOAT4X4 GetLightViewProjMatrixOrtho(float x = 0.0f, float y = 0.0f, float z = 0.0f);
 	FVector3 GetLightPos();
