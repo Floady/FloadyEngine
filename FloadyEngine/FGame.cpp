@@ -27,6 +27,7 @@
 #include "FGameBuildingManager.h"
 #include "FGameUIManager.h"
 #include "FLightManager.h"
+#include "FProfiler.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -164,26 +165,34 @@ void FGame::Init()
 
 	FJsonObject* level = FJson::Parse("Configs//level.txt");
 	const FJsonObject* child = level->GetFirstChild();
-	while (child)
+	/*while (child)
 	{
 		FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
 		newEntity->Init(*child);
 		myEntityContainer.push_back(newEntity);
 		child = level->GetNextChild();
-	}
+	}*/
 
-	int stepX = 15;
-	int stepY = 15;
-	int gridSize = 3;
-	for (int i = 0; i < gridSize; i++)
-	{
-		for (int j = 0; j < gridSize; j++)
-		{
-//			FLightManager::GetInstance()->AddLight(FVector3(i * stepX, 2.0f, j * stepY), 10.0f);
-		}
-	}
+	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 0, -50), FVector3(0, -1, 1), FVector3(0.2, 0.2, 0.2));
+
+	// test lights
+	//int stepX = 15;
+	//int stepY = 15;
+	//int gridSize = 3;
+	//for (int i = 0; i < gridSize; i++)
+	//{
+	//	for (int j = 0; j < gridSize; j++)
+	//	{
+	//		if (i == 0 && j == 0)
+	//			continue;
+
+	//		FLightManager::GetInstance()->AddLight(FVector3(i * stepX, 2.0f, j * stepY), 10.0f);
+	//	}
+	//}
 
 	FLightManager::GetInstance()->AddLight(FVector3(30, 15, 10), 10.0f);
+	FLightManager::GetInstance()->AddSpotlight(FVector3(0, 10, 10), FVector3(0, -1, -1.05), 30.0f, FVector3(1, 0, 0), 25.0f);
+	FLightManager::GetInstance()->AddSpotlight(FVector3(30, 15, -20), FVector3(0, -1, 0.5), 10.0f, FVector3(0, 1, 0), 25.0f);
 	FLightManager::GetInstance()->AddLight(FVector3(-20, 15, 10), 10.0f);
 	FLightManager::GetInstance()->AddLight(FVector3(300, 15, 100), 10.0f);
 	// init navmesh
@@ -205,6 +214,10 @@ void FGame::Init()
 
 bool FGame::Update(double aDeltaTime)
 {
+	FProfiler::GetInstance()->StartFrame();
+
+	FPROFILE_FUNCTION("FGame Update");
+
 	// quit on escape
 	if (myInput->IsKeyDown(VK_ESCAPE))
 		return false;
@@ -226,7 +239,7 @@ bool FGame::Update(double aDeltaTime)
 			FNavMeshManager::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
 		}
 
-		FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(20, 0, 20));
+		FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(200, 0, 200));
 	}
 
 	myGameUIManager->Update();
@@ -337,7 +350,7 @@ bool FGame::Update(double aDeltaTime)
 	if (myInput->IsKeyDown(VK_SHIFT))
 	{
 		FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
-		myPhysics->DebugDrawWorld();
+		//myPhysics->DebugDrawWorld();
 	}
 
 	for (FGameEntity* entity : myEntityContainer)
@@ -355,8 +368,15 @@ bool FGame::Update(double aDeltaTime)
 
 void FGame::Render()
 {
-	//FD3d12Renderer::GetInstance()->GetCommandAllocator()->Reset();
-	myRenderWindow->CheckForQuit();
-	myHighlightManager->Render();
-	myRenderer->Render();
+	
+	{
+		FPROFILE_FUNCTION("FGame Render");
+		
+		//FD3d12Renderer::GetInstance()->GetCommandAllocator()->Reset();
+		myRenderWindow->CheckForQuit();
+		myHighlightManager->Render();
+		myRenderer->Render();
+	}
+
+	FProfiler::GetInstance()->Render();
 }

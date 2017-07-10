@@ -39,6 +39,7 @@ public:
 	void Update(double aDeltaTime);
 	void DebugDrawWorld();
 	btRigidBody* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false, FGameEntity* anEntity = nullptr);
+	void AddTerrain(btRigidBody* aBody, btCollisionShape* aCollisionShape, FGameEntity* anOwner);
 	void RemoveObject(btRigidBody* aBody);
 	FPhysicsDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
 	FGameEntity* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);

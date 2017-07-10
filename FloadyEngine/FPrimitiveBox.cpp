@@ -10,6 +10,8 @@
 #include "FTextureManager.h"
 #include "FLightManager.h"
 #include "FPrimitiveGeometry.h"
+#include "FProfiler.h"
+
 using namespace DirectX;
 #define DEFERRED 1
 
@@ -43,6 +45,31 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 
 	myRotMatrix = XMMatrixIdentity();
 	myIsInitialized = false;
+
+	{
+		if (myType == PrimitiveType::Sphere)
+		{
+			myIndicesCount = FPrimitiveGeometry::Box2::GetIndices().size();
+			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetVerticesBuffer()->GetGPUVirtualAddress();
+			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box2::GetVerticesBufferStride();
+			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetVertexBufferSize();
+
+			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetIndicesBuffer()->GetGPUVirtualAddress();
+			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
+		}
+		else if (myType == PrimitiveType::Box)
+		{
+			myIndicesCount = FPrimitiveGeometry::Box::GetIndices().size();
+			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetVerticesBuffer()->GetGPUVirtualAddress();
+			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box::GetVerticesBufferStride();
+			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetVertexBufferSize();
+
+			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetIndicesBuffer()->GetGPUVirtualAddress();
+			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();
+		}
+	}
 }
 
 FPrimitiveBox::~FPrimitiveBox()
@@ -115,30 +142,6 @@ void FPrimitiveBox::Init()
 	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
 
 	// Create vertex + index buffer
-	{
-		if (myType == PrimitiveType::Sphere)
-		{
-			myIndicesCount = FPrimitiveGeometry::Box2::GetIndices().size();
-			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetVerticesBuffer()->GetGPUVirtualAddress();
-			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box2::GetVerticesBufferStride();
-			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetVertexBufferSize();
-
-			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetIndicesBuffer()->GetGPUVirtualAddress();
-			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
-			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
-		}
-		else if (myType == PrimitiveType::Box)
-		{
-			myIndicesCount = FPrimitiveGeometry::Box::GetIndices().size();
-			m_vertexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetVerticesBuffer()->GetGPUVirtualAddress();
-			m_vertexBufferView.StrideInBytes = FPrimitiveGeometry::Box::GetVerticesBufferStride();
-			m_vertexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetVertexBufferSize();
-
-			m_indexBufferView.BufferLocation = FPrimitiveGeometry::Box::GetIndicesBuffer()->GetGPUVirtualAddress();
-			m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
-			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();
-		}
-	}
 
 	// create constant buffer for modelview
 	{
@@ -312,6 +315,7 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
+	FPROFILE_FUNCTION("Box Shadow");
 	// copy modelviewproj data to gpu
 	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, myYaw, 0);
 	XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);

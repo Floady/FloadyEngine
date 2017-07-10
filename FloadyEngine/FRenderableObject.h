@@ -1,5 +1,6 @@
 #pragma once
 #include "FVector3.h"
+#include <d3d12.h>
 
 struct ID3D12Resource;
 class FRenderableObject
@@ -23,6 +24,11 @@ public:
 	virtual ~FRenderableObject();
 
 	ID3D12Resource* GetModelViewMatrix() { return m_ModelProjMatrix; }
+public:
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+	int myIndicesCount;
+
 protected:
 	ID3D12Resource* m_ModelProjMatrix;
 	FVector3 myPos;

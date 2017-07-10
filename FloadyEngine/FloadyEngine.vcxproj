@@ -230,6 +230,7 @@
     <ClCompile Include="FGameBuildingManager.cpp" />
     <ClCompile Include="FGameEntityFactory.cpp" />
     <ClCompile Include="FGameHighlightManager.cpp" />
+    <ClCompile Include="FGameLightEntity.cpp" />
     <ClCompile Include="FGameTerrain.cpp" />
     <ClCompile Include="FGameUIManager.cpp" />
     <ClCompile Include="FGameUIPanel.cpp" />
@@ -240,6 +241,7 @@
     <ClCompile Include="FPhysicsDebugDrawer.cpp" />
     <ClCompile Include="FPlacingManager.cpp" />
     <ClCompile Include="FPostProcessEffect.cpp" />
+    <ClCompile Include="FProfiler.cpp" />
     <ClCompile Include="FRenderableObject.cpp" />
     <ClCompile Include="FRenderWindow.cpp" />
     <ClCompile Include="FD3d12Input.cpp" />
@@ -276,6 +278,7 @@
     <ClInclude Include="FGameBuildingManager.h" />
     <ClInclude Include="FGameEntityFactory.h" />
     <ClInclude Include="FGameHighlightManager.h" />
+    <ClInclude Include="FGameLightEntity.h" />
     <ClInclude Include="FGameTerrain.h" />
     <ClInclude Include="FGameUIManager.h" />
     <ClInclude Include="FGameUIPanel.h" />
@@ -286,6 +289,7 @@
     <ClInclude Include="FPhysicsDebugDrawer.h" />
     <ClInclude Include="FPlacingManager.h" />
     <ClInclude Include="FPostProcessEffect.h" />
+    <ClInclude Include="FProfiler.h" />
     <ClInclude Include="FRenderableObject.h" />
     <ClInclude Include="FRenderWindow.h" />
     <ClInclude Include="FD3d12Input.h" />

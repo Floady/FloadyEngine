@@ -20,11 +20,11 @@ int CALLBACK WinMain(
 	while (myGame->Update(frameTime))
 	{
 		myGame->Render();
-		frameTime = frameTimer.GetTimeMS();
+		frameTime = frameTimer.GetTimeUS();
 		frameTimer.Restart();
 		
 		if (frameTime > 0.033) // hack: debug bnreakpoints mess up the timer
-			frameTime = 0.33;
+			frameTime = 0.033;
 	}
 	
 	return 0;

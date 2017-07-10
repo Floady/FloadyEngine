@@ -164,7 +164,7 @@ void FD3d12Quad::Init()
 		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(256),
+			&CD3DX12_RESOURCE_DESC::Buffer(256 * 256),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&myConstDataShader));
@@ -185,7 +185,7 @@ void FD3d12Quad::Init()
 		hr = myManagerClass->GetDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(256),
+			&CD3DX12_RESOURCE_DESC::Buffer(256*256),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&myInvProjData));
@@ -196,7 +196,7 @@ void FD3d12Quad::Init()
 		// Describe and create a constant buffer view.
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc[1] = {};
 		cbvDesc[0].BufferLocation = myInvProjData->GetGPUVirtualAddress();
-		cbvDesc[0].SizeInBytes = 256; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
+		cbvDesc[0].SizeInBytes = (256*256) & ~255; // required to be 256 bytes aligned -> (sizeof(ConstantBuffer) + 255) & ~255
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		int nextOffset = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), nextOffset, srvSize);
@@ -215,38 +215,102 @@ void FD3d12Quad::Render()
 
 	HRESULT hr;
 
-	// set const data
+	// set camera data
 	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
-	FVector3 lightPos = FLightManager::GetInstance()->GetLightPos();
-	XMFLOAT4X4 lightViewProjOrtho = FLightManager::GetInstance()->GetLightViewProjMatrixOrtho();
 	XMFLOAT4X4 invProjMatrix2 = myManagerClass->GetCamera()->GetViewProjMatrixTransposed();
 		
-	static float shaderConstData2[256];
-	memset(&shaderConstData2, 0.0f, sizeof(float) * 256 * 4);
+	static float shaderConstData2[20];
+	memset(&shaderConstData2, 0.0f, sizeof(float) * 20);
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
-	memcpy(&shaderConstData2[16], lightViewProjOrtho.m, sizeof(lightViewProjOrtho.m));
-	int idx = 32;
-
-	int lightIdx = 0;
-	const std::vector<FLightManager::PointLight>& pointLights = FLightManager::GetInstance()->GetPointLights();
-	for (const FLightManager::PointLight& pointLight : pointLights)
-	{
-		XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
-		memcpy(&shaderConstData2[idx], lightViewProj.m, sizeof(lightViewProj.m));
-		idx += 16;
-		lightIdx++;
-	}
 
 	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
 	
-	idx += (4*4 * (10 - (pointLights.size() + 1)));
-	shaderConstData2[idx++] = camPos.x;
-	shaderConstData2[idx++] = camPos.y;
-	shaderConstData2[idx++] = camPos.z;
-	shaderConstData2[idx++] = 1.0f;
+	shaderConstData2[16] = camPos.x;
+	shaderConstData2[17] = camPos.y;
+	shaderConstData2[18] = camPos.z;
+	shaderConstData2[19] = 1.0f;
 
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));
 
+	// Set lights
+	static float lightData[74*10];
+	memset(&lightData, 0.0f, sizeof(float) * 74 * 10);
+	int idx = 0;
+
+	int lightIdx = 0;
+
+	const std::vector<FLightManager::DirectionalLight>& directionallights = FLightManager::GetInstance()->GetDirectionalLights();
+	for (const FLightManager::DirectionalLight& directionalLight : directionallights)
+	{
+		XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(lightIdx);
+		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+		idx += 16;
+
+		// worldpos
+		lightData[idx++] = directionalLight.myPos.x;
+		lightData[idx++] = directionalLight.myPos.y;
+		lightData[idx++] = directionalLight.myPos.z;
+		lightData[idx++] = 1.0f;
+
+		// dir
+		lightData[idx++] = directionalLight.myDir.x;
+		lightData[idx++] = directionalLight.myDir.y;
+		lightData[idx++] = directionalLight.myDir.z;
+		lightData[idx++] = 1.0f;
+
+		// color
+		lightData[idx++] = directionalLight.myColor.x;
+		lightData[idx++] = directionalLight.myColor.y;
+		lightData[idx++] = directionalLight.myColor.z;
+		lightData[idx++] = 1.0f;
+
+		// type / extra stuff
+		lightData[idx++] = 1.0f;
+		lightData[idx++] = 0.0f;
+		lightData[idx++] = directionalLight.myRange;
+		lightData[idx++] = 1.0f;
+
+		lightIdx++;
+	}
+
+	lightIdx = 0;
+	
+	const std::vector<FLightManager::SpotLight>& spotlights = FLightManager::GetInstance()->GetSpotlights();
+	for (const FLightManager::SpotLight& spotLight : spotlights)
+	{
+		XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
+		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+		idx += 16;
+
+		// worldpos
+		lightData[idx++] = spotLight.myPos.x;
+		lightData[idx++] = spotLight.myPos.y;
+		lightData[idx++] = spotLight.myPos.z;
+		lightData[idx++] = 1.0f;
+
+		// dir
+		lightData[idx++] = spotLight.myDir.x;
+		lightData[idx++] = spotLight.myDir.y;
+		lightData[idx++] = spotLight.myDir.z;
+		lightData[idx++] = 1.0f;
+
+		// color
+		lightData[idx++] = spotLight.myColor.x;
+		lightData[idx++] = spotLight.myColor.y;
+		lightData[idx++] = spotLight.myColor.z;
+		lightData[idx++] = 1.0f;
+
+		// type / extra stuff
+		lightData[idx++] = 2.0f;
+		lightData[idx++] = spotLight.myAngle;
+		lightData[idx++] = spotLight.myRange;
+		lightData[idx++] = 1.0f;
+
+		lightIdx++;
+	}
+
+	memcpy(myInvProjDataShaderPtr, lightData, sizeof(lightData));
+	
 	// populate cmd list
 	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
 

@@ -163,6 +163,12 @@
     <ClCompile Include="FGameUIPanelBuildings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FGameLightEntity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FProfiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
@@ -296,6 +302,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FGameUIPanelBuildings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameLightEntity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FProfiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

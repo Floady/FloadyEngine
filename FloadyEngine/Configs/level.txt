@@ -13,6 +13,35 @@
 "type" : 1,
 "tex" : "wood.png"
 },
+"FGameLightEntity" : 
+{
+	"type" : 1.0,
+	"radius" : 1.0,
+	"r" : 1.0,
+	"g" : 1.0,
+	"b" : 1.0,
+	"dirX" : 0.0,
+	"dirY" : -1.0,
+	"dirZ" : 0.1,
+	"offsetX" : 0.0,
+	"offsetY" : -0.3,
+	"offsetZ" : 0.1,
+	
+	"FGameEntity" : 
+	{
+	  "posX" : 4.0,
+	  "posY" : 10.0,
+	"posZ" : 4.0,
+	"scaleX" : 0.2,
+	"scaleY" : 0.2,
+	"scaleZ" : 0.2,
+	"mass" : 0.0,
+	"isNavBlocker" : false,
+	"canMove" : false,
+	"type" : 1,
+	"tex" : "wood.png"
+	}
+},
 "FGameEntity" : 
 {
   "posX" : 2.0,
@@ -74,13 +103,16 @@
   "posX" : 0.0,
   "posY" : -1.0,
 "posZ" : 0.0,
-"scaleX" : 40.0,
-"scaleY" : 0.1,
-"scaleZ" : 40.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
 "mass" : 0.0,
 "isNavBlocker" : false,
 "canMove" : false,
 "type" : 1,
-"tex" : "marble.png"
+"tex" : "wood.png",
+"terrainSizeX" : 200,
+"terrainSizeZ" : 200,
+"tileSize" : 1.0
 }
 }

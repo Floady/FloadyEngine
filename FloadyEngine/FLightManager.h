@@ -10,18 +10,39 @@
 class FLightManager
 {
 public:
-	struct PointLight
+	struct Light
 	{
 		FVector3 myPos;
-		float myRadius;
+		FVector3 myDir;
+		FVector3 myColor;
+		float myAlpha;
+		unsigned int myId;
+	};
+
+	struct SpotLight: public Light
+	{
+		float myAngle;
+		float myRange;
+	};
+
+	struct DirectionalLight : public Light
+	{
+		float myRange;
 	};
 
 	DirectX::XMFLOAT4X4 GetSpotlightViewProjMatrix(int i);
 	DirectX::XMFLOAT4X4 GetCurrentActiveLightViewProjMatrix();
-	DirectX::XMFLOAT4X4 GetLightViewProjMatrixOrtho(float x = 0.0f, float y = 0.0f, float z = 0.0f);
-	FVector3 GetLightPos();
-	void AddLight(FVector3 aPos, float aRadius);
-	const std::vector<PointLight>& GetPointLights() { return myPointLights; }
+	DirectX::XMFLOAT4X4 GetDirectionalLightViewProjMatrix(int i);
+	
+	unsigned int AddSpotlight(FVector3 aPos, FVector3 aDir, float aRadius, FVector3 aColor = FVector3(1, 1, 1), float anAngle = 45.0f);
+	unsigned int AddDirectionalLight(FVector3 aPos, FVector3 aDir, FVector3 aColor = FVector3(1, 1, 1), float aRange = 0.0f);
+	unsigned int AddLight(FVector3 aPos, float aRadius);
+	const std::vector<SpotLight>& GetSpotlights() { return mySpotlights; }
+	const std::vector<DirectionalLight>& GetDirectionalLights() { return myDirectionalLights; }
+
+	void SetLightColor(unsigned int aLightId, FVector3 aColor);
+	Light* GetLight(unsigned int aLightId);
+
 	static FLightManager* GetInstance() {
 		if (!ourInstance)
 			ourInstance = new FLightManager();
@@ -34,8 +55,9 @@ private:
 	FLightManager();
 	~FLightManager();
 	static FLightManager* ourInstance;
-	FVector3 myLightPos;
-	std::vector<PointLight> myPointLights;
+	std::vector<SpotLight> mySpotlights;
+	std::vector<DirectionalLight> myDirectionalLights;
 	int myActiveLight;
+	unsigned int myNextFreeLightId;
 };
 

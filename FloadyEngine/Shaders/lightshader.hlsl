@@ -13,11 +13,22 @@ struct PSOutput
 struct MyData
 {
 	float4x4 g_invProjMatrix;
-	float4x4 g_ProjMatrixLightOrtho; // this is the global directional light
-	float4x4 g_ProjMatrixLight[10]; // spotlights, future other lights too (point?)
-    float4 camPos;
+	float4 camPos;
 };
 
+struct Light
+{
+	float4x4 myLightViewProjMatrix;
+	float4 myWorldPos;
+	float4 myWorldDir;
+	float4 myColor;
+	float4 myLightType; // x = 1 = directional, 2 = spotlight   - spotlight packs angle and range is y and z
+}; //32 * 4 = 128 bytes     // todo: can pack light type into pos/dir/color w component
+
+struct MyLightArray
+{
+	Light myLights[10];
+};
 Texture2D<float4> g_colortexture : register(t0);
 Texture2D<float4> g_normaltexture : register(t1);
 Texture2D<float> g_depthTexture : register(t2);
@@ -34,7 +45,7 @@ Texture2D<float> g_shadowTexture9 : register(t12);
 SamplerState g_sampler : register(s0);
 
 ConstantBuffer<MyData> myData : register(b0);
-float4 g_constData[4] : register(b1);
+ConstantBuffer<MyLightArray> myLights : register(b1);
 
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 {
@@ -53,6 +64,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
 	//return output;
 	
+	output.color = g_shadowTexture5.Sample(g_sampler, input.uv) * 150.1;
+	//return output;
+	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
 	float4 normals = g_normaltexture.Sample(g_sampler, input.uv);
 	normals = normals * 2.0f;
@@ -60,67 +74,53 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	// get linear depth
 	float depth = g_depthTexture.Sample(g_sampler, input.uv);  // low precision here will cause banding in shadows and specular (currently aweful precision) rebnder this out and see :)
-	
-	float testDepth = (depth*100.0f);
-	float zNear = 0.01;
-	float zFar = 60.0;
-	
 	float4 H = float4(input.uv.x * 2 - 1, (1.0f - input.uv.y) * 2 - 1, depth , 1);
 	float4 D = mul(H, myData.g_invProjMatrix); 
 	float4 worldPos = D / D.w;
 	worldPos.w = 1.0f;
  	
-	float4 g_lightPos[4] = {float4(0, 0, 0, 1), float4(30, 15, 10, 1),float4(-20, 15, 10, 1), float4(300, 15, 100, 1)} ;
-	bool hasLightInf = false;
-	output.color = g_shadowTexture2.Sample(g_sampler, input.uv) * 160.0f;
-//	return output;
-	
 	output.color = float4(0,0,0,0);
 	
 	[loop]
 	for( int qh = 0; qh < 10; qh++ )
 	{
-		bool isOrtho = qh == 0;
-		
-		bool isLightMatrixValid = true;
-		if(!isOrtho)
-			isLightMatrixValid = (myData.g_ProjMatrixLight[qh-1]._m03 + myData.g_ProjMatrixLight[qh-1]._m13 + myData.g_ProjMatrixLight[qh-1]._m23 + myData.g_ProjMatrixLight[qh-1]._m33) != 0;
+		bool isDirectional = myLights.myLights[qh].myLightType == 1.0f;		
+		bool isSpot = myLights.myLights[qh].myLightType == 2.0f;
+		bool isLightMatrixValid = isLightMatrixValid = (myLights.myLights[qh].myLightViewProjMatrix._m03 + myLights.myLights[qh].myLightViewProjMatrix._m13 + myLights.myLights[qh].myLightViewProjMatrix._m23 + myLights.myLights[qh].myLightViewProjMatrix._m33) != 0;
 			
-		float4 lightPosTest = mul( float4(0,0,0, 1.0f), myData.g_ProjMatrixLightOrtho);
-		
-		if(qh > 0)
-		{
-			lightPosTest = mul( float4(0,0,0, 1.0f), myData.g_ProjMatrixLight[qh-1]);
-		}
-		float distToLight = length(worldPos.xyz - lightPosTest.xyz);
-		
 		if(isLightMatrixValid)
-		{
+		{			
+			float4 projShadowMapPos = mul(worldPos, myLights.myLights[qh].myLightViewProjMatrix);			
+			projShadowMapPos.x = projShadowMapPos.x / projShadowMapPos.w;
+			projShadowMapPos.y = projShadowMapPos.y / projShadowMapPos.w;
+			projShadowMapPos.x = (projShadowMapPos.x + 1.0f) / 2;
+			projShadowMapPos.y = 1.0f - ((projShadowMapPos.y + 1.0f)/ 2);
 			
-			float4 projShadowMapPos;
-			if(isOrtho)
-				projShadowMapPos = mul(worldPos, myData.g_ProjMatrixLightOrtho);
-			else
-			{
-				float4x4 test = myData.g_ProjMatrixLight[qh-1];
-				projShadowMapPos = mul(worldPos, test);	
-			}
+			float projShadowDepth = projShadowMapPos.z / projShadowMapPos.w;
 			
-			float3 projShadowMapPos2 = projShadowMapPos.xyz;
-				
-			projShadowMapPos2.x = projShadowMapPos2.x / projShadowMapPos.w;
-			projShadowMapPos2.y = projShadowMapPos2.y / projShadowMapPos.w;
-			projShadowMapPos2.x = (projShadowMapPos2.x + 1.0f) / 2;
-			projShadowMapPos2.y = 1.0f - ((projShadowMapPos2.y + 1.0f)/ 2);
-			
-			float projShadowDepth = projShadowMapPos2.z / projShadowMapPos.w;
-			
-			float shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy);
+			// todo: make this into array based
+			float shadowDepth = 0.0f;
+			if(qh == 0)
+				shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy);
 			if(qh == 1)
-				shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos2.xy);
+				shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy);
 			if(qh == 2)
-				shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos2.xy);
-							
+				shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 3)
+				shadowDepth = g_shadowTexture3.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 4)
+				shadowDepth = g_shadowTexture4.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 5)
+				shadowDepth = g_shadowTexture5.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 6)
+				shadowDepth = g_shadowTexture6.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 7)
+				shadowDepth = g_shadowTexture7.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 8)
+				shadowDepth = g_shadowTexture8.Sample(g_sampler, projShadowMapPos.xy);
+			if(qh == 9)
+				shadowDepth = g_shadowTexture9.Sample(g_sampler, projShadowMapPos.xy);
+													
 			// get neighbor avg
 			if(false)
 			{
@@ -135,21 +135,18 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					{
 					
 					if(qh == 1)
-						shadowDepth += g_shadowTexture1.Sample(g_sampler, projShadowMapPos2.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+						shadowDepth += g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
 					else
-						shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos2.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+						shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
 					}
 				}
 				
 				shadowDepth /= ((2*nrOfPixelsOut+1)*(2*nrOfPixelsOut+1));
 			}
 			
-			float lightIntensity = 1.0f;
-			
 			// From the web: blinn-phong
 			float3 LightDiffuseColor = float3(0.6,0.6,0.6); // intensity multiplier
 			float3 LightSpecularColor = float3(0.7,0.7,0.7); // intensity multiplier
-			float3 AmbientLightColor = float3(0.1,0.1,0.1);
 			float3 DiffuseColor = float3(1,1,1);
 			float3 SpecularColor = float3(1,1,1);
 			float SpecularPower = 12.0f;
@@ -160,22 +157,22 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			// and http://en.wikipedia.org/wiki/Phong_shading
 			
 			// Get light direction for this fragment
-			float3 lightDir = normalize(worldPos.xyz - g_lightPos[qh].xyz); // per pixel diffuse lighting - point light / spot light type
+			float4 lightPos = float4(myLights.myLights[qh].myWorldPos.xyz, 1);
+			float distToLight = length(worldPos.xyz - lightPos.xyz);
+		
+			float3 lightDir = normalize(worldPos.xyz - lightPos.xyz); // per pixel diffuse lighting - point light / spot light type
 			
-			if(qh == 0)
-				lightDir = normalize(float3(0,-1,1));
-			else
-				lightDir = normalize(worldPos.xyz - g_lightPos[qh].xyz); // todo: fix
+			// directional has parallel beams
+			if(isDirectional)
+				lightDir = normalize(myLights.myLights[qh].myWorldDir.xyz);
 			
 			// Note: Non-uniform scaling not supported
 			float diffuseLighting = saturate(dot(normals.xyz, -lightDir));
 			
 			// Calculate the amount of light on this pixel.
-			lightIntensity = saturate(dot(normals.xyz, -lightDir));
-
 			float LightDistanceSquared = distToLight*distToLight;
 			// Introduce fall-off of light intensity
-			diffuseLighting *= ((LightDistanceSquared / dot(g_lightPos[qh] - worldPos, g_lightPos[qh] - worldPos)));
+			diffuseLighting *= ((LightDistanceSquared / dot(lightPos - worldPos, lightPos - worldPos)));
 			
 			float3 CameraPos = myData.camPos.xyz;
 			// Using Blinn half angle modification for perofrmance over correctness
@@ -187,26 +184,29 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
 			shadowBias = clamp(shadowBias, 0.0f, 0.1f);
 			
+			// a zero value here means its outside the frustrum
 			bool isOutOfLightZone = shadowDepth == 0;
 			
 			// check for inside spotlight cone
-			if(qh >= 1)
+			if(isSpot)
 			{			
-				float3 dirWorldToLight = worldPos.xyz - g_lightPos[qh].xyz;
-				dirWorldToLight = normalize(dirWorldToLight);
-				float3 lightDir3 = float3(0, -1, 0);//mul(myData.g_ProjMatrixLight[qh-1], float4(0,0,1,1)).xyz;	
-				lightDir3 = normalize(lightDir3);
-				float maxDot = 0.6;
-				if(dot(lightDir3, dirWorldToLight) < maxDot)
+				float3 lightDir3 = normalize(myLights.myLights[qh].myWorldDir.xyz);				
+				float rad = acos(dot(lightDir3, lightDir));
+				if(rad > myLights.myLights[qh].myLightType.y)
 				{	
 					isOutOfLightZone = true;						
 				}	
 				else
 				{
-					float band = 0.4;
-					if(dot(lightDir3, dirWorldToLight) - maxDot < band)
+					float bandPercentage = 0.3;
+					if(rad > myLights.myLights[qh].myLightType.y * (1.0f - bandPercentage))
 					{
-						diffuseLighting = diffuseLighting * ((dot(lightDir3, dirWorldToLight) - maxDot) * 1/band);
+						float range = (myLights.myLights[qh].myLightType.y) * bandPercentage;
+						float value = myLights.myLights[qh].myLightType.y - rad;
+						float interp = ((value/range) * (value/range));
+						//interp = (value/range);
+						diffuseLighting = diffuseLighting * interp;
+						specLighting = specLighting * interp;
 					}
 					isOutOfLightZone = false;
 				}
@@ -215,17 +215,17 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			}
 			
 			// check for shadow culled
-			if(projShadowDepth < shadowDepth - shadowBias)
-			{
+			if(!isOutOfLightZone && (projShadowDepth < shadowDepth - shadowBias))
 				isOutOfLightZone = true;
-			}
-			
+				
 			if(!isOutOfLightZone)
 			{
-				hasLightInf= true;
+				float alpha = 1.0f;
+				LightDiffuseColor = myLights.myLights[qh].myColor.xyz;
+				alpha = myLights.myLights[qh].myColor.w;
+				
 				// light normally
-				output.color += float4(saturate(
-				texel * AmbientLightColor +
+				output.color += float4(saturate(alpha * 
 				(texel.xyz * DiffuseColor * LightDiffuseColor * diffuseLighting * 0.6)	// Use light diffuse vector as intensity multiplier
 				+ (SpecularColor * LightSpecularColor * specLighting * 0.5) // Use light specular vector as intensity multiplier
 				), texel.w);
@@ -234,33 +234,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		}
 	}
 	
-	if(!hasLightInf)
-	{
-		float3 AmbientLightColor = float3(0.1,0.1,0.1);
-		output.color = float4(saturate(colors * AmbientLightColor), colors.w);
-		return output;
-	}
-	
-    // Determine the final amount of diffuse color based on the color of the pixel combined with the light intensity.
-    //output.color = saturate(colors * lightIntensity);
-
-	//output.color = g_colortexture.Sample(g_sampler, input.uv);
-	//output.color = float4(input.uv.x, input.uv.y, 0.0f, 1.0f);
-	//output.color = float4(g_normaltexture.Sample(g_sampler, input.uv).xyz, 1.0f);
-	//output.color = float4(1.0f, 0.0f, 0.1f, 1.0f);
-	//output.color = float4(depth, depth, depth, 1.0f) * 100.0f;	
-	//output.color = float4(viewPos.xyz, 1.0f);	
-	//output.color = float4(normals.xyz, 1.0f);	
-	//output.color = float4(g_constData[0].xyz, 1.0f);	
-	//distToLight = distToLight * 0.01f;
-	//output.color = float4(distToLight, distToLight, distToLight, 1.0f);	
-	//output.color = float4(worldPos.xyz, 1.0f);
-	//projShadowDepth = projShadowDepth * projShadowDepth;
-	//output.color = float4(projShadowDepth,projShadowDepth,projShadowDepth, 1.0f) * 0.5f;
-	float shadowmapval = 1.0f - g_shadowTexture.Sample(g_sampler, input.uv);
-	
-	//output.color = float4(input.uv.xy, 1.0f, 1.0f);
-	//output.color = float4(shadowmapval, 0.0f, 0.0f, 1.0f);
-	//output.color = g_shadowTexture1.Sample(g_sampler, input.uv) * 30.0f;
+	float3 AmbientLightColor = float3(1,1,1) * 0.1;
+	output.color += colors * float4(AmbientLightColor, 1);
 	return output;	
 }

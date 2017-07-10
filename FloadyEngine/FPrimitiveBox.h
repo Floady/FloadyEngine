@@ -57,9 +57,6 @@ private:
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;
 	
-	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
-
 	std::string myTexName;
 
 	ID3D12Resource* m_ModelProjMatrixShadow;
@@ -72,7 +69,6 @@ private:
 	int myHeapOffsetAll;
 	float myYaw;
 	bool skipNextRender;
-	int myIndicesCount;
 	PrimitiveType myType;
 
 	const char* shaderfilename;

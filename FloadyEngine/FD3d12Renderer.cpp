@@ -14,6 +14,7 @@
 #include "FLightManager.h"
 #include <functional>
 #include "windows.h"
+#include "FProfiler.h"
 
 FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
 
@@ -739,6 +740,8 @@ static bool firstFrame = true;
 static unsigned int frameCounter = 0;
 bool FD3d12Renderer::Render()
 {
+	FPROFILE_FUNCTION("FD3d12Renderer Render");
+
 	HRESULT result;
 	D3D12_RESOURCE_BARRIER barrier;
 	unsigned int renderTargetViewDescriptorSize;
@@ -845,50 +848,70 @@ bool FD3d12Renderer::Render()
 		
 		mySceneGraph.InitNewObjects();
 		{
+			FPROFILE_FUNCTION("Shadow Pass");
+			FJobSystem* test = FJobSystem::GetInstance();
 
 			//@todo: only shadowcasting lights.. improve
-			const std::vector<FLightManager::PointLight>& pointlights = FLightManager::GetInstance()->GetPointLights();
+			const std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
 			FLightManager::GetInstance()->SetActiveLight(-1);
 			for (int i = 0; i < pointlights.size() + 1; i++)
 			{
-				FJobSystem* test = FJobSystem::GetInstance();
 				int nrWorkerThreads = test->GetNrWorkerThreads();
-				for (int i = 0; i < nrWorkerThreads; i++)
 				{
-					m_workerThreadCmdAllocators[i]->Reset();
-					m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+						FPROFILE_FUNCTION("ShadowResetAlloc");
+						for (int i = 0; i < nrWorkerThreads; i++)
+						{
+							m_workerThreadCmdAllocators[i]->Reset();
+							m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
+						}
 				}
-
-				test->Pause();
-				test->ResetQueue();
-
-				for (FRenderableObject* object : mySceneGraph.GetObjects())
+				
 				{
-					test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
+
+					FPROFILE_FUNCTION("ShadowFillQueue");
+					test->Pause();
+					test->ResetQueue();
+
+					for (FRenderableObject* object : mySceneGraph.GetObjects())
+					{
+						test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
+					}
+
 				}
 
 				test->UnPause();
 
-				test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-				
-				for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
 				{
-					m_workerThreadCmdLists[i]->Close();
-					ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-					GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+					FPROFILE_FUNCTION("ShadowWait");
+					test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
 				}
-
+				{
+					FPROFILE_FUNCTION("ShadowExec");
+					for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
+					{
+						m_workerThreadCmdLists[i]->Close();
+						ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
+						GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
+					}
+				}
 				// wait for cmdlist to be done before returning
 				ID3D12Fence* m_fence2;
 				HANDLE m_fenceEvent2;
-				m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+				HRESULT result;
 				int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-				HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
+				{
+					FPROFILE_FUNCTION("ShadowFence Con");
+					m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+					result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
+				}
 				result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor);
 				m_fence2->SetEventOnCompletion(1, m_fenceEvent2);
-				WaitForSingleObject(m_fenceEvent2, INFINITE);
-				m_fence2->Release();
-				CloseHandle(m_fenceEvent2);
+				WaitForSingleObject(m_fenceEvent2, INFINITE);// what value? per-thread counter or something in case you execute multiple ones
+				{
+					FPROFILE_FUNCTION("ShadowFence Del");
+					m_fence2->Release();
+					CloseHandle(m_fenceEvent2);
+				}
 
 				FLightManager::GetInstance()->SetActiveLight(i);
 			}
@@ -896,6 +919,8 @@ bool FD3d12Renderer::Render()
 		}
 
 		{
+			FPROFILE_FUNCTION("Render Pass");
+
 			FJobSystem* test = FJobSystem::GetInstance();
 			int nrWorkerThreads = test->GetNrWorkerThreads();
 			for (int i = 0; i < nrWorkerThreads; i++)

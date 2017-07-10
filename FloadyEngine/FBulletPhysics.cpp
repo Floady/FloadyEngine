@@ -155,6 +155,18 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	return body;
 }
 
+void FBulletPhysics::AddTerrain(btRigidBody * aBody, btCollisionShape* aCollisionShape, FGameEntity* anOwner)
+{
+	FBulletPhysics::FPhysicsBody fbody;
+	fbody.myRigidBody = aBody;
+	fbody.myCollisionEntity = aCollisionShape;
+	fbody.myGameEntity = anOwner;
+	fbody.myShouldBlockNavMesh = false;
+	m_collisionShapes.push_back(aCollisionShape);
+	myRigidBodies.push_back(fbody);
+	m_dynamicsWorld->addRigidBody(aBody);
+}
+
 void FBulletPhysics::RemoveObject(btRigidBody * aBody)
 {
 	for (int i = m_dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)

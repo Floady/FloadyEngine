@@ -40,80 +40,81 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 		UINT8* pIndexDataBegin;
 
 
-		int indices[] = {
-			0,1,2,0,2,3,
-			4,5,6,4,6,7,
-			8,9,10,8,10,11,
-			12,13,14,12,14,15,
-			16,17,18,16,18,19,
-			20,21,22,20,22,23
-		};
+			int indices[] = {
+				0,1,2,0,2,3,
+				4,5,6,4,6,7,
+				8,9,10,8,10,11,
+				12,13,14,12,14,15,
+				16,17,18,16,18,19,
+				20,21,22,20,22,23
+			};
 
-		FPrimitiveGeometry::Box::GetIndices().resize(_countof(indices));
-		memcpy(&FPrimitiveGeometry::Box::GetIndices()[0], &indices, sizeof(int) * _countof(indices));
+			FPrimitiveGeometry::Box::GetIndices().resize(_countof(indices));
+			memcpy(&FPrimitiveGeometry::Box::GetIndices()[0], &indices, sizeof(int) * _countof(indices));
 
-		std::vector<Vertex>& vertices = FPrimitiveGeometry::Box::GetVertices();
-		vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, 0, -1, 0.0f, 1.0f));
-		vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, 0, -1, 0.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, 0, -1, 1.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, 0, -1, 1.0f, 1.0f));
-																			
-		vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, 0, +1, 1.0f, 1.0f));
-		vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, 0, +1, 0.0f, 1.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, 0, +1, 0.0f, 0.0f));
-		vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, 0, +1, 1.0f, 0.0f));
-																			
-		vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, +1, 0, 0.0f, 1.0f));
-		vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, +1, 0, 0.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, +1, 0, 1.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, +1, 0, 1.0f, 1.0f));
-																			
-		vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, -1, 0, 1.0f, 1.0));
-		vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, -1, 0, 0.0f, 1.0));
-		vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, -1, 0, 0.0f, 0.0));
-		vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, -1, 0, 1.0f, 0.0));
-																			
-		vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, -1, 0, 0, 0.0f, 1.0f));
-		vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, -1, 0, 0, 0.0f, 0.0f));
-		vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, -1, 0, 0, 1.0f, 0.0f));
-		vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, -1, 0, 0, 1.0f, 1.0f));
-																			
-		vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, +1, 0, 0, 0.0f, 1.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, +1, 0, 0, 0.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, +1, 0, 0, 1.0f, 0.0f));
-		vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, +1, 0, 0, 1.0f, 1.0f));
+			std::vector<Vertex>& vertices = FPrimitiveGeometry::Box::GetVertices();
+			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, 0, -1, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, 0, -1, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, 0, -1, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, 0, -1, 1.0f, 1.0f));
 
-		HRESULT hr = aDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * 128 * 6),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&FPrimitiveGeometry::Box::GetVerticesBuffer()));
+			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, 0, +1, 1.0f, 1.0f));
+			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, 0, +1, 0.0f, 1.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, 0, +1, 0.0f, 0.0f));
+			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, 0, +1, 1.0f, 0.0f));
 
-		// Map the buffer
-		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
-		hr = FPrimitiveGeometry::Box::GetVerticesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
+			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, +1, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, +1, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, +1, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, +1, 0, 1.0f, 1.0f));
 
-		// Create the vertex buffer.
-		{
-			const UINT vertexBufferSize = FPrimitiveGeometry::Box::GetVertexBufferSize();
-			memcpy(pVertexDataBegin, &vertices[0], vertexBufferSize);
+			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, -1, 0, 1.0f, 1.0));
+			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, -1, 0, 0.0f, 1.0));
+			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, -1, 0, 0.0f, 0.0));
+			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, -1, 0, 1.0f, 0.0));
 
-			// index buffer
-			hr = aDevice->CreateCommittedResource(
+			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, -1, 0, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, -1, 0, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, -1, 0, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, -1, 0, 0, 1.0f, 1.0f));
+
+			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, +1, 0, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, +1, 0, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, +1, 0, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, +1, 0, 0, 1.0f, 1.0f));
+
+			HRESULT hr = aDevice->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(int) * 128 * 6),
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * 24),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS(&FPrimitiveGeometry::Box::GetIndicesBuffer()));
+				IID_PPV_ARGS(&FPrimitiveGeometry::Box::GetVerticesBuffer()));
 
 			// Map the buffer
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
-			hr = FPrimitiveGeometry::Box::GetIndicesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin));
-			const UINT indexBufferSize = FPrimitiveGeometry::Box::GetIndicesBufferSize();
-			memcpy(pIndexDataBegin, &indices, indexBufferSize);
+			hr = FPrimitiveGeometry::Box::GetVerticesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
+
+			// Create the vertex buffer.
+			{
+				const UINT vertexBufferSize = FPrimitiveGeometry::Box::GetVertexBufferSize();
+				memcpy(pVertexDataBegin, &vertices[0], vertexBufferSize);
+
+				// index buffer
+				hr = aDevice->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					D3D12_HEAP_FLAG_NONE,
+					&CD3DX12_RESOURCE_DESC::Buffer(sizeof(int) * 36),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(&FPrimitiveGeometry::Box::GetIndicesBuffer()));
+
+				// Map the buffer
+				CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+				hr = FPrimitiveGeometry::Box::GetIndicesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin));
+				const UINT indexBufferSize = FPrimitiveGeometry::Box::GetIndicesBufferSize();
+				memcpy(pIndexDataBegin, &indices, indexBufferSize);
+			}
 		}
 
 		// Sphere
@@ -183,7 +184,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			HRESULT hr = aDevice->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * 128 * 6), //todo these sizes should match the buff size aligned on memory if needed but is from old font
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex) * ret.size()), //todo these sizes should match the buff size aligned on memory if needed but is from old font
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(&FPrimitiveGeometry::Box2::GetVerticesBuffer()));
@@ -201,7 +202,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 				hr = aDevice->CreateCommittedResource(
 					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(sizeof(int) * 128 * 6),
+					&CD3DX12_RESOURCE_DESC::Buffer(sizeof(int) * indices.size()),
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&FPrimitiveGeometry::Box2::GetIndicesBuffer()));
@@ -213,5 +214,4 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 				memcpy(pIndexDataBegin, &indices[0], indexBufferSize); // this was crashing with 20x20 1.0f radius
 			}
 		}
-	}
 }

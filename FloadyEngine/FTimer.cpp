@@ -16,6 +16,12 @@ void FTimer::Restart()
 double FTimer::GetTimeMS()
 {
 	QueryPerformanceCounter((LARGE_INTEGER *)&ctr2);
+	return ((ctr2 - ctr1) * 1.0 / freq) * 1000;
+}
+
+double FTimer::GetTimeUS()
+{
+	QueryPerformanceCounter((LARGE_INTEGER *)&ctr2);
 	return ((ctr2 - ctr1) * 1.0 / freq);
 }
 

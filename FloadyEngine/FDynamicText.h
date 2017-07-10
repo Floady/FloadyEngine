@@ -44,7 +44,6 @@ private:
 
 	ID3D12Resource* m_ModelProjMatrix;
 	
-	FVector3 myPos;
 	char myText[128];
 	FD3d12Renderer* myManagerClass;
 

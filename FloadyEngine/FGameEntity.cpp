@@ -12,16 +12,17 @@ REGISTER_GAMEENTITY2(FGameEntity);
 using namespace DirectX;
 FGameEntity::FGameEntity(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
-	myOwner = nullptr;
-	myPos = aPos;
-	myIsPhysicsActive = true;
-	myGraphicsObject = nullptr;
-	myPhysicsObject = nullptr;
 	Init(aPos, aScale, aType, aMass, aIsNavBlocker);
 }
 
 void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
+	myOwner = nullptr;
+	myPos = aPos;
+	myIsPhysicsActive = true;
+	myGraphicsObject = nullptr;
+	myPhysicsObject = nullptr;
+
 	if (myPhysicsObject)
 	{
 		FGame::GetInstance()->GetPhysics()->RemoveObject(myPhysicsObject);
@@ -33,11 +34,7 @@ void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aT
 		FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
 		delete myGraphicsObject;
 	}
-
-	myOwner = nullptr;
-	myPhysicsObject = nullptr;
-	myIsPhysicsActive = true;
-
+	
 	if(aType == ModelType::Sphere)
 	{
 		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), aPos, aScale, FPrimitiveBox::PrimitiveType::Sphere);
@@ -72,6 +69,7 @@ void FGameEntity::Init(const FJsonObject & anObj)
 
 	type = static_cast<FGameEntity::ModelType>(anObj.GetItem("type").GetAs<int>()); // 0 spehere, 1 box
 
+//	type = FGameEntity::ModelType::Sphere;
 	Init(pos, scale, type, mass, isNavBlocking);
 	
 	string tex = anObj.GetItem("tex").GetAs<string>();
