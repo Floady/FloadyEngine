@@ -1,5 +1,6 @@
 #include "FPhysicsDebugDrawer.h"
 #include "FDebugDrawer.h"
+#include "FProfiler.h"
 
 
 FPhysicsDebugDrawer::FPhysicsDebugDrawer(FDebugDrawer* aDebugDrawer)
@@ -14,11 +15,12 @@ FPhysicsDebugDrawer::~FPhysicsDebugDrawer()
 {
 }
 
+// TODO: optimize, with many lines this takes about 5ms+
 void FPhysicsDebugDrawer::drawLine(const btVector3 & from, const btVector3 & to, const btVector3 & color)
 {
-	FVector3 fcolor = FVector3(color.getX(), color.getY(), color.getZ());
-	FVector3 start = FVector3(from.getX(), from.getY(), from.getZ());
-	FVector3 end = FVector3(to.getX(), to.getY(), to.getZ());
+	FVector3 fcolor(color.getX(), color.getY(), color.getZ());
+	FVector3 start(from.getX(), from.getY(), from.getZ());
+	FVector3 end(to.getX(), to.getY(), to.getZ());
 	myDebugDrawer->drawLine(start, end, fcolor);
 }
 

@@ -28,6 +28,7 @@
 #include "FGameUIManager.h"
 #include "FLightManager.h"
 #include "FProfiler.h"
+#include "FNavMeshManagerRecast.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -54,8 +55,9 @@ void FGame::ConstructBuilding(FVector3 aPos)
 	OutputDebugStringA(myBuildingName);	
 	OutputDebugString(L"\n");
 
-	FGameEntity* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->GetEntity();
+	FGameEntity* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
 	entity->SetPos(aPos);
+	
 	myEntityContainer.push_back(entity);
 
 	myBuildingName = nullptr;
@@ -68,7 +70,7 @@ void FGame::ConstructBuilding(const char * aBuildingName)
 	OutputDebugString(L"\n");
 	
 	myBuildingName = aBuildingName;
-	myPlacingManager->SetPlacable(true, FVector3(2, 1, 1), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this));
+	myPlacingManager->SetPlacable(true, FVector3(1, 1, 1), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this));
 }
 
 void FGame::Test()
@@ -87,7 +89,7 @@ void FGame::Test(FVector3 aPos)
 	
 	myEntityContainer.push_back(newAgent);
 
-	FGameBuilding* someBuilding = new FGameBuilding("Configs//buildings//firstbuilding.json");
+	FGameBuildingBlueprint* someBuilding = new FGameBuildingBlueprint("Configs//buildings//firstbuilding.json");
 }
 
 void FGame::AddEntity(FGameEntity * anEntity)
@@ -101,7 +103,7 @@ FGame::FGame()
 	myInput = new FD3d12Input();
 	auto someDelegate = FDelegate2<void(UINT, WPARAM, LPARAM)>::from<FD3d12Input, &FD3d12Input::MessageHandler>(myInput);
 	myRenderWindow = new FRenderWindow(someDelegate);
-	myRenderer = new FD3d12Renderer();
+	myRenderer = FD3d12Renderer::GetInstance();
 	myCamera = new FGameCamera(myInput, 800.0f, 600.0f);
 	myPhysics = new FBulletPhysics();
 	myPicker = new F3DPicker(myCamera, myRenderWindow);
@@ -135,7 +137,7 @@ FGame::~FGame()
 void FGame::Init()
 {
 	bool result = myRenderWindow->Initialize();
-
+	
 	if (!result)
 	{
 		OutputDebugStringA("Failed to init Render window\n");
@@ -151,6 +153,7 @@ void FGame::Init()
 
 	myRenderer->SetCamera(myCamera);
 	myPhysics->Init(myRenderer);
+	
 	myHighlightManager = new FGameHighlightManager();
 	myBuildingManager = new FGameBuildingManager();
 	myGameUIManager = new FGameUIManager();
@@ -165,15 +168,15 @@ void FGame::Init()
 
 	FJsonObject* level = FJson::Parse("Configs//level.txt");
 	const FJsonObject* child = level->GetFirstChild();
-	/*while (child)
+	while (child)
 	{
 		FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
 		newEntity->Init(*child);
 		myEntityContainer.push_back(newEntity);
 		child = level->GetNextChild();
-	}*/
+	}
 
-	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 0, -50), FVector3(0, -1, 1), FVector3(0.2, 0.2, 0.2));
+	FLightManager::GetInstance()->AddDirectionalLight(FVector3(50, 30, 0), FVector3(0, -1, 1), FVector3(0.2, 0.2, 0.2), 0.0f);
 
 	// test lights
 	//int stepX = 15;
@@ -190,11 +193,11 @@ void FGame::Init()
 	//	}
 	//}
 
-	FLightManager::GetInstance()->AddLight(FVector3(30, 15, 10), 10.0f);
-	FLightManager::GetInstance()->AddSpotlight(FVector3(0, 10, 10), FVector3(0, -1, -1.05), 30.0f, FVector3(1, 0, 0), 25.0f);
-	FLightManager::GetInstance()->AddSpotlight(FVector3(30, 15, -20), FVector3(0, -1, 0.5), 10.0f, FVector3(0, 1, 0), 25.0f);
-	FLightManager::GetInstance()->AddLight(FVector3(-20, 15, 10), 10.0f);
-	FLightManager::GetInstance()->AddLight(FVector3(300, 15, 100), 10.0f);
+	//FLightManager::GetInstance()->AddLight(FVector3(30, 15, 10), 10.0f);
+	//FLightManager::GetInstance()->AddSpotlight(FVector3(0, 10, 10), FVector3(0, -1, -1.05), 30.0f, FVector3(1, 0, 0), 25.0f);
+	//FLightManager::GetInstance()->AddSpotlight(FVector3(30, 15, -20), FVector3(0, -1, 0.5), 10.0f, FVector3(0, 1, 0), 25.0f);
+	//FLightManager::GetInstance()->AddLight(FVector3(-20, 15, 10), 10.0f);
+	//FLightManager::GetInstance()->AddLight(FVector3(300, 15, 100), 10.0f);
 	// init navmesh
 	
 	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
@@ -216,167 +219,179 @@ bool FGame::Update(double aDeltaTime)
 {
 	FProfiler::GetInstance()->StartFrame();
 
-	FPROFILE_FUNCTION("FGame Update");
+	FD3d12Renderer::GetInstance()->DoClearBuffers();
+	FD3d12Renderer::GetInstance()->SetRenderPassDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
 
-	// quit on escape
-	if (myInput->IsKeyDown(VK_ESCAPE))
-		return false;
-	if (myInput->IsKeyDown(VK_F2))
-		myRenderer->GetShaderManager().ReloadShaders();
-
-	// update input if we have focus
-	if (myRenderWindow->IsFocussed())
-		myInput->Update();
-
-	if (myInput->IsKeyDown(VK_F3))
 	{
-		myGameUIManager->SetState(FGameUIManager::GuiState::MainScreen);
-		// re-init navmesh
-		std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
-		FNavMeshManager::GetInstance()->RemoveAllBlockingAABB();
-		for (FBulletPhysics::AABB& aabb : aabbs)
+
+		FPROFILE_FUNCTION("FGame Update");
+
+		// update FPS
+		char buff[128];
+		sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f / static_cast<float>(aDeltaTime));
+		myFpsCounter->SetText(buff);
+	
+		// quit on escape
+		if (myInput->IsKeyDown(VK_ESCAPE))
+			return false;
+
+	//	return true;
+
+		if (myInput->IsKeyDown(VK_F2))
+			myRenderer->GetShaderManager().ReloadShaders();
+
+		// update input if we have focus
+		if (myRenderWindow->IsFocussed())
+			myInput->Update();
+
+		if (myInput->IsKeyDown(VK_F3))
 		{
-			FNavMeshManager::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
-		}
-
-		FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(200, 0, 200));
-	}
-
-	myGameUIManager->Update();
-
-	if (myInput->IsKeyDown(VK_F4))
-		myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
-
-	if (myInput->IsKeyDown(VK_F5))
-		myPlacingManager->ClearPlacable();
-
-	if (myInput->IsKeyDown(VK_F6))
-		myPlacingManager->SetPlacable(true, FVector3(2,1,1), FDelegate2<void(FVector3)>::from<FGame, &FGame::Test>(this));
-
-	static FVector3 vNavEnd;
-	static FVector3 vNavStart;
-	// Control captures mouse and moves camera, otherwise update UI
-	if (myRenderWindow->IsFocussed() && myInput->IsKeyDown(VK_CONTROL))
-	{
-		if (myIsMouseCaptured) // skip first update
-		{
-			myRenderWindow->SetCursorVisible(false);
-			myCamera->Update(aDeltaTime); 
-		}
-
-		int x = myRenderWindow->GetScreenWidth() / 2;
-		int y = myRenderWindow->GetScreenHeight() / 2;
-		myInput->SetMousePos(x, y);
-		
-		myIsMouseCaptured = true;
-	}
-	else
-	{
-		myIsMouseCaptured = false;
-
-		myRenderWindow->SetCursorVisible(true);
-
-		float windowMouseX = (myInput->GetMouseX() - myRenderWindow->GetPosX()) / static_cast<float>(myRenderWindow->GetWindowWidth());
-		float windowMouseY = (myInput->GetMouseY() - myRenderWindow->GetPosY()) / static_cast<float>(myRenderWindow->GetWindowHeight());
-		windowMouseX = windowMouseX > 1.0f ? 1.0f : windowMouseX;
-		windowMouseX = windowMouseX < 0.0f ? 0.0f : windowMouseX;
-		windowMouseY = windowMouseY > 1.0f ? 1.0f : windowMouseY;
-		windowMouseY = windowMouseY < 0.0f ? 0.0f : windowMouseY;
-
-		// update UI
-		bool isonUI = FGUIManager::GetInstance()->Update(windowMouseX, windowMouseY, myInput->IsMouseButtonDown(true), myInput->IsMouseButtonDown(false));
-
-		// example entity picking
-		if (myInput->IsMouseButtonDown(true))
-		{
-			FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
-			
-			if(!isonUI)
+			myGameUIManager->SetState(FGameUIManager::GuiState::MainScreen);
+			// re-init navmesh
+			std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
+			FNavMeshManager::GetInstance()->RemoveAllBlockingAABB();
+			for (FBulletPhysics::AABB& aabb : aabbs)
 			{
-				myPlacingManager->MouseDown(navPos);
+				FNavMeshManager::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
+			}
 
-				FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
-				FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
-				FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
-				if (entity != myPickedEntity)
+			FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(200, 0, 200));
+		}
+
+		myGameUIManager->Update();
+
+		if (myInput->IsKeyDown(VK_F4))
+			myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
+
+		if (myInput->IsKeyDown(VK_F5))
+			myPlacingManager->ClearPlacable();
+
+		if (myInput->IsKeyDown(VK_F6))
+			myPlacingManager->SetPlacable(true, FVector3(2,1,1), FDelegate2<void(FVector3)>::from<FGame, &FGame::Test>(this));
+
+		static FVector3 vNavEnd;
+		static FVector3 vNavStart;
+		// Control captures mouse and moves camera, otherwise update UI
+		if (myRenderWindow->IsFocussed() && myInput->IsKeyDown(VK_CONTROL))
+		{
+			if (myIsMouseCaptured) // skip first update
+			{
+				myRenderWindow->SetCursorVisible(false);
+				myCamera->Update(aDeltaTime); 
+			}
+
+			int x = myRenderWindow->GetScreenWidth() / 2;
+			int y = myRenderWindow->GetScreenHeight() / 2;
+			myInput->SetMousePos(x, y);
+		
+			myIsMouseCaptured = true;
+		}
+		else
+		{
+			myIsMouseCaptured = false;
+
+			myRenderWindow->SetCursorVisible(true);
+
+			float windowMouseX = (myInput->GetMouseX() - myRenderWindow->GetPosX()) / static_cast<float>(myRenderWindow->GetWindowWidth());
+			float windowMouseY = (myInput->GetMouseY() - myRenderWindow->GetPosY()) / static_cast<float>(myRenderWindow->GetWindowHeight());
+			windowMouseX = windowMouseX > 1.0f ? 1.0f : windowMouseX;
+			windowMouseX = windowMouseX < 0.0f ? 0.0f : windowMouseX;
+			windowMouseY = windowMouseY > 1.0f ? 1.0f : windowMouseY;
+			windowMouseY = windowMouseY < 0.0f ? 0.0f : windowMouseY;
+
+			// update UI
+			bool isonUI = FGUIManager::GetInstance()->Update(windowMouseX, windowMouseY, myInput->IsMouseButtonDown(true), myInput->IsMouseButtonDown(false));
+		
+			// example entity picking
+			if (!myWasLeftMouseDown && myInput->IsMouseButtonDown(true))
+			{
+				FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+			
+				if(!isonUI)
 				{
-					myHighlightManager->RemoveSelectableObject(myPickedEntity);
-					myHighlightManager->AddSelectableObject(entity);
-					myPickedEntity = entity;
+					bool wasPlacing = myPlacingManager->IsPlacing();
+					myPlacingManager->MouseDown(navPos);
 
-					if (entity && dynamic_cast<FGameAgent*>(entity))
+					if(!wasPlacing)
 					{
-						vNavStart = entity->GetPos();
-						vNavEnd = vNavStart; // reset, or make sure no pathfinding is done
+						FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
+						FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
+						FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
+						if (entity != myPickedEntity)
+						{
+							myHighlightManager->RemoveSelectableObject(myPickedEntity);
+							myHighlightManager->AddSelectableObject(entity);
+							myPickedEntity = entity;
 
-						myPickedAgent = dynamic_cast<FGameAgent*>(entity);
+							if (entity && dynamic_cast<FGameAgent*>(entity))
+							{
+								vNavStart = entity->GetPos();
+								vNavEnd = vNavStart; // reset, or make sure no pathfinding is done
+
+								myPickedAgent = dynamic_cast<FGameAgent*>(entity);
+							}
+						}
 					}
 				}
 			}
-		}
 
-		if (myPickedAgent && myInput->IsMouseButtonDown(false)) 			// if something is picked and there is no other entity under mouse, find navpos
-		{
-			FVector3 line = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
-			vNavEnd = line;
-			if (FPathfindComponent* pathFindComponent = myPickedAgent->GetPathFindingComponent())
+			if (myPickedAgent && myInput->IsMouseButtonDown(false)) 			// if something is picked and there is no other entity under mouse, find navpos
 			{
-				vNavStart = myPickedAgent->GetPos();
-				pathFindComponent->FindPath(vNavStart, vNavEnd);
+				FVector3 line = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+				vNavEnd = line;
+				if (FPathfindComponent* pathFindComponent = myPickedAgent->GetPathFindingComponent())
+				{
+					vNavStart = myPickedAgent->GetPos();
+					pathFindComponent->FindPath(vNavStart, vNavEnd);
+				}
 			}
+
+			FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+			myPlacingManager->UpdateMousePos(navPos);
 		}
 
-		FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
-		myPlacingManager->UpdateMousePos(navPos);
-	}
+		myWasLeftMouseDown = myInput->IsMouseButtonDown(true);
+		myWasRightMouseDown = myInput->IsMouseButtonDown(true);
 	
-	std::vector<FVector3> pathPoints = FNavMeshManager::GetInstance()->FindPath(vNavStart, vNavEnd);
+		// Update world
+		for (FGameEntity* entity : myEntityContainer)
+		{
+			entity->Update(aDeltaTime);
+		}
 
+		// Step physics
+		if (myInput->IsKeyDown(VK_SPACE))
+		{
+			myPhysics->TogglePaused();
+		}
 
-	// Update world
-	for (FGameEntity* entity : myEntityContainer)
-	{
-		entity->Update(aDeltaTime);
+		myPhysics->Update(aDeltaTime);
+
+		if (myInput->IsKeyDown(VK_SHIFT))
+		{
+			//FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
+			myPhysics->DebugDrawWorld();
+			FNavMeshManagerRecast::GetInstance()->DebugDraw();
+		}
+
+		for (FGameEntity* entity : myEntityContainer)
+		{
+			entity->PostPhysicsUpdate();
+		}
+
 	}
 
-	// Step physics
-	if (myInput->IsKeyDown(VK_SPACE))
-	{
-		myPhysics->TogglePaused();
-	}
-
-	myPhysics->Update(aDeltaTime);
-
-	if (myInput->IsKeyDown(VK_SHIFT))
-	{
-		FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
-		//myPhysics->DebugDrawWorld();
-	}
-
-	for (FGameEntity* entity : myEntityContainer)
-	{
-		entity->PostPhysicsUpdate();
-	}
-
-	// update FPS
-	char buff[128];
-	sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f/static_cast<float>(aDeltaTime));
-	myFpsCounter->SetText(buff);
-
-	return true;
-}
-
-void FGame::Render()
-{
-	
+	// Render world
 	{
 		FPROFILE_FUNCTION("FGame Render");
-		
-		//FD3d12Renderer::GetInstance()->GetCommandAllocator()->Reset();
+
 		myRenderWindow->CheckForQuit();
 		myHighlightManager->Render();
 		myRenderer->Render();
 	}
 
 	FProfiler::GetInstance()->Render();
+
+	return true;
+
 }

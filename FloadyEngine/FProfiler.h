@@ -45,18 +45,15 @@ struct scopedMarker
 		myTimer.Restart();
 	}
 
-	void Start() { myTimer.Restart(); }
+	void Start();
 
-	~scopedMarker()
-	{
-		double time = myTimer.GetTimeMS();
-		FProfiler::GetInstance()->AddTiming(myName, time);
-	}
+	~scopedMarker();
 
 	FTimer myTimer;
 	const char* myName;
 };
 
 #define FPROFILE_FUNCTION(aName) scopedMarker __someMarker = scopedMarker(aName); __someMarker.Start();
+//#define FPROFILE_FUNCTION(aName) void();
 
 

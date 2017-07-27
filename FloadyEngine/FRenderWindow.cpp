@@ -71,16 +71,16 @@ bool FRenderWindow::CheckForQuit()
 	ZeroMemory(&msg, sizeof(MSG));
 
 	// Handle the windows messages.
-	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
-	}
 
-	// If windows signals to end the application then exit out.
-	if (msg.message == WM_QUIT)
-	{
-		return true;
+		// If windows signals to end the application then exit out.
+		if (msg.message == WM_QUIT)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -89,6 +89,7 @@ bool FRenderWindow::CheckForQuit()
 LRESULT CALLBACK FRenderWindow::MessageHandler(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam)
 {
 	myInputCallback(umsg, wparam, lparam);
+	
 
 	switch (umsg)
 	{
@@ -103,6 +104,9 @@ LRESULT CALLBACK FRenderWindow::MessageHandler(HWND hwnd, UINT umsg, WPARAM wpar
 			myIsFocussed = false;
 			return 0;
 		}
+		case WM_KEYDOWN:
+		case WM_KEYUP:
+			return 0;
 		
 		// Any other messages send to the default message handler as our application won't make use of them.
 		default:

@@ -2,6 +2,7 @@
 #include "FD3d12Renderer.h"
 #include "FShaderManager.h"
 #include "FPrimitiveGeometry.h"
+#include "FJobSystem.h"
 
 // temp - move to utils
 
@@ -135,7 +136,7 @@ void FPostProcessEffect::Init(int aPostEffectBufferIdx)
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
 		
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, nrOfSRVs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, nrOfSRVs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
 		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
@@ -332,4 +333,46 @@ void FPostProcessEffect::Render()
 	WaitForSingleObject(m_fenceEvent, INFINITE);
 	m_fence->Release();
 	CloseHandle(m_fenceEvent);
+}
+
+void FPostProcessEffect::RenderAsync()
+{
+	if (skipNextRender)
+	{
+		skipNextRender = false;
+		return;
+	}
+	ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
+
+	// Set necessary state.
+	cmdList->SetGraphicsRootSignature(myRootSignature);
+
+	ID3D12DescriptorHeap* ppHeaps[] = { FD3d12Renderer::GetInstance()->GetSRVHeap() };
+	cmdList->SetPipelineState(myPipelineState);
+
+	cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	// Get the size of the memory location for the render target view descriptors.
+	unsigned int srvSize = FD3d12Renderer::GetInstance()->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE handle(FD3d12Renderer::GetInstance()->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart(), myHeapOffsetAll, srvSize);
+	cmdList->SetGraphicsRootDescriptorTable(0, handle);
+
+	// set viewport/scissor
+	cmdList->RSSetViewports(1, &FD3d12Renderer::GetInstance()->GetViewPort());
+	cmdList->RSSetScissorRects(1, &FD3d12Renderer::GetInstance()->GetScissorRect());
+
+
+	// Indicate that the back buffer will be used as a render target.
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	cmdList->OMSetRenderTargets(1, &FD3d12Renderer::GetInstance()->GetPostProcessScratchBufferHandle(), FALSE, nullptr);
+
+	// Record commands.
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->IASetVertexBuffers(0, 1, &myVertexBufferView);
+	cmdList->DrawInstanced(6, 1, 0, 0);
+
+	// Indicate that the back buffer will now be used to present.
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
 }

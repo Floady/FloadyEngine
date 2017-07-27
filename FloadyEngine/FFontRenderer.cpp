@@ -376,6 +376,16 @@ void FFontRenderer::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* aD
 		aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = aDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = aCmdQueue->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 
 }
 
@@ -431,4 +441,15 @@ this is how it was initialized:
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = aCmdQueue->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 }

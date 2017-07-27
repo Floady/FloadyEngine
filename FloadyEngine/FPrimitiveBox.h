@@ -31,14 +31,12 @@ public:
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
-	void SetRotMatrix(DirectX::XMMATRIX& m) { myRotMatrix = m; }
-	void SetRotMatrix(DirectX::XMFLOAT4X4* m) { myRotMatrix = XMLoadFloat4x4(m); }
-	void SetRotMatrix(float* m) override {
-		DirectX::XMFLOAT4X4 matrix(m); SetRotMatrix(&matrix);
-	}
+	virtual void RecalcModelMatrix() override;
+	void SetRotMatrix(float* m) override;
 
 	void SetTexture(const char* aFilename) override;
 	void SetShader(const char* aFilename) override;
+	virtual void SetPos(FVector3 aPos) override;
 
 	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return m_vertexBufferView; }
 	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
@@ -52,11 +50,13 @@ private:
 	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
-	DirectX::XMMATRIX myRotMatrix;
+	float myRotMatrix[16];
+	DirectX::XMFLOAT4X4 myModelMatrix;
 
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;
-	
+	bool myIsMatrixDirty;
+	bool myIsGPUConstantDataDirty;
 	std::string myTexName;
 
 	ID3D12Resource* m_ModelProjMatrixShadow;

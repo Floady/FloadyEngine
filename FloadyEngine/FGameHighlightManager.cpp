@@ -182,17 +182,7 @@ void FGameHighlightManager::Render()
 
 	ID3D12CommandList* ppCommandLists[] = { myCommandList };
 	FD3d12Renderer::GetInstance()->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = FD3d12Renderer::GetInstance()->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = FD3d12Renderer::GetInstance()->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
+	FD3d12Renderer::GetInstance()->SetPostProcessDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
 }
 
 void FGameHighlightManager::AddSelectableObject(FGameEntity * anObject)

@@ -8,7 +8,7 @@
 
 FBulletPhysics::FBulletPhysics()
 {
-	myEnabled = true;
+	myEnabled = false;
 }
 
 
@@ -100,17 +100,18 @@ void FBulletPhysics::DebugDrawWorld()
 }
 btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/, FGameEntity* anEntity /*= nullptr*/)
 {
+	FVector3 extends = aScale / 2.0f;
 	btCollisionShape* shape;
 	if(aPrim == FBulletPhysics::CollisionPrimitiveType::Box)
-		shape = new btBoxShape(btVector3(btScalar(aScale.x), btScalar(aScale.y), btScalar(aScale.z)));
+		shape = new btBoxShape(btVector3(btScalar(extends.x), btScalar(extends.y), btScalar(extends.z)));
 	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Capsule)
-		shape = new btCapsuleShape(aScale.x, aScale.y / 2.0f);
+		shape = new btCapsuleShape(extends.x, extends.y / 2.0f);
 	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Sphere)
 	{
-		shape = new btSphereShape(aScale.x);
+		shape = new btSphereShape(extends.x);
 	}
 	else // default
-		shape = new btBoxShape(btVector3(btScalar(aScale.x), btScalar(aScale.y), btScalar(aScale.z)));
+		shape = new btBoxShape(btVector3(btScalar(extends.x), btScalar(extends.y), btScalar(extends.z)));
 
 	
 
@@ -194,7 +195,7 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 		for (int i = 0; i < myRigidBodies.size(); i++)
 		{				
 			if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObject->getCollisionShape())
-				return myRigidBodies[i].myGameEntity->GetOwnerEntity() ? myRigidBodies[i].myGameEntity->GetOwnerEntity() : myRigidBodies[i].myGameEntity;
+				return myRigidBodies[i].myGameEntity->GetOwnerEntity();
 		}
 	}
 

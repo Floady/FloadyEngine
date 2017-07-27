@@ -30,7 +30,9 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 	myYaw = 0.0f; // test
 	m_ModelProjMatrix = nullptr;
 	m_ModelProjMatrixShadow = nullptr;
-	
+	myIsMatrixDirty = true;
+	myIsGPUConstantDataDirty = true;
+
 	myPos.x = aPos.x;
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
@@ -40,10 +42,23 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 	m_pipelineState = nullptr;
 	m_pipelineStateShadows = nullptr;
 	m_commandList = nullptr;
+	
+	myConstantBufferPtr = nullptr;
 
 	myType = aType;
 
-	myRotMatrix = XMMatrixIdentity();
+	XMMATRIX mtxRot = XMMatrixIdentity();
+	XMFLOAT4X4 m;
+	XMStoreFloat4x4(&m, mtxRot);
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			myRotMatrix[i * 4 + j] = m.m[i][j];
+		}
+	}
+
 	myIsInitialized = false;
 
 	{
@@ -100,9 +115,9 @@ void FPrimitiveBox::Init()
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.MipLODBias = 0;
 		sampler.MaxAnisotropy = 0;
 		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -138,6 +153,7 @@ void FPrimitiveBox::Init()
 		m_rootSignatureShadows->SetName(L"PrimitiveBoxShadow");
 	}
 
+
 	SetShader();
 	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
 
@@ -146,6 +162,7 @@ void FPrimitiveBox::Init()
 	// create constant buffer for modelview
 	{
 		myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr);
+		m_ModelProjMatrix->SetName(L"PrimitiveBoxConst");
 		myHeapOffsetAll = myHeapOffsetCBV;
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
@@ -166,6 +183,8 @@ void FPrimitiveBox::Init()
 	
 	skipNextRender = false;
 	myIsInitialized = true;
+
+	RecalcModelMatrix();
 }
 
 void FPrimitiveBox::Render()
@@ -239,38 +258,48 @@ void FPrimitiveBox::PopulateCommandListAsyncShadows()
 
 void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
 {
+	if (skipNextRender)
+	{
+		skipNextRender = false;
+		return;
+	}
+
+	if (!myIsInitialized)
+		return;
+
 	aCmdList->SetPipelineState(m_pipelineState);
 
 	// copy modelviewproj data to gpu
-	XMMATRIX mtxRot = myRotMatrix;
-	XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-	offset = scale * mtxRot * offset;
-
-	XMFLOAT4X4 ret;
-	offset = XMMatrixTranspose(offset);
-
-	XMStoreFloat4x4(&ret, offset);
-
-	float constData[32];
-	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0,0,0).m, sizeof(XMFLOAT4X4));
-	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
-	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
-
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
+	// set on gpu
+	if (myIsGPUConstantDataDirty)
 	{
-		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		float constData[32];
+		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		memcpy(&constData[16], myModelMatrix.m, sizeof(XMFLOAT4X4));
+		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
+		myIsGPUConstantDataDirty = false;
 	}
-#endif
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	else
+	{
+		float constData[16];
+		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 16);
+	}
+
+//#if DEFERRED
+//	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
+//	{
+//		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+//	}
+//#endif
+//	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Set necessary state.
 	aCmdList->SetGraphicsRootSignature(m_rootSignature);
 
-	// is this how we bind textures?
-	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		// is this how we bind textures?
+//		ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
+//		aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -280,11 +309,11 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
 
 	// set viewport/scissor
-	aCmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
-	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
+//	aCmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
+//	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	//aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 	
 #if DEFERRED
@@ -302,15 +331,15 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 	aCmdList->DrawIndexedInstanced(myIndicesCount, 1, 0, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-#if DEFERRED
-	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
-	{
-		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	}
-#endif
+//	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+//
+//	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+//#if DEFERRED
+//	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
+//	{
+//		aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+//	}
+//#endif
 }
 
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
@@ -445,6 +474,43 @@ void FPrimitiveBox::SetShader()
 	m_commandList->SetName(L"PrimitiveBox");
 }
 
+void FPrimitiveBox::RecalcModelMatrix()
+{
+	if (myIsMatrixDirty)
+	{
+		XMFLOAT4X4 m = XMFLOAT4X4(myRotMatrix);
+		XMMATRIX mtxRot = XMLoadFloat4x4(&m);
+		XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
+		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
+		offset = scale * mtxRot * offset;
+
+		offset = XMMatrixTranspose(offset);
+		XMStoreFloat4x4(&myModelMatrix, offset);
+		myIsMatrixDirty = false;
+		myIsGPUConstantDataDirty = true;
+	}
+}
+
+void FPrimitiveBox::SetRotMatrix(float * m)
+{
+	bool bSame = true;
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			if (m[i * 4 + j] != myRotMatrix[i * 4 + j])
+				bSame = false;
+		}
+	}
+
+//	if (bSame)
+	//	return;
+
+	myIsMatrixDirty = true;
+	FRenderableObject::SetRotMatrix(m);
+	memcpy(myRotMatrix, m, sizeof(float) * 16);
+}
+
 void FPrimitiveBox::SetTexture(const char * aFilename)
 {
 	/*skipNextRender = true;
@@ -465,4 +531,13 @@ void FPrimitiveBox::SetTexture(const char * aFilename)
 void FPrimitiveBox::SetShader(const char * aFilename)
 {
 	shaderfilename = aFilename;
+}
+
+void FPrimitiveBox::SetPos(FVector3 aPos)
+{
+	if (aPos.x == myPos.x && aPos.y == myPos.y && aPos.z == myPos.z)
+		return;
+
+	FRenderableObject::SetPos(aPos);
+	myIsMatrixDirty = true;
 }

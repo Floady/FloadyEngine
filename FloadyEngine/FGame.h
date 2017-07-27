@@ -26,13 +26,13 @@ class FGame
 {
 public:
 	void Init();
-	void Render();
 	bool Update(double aDeltaTime);
 	static FGame* GetInstance() { return ourInstance; }
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
 	FBulletPhysics* GetPhysics() { return myPhysics; }
 	void ConstructBuilding(const char* aBuildingName);
+	FPlacingManager* GetPlacingManager() { return myPlacingManager; }
 	void ConstructBuilding(FVector3 aPos);
 	FGameBuildingManager* GetBuildingManager() { return myBuildingManager; }
 	void Test();
@@ -40,7 +40,7 @@ public:
 	void AddEntity(FGameEntity* anEntity);
 	FGame();
 	~FGame();
-	const FGameEntity* GetSelectedEntity() const { return myPickedEntity; }
+	FGameEntity* GetSelectedEntity() const { return myPickedEntity; }
 private:
 	const char* myBuildingName;
 private:
@@ -64,5 +64,8 @@ private:
 	FPlacingManager* myPlacingManager;
 	FGameBuildingManager* myBuildingManager;
 	FGameUIManager* myGameUIManager;
+
+	bool myWasRightMouseDown;
+	bool myWasLeftMouseDown;
 };
 

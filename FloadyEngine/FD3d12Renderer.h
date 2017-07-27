@@ -11,6 +11,22 @@ class FPostProcessEffect;
 class FD3d12Renderer
 {
 public:
+	struct GPUMutex
+	{
+		GPUMutex();
+		void Reset();
+		~GPUMutex();
+		void Init(ID3D12Device* aDevice, const char* aDebugName);
+		void Signal(ID3D12CommandQueue* aCmdQueue);
+		void WaitFor();
+	private:
+		ID3D12Fence* myFence;
+		ID3D12CommandQueue* myCmdQueue;
+		HANDLE myFenceEvent;
+		const char* myDebugName;
+		LONG myFenceValue;
+	};
+
 	enum GbufferType
 	{
 		Gbuffer_color = 0,
@@ -26,7 +42,7 @@ public:
 	FD3d12Renderer();
 	~FD3d12Renderer();
 
-	static FD3d12Renderer* GetInstance() { return ourInstance; }
+	static FD3d12Renderer* GetInstance();
 	int CreateConstantBuffer(ID3D12Resource*& aResource, UINT8*& aMapToPtr); // returns heapoffset
 	void CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DESCRIPTOR_HANDLE& aHandle);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE CreateHeapDescriptorHandleSRV(ID3D12Resource* aResource, DXGI_FORMAT aFormat);
@@ -42,6 +58,12 @@ public:
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV+SRV heap
 	int GetCurHeapOffset() { return myCurrentHeapOffset; }
 	
+	// Render tasks
+	void DoClearBuffers();
+	void DoRenderToGBuffer();
+	void SetRenderPassDependency(ID3D12CommandQueue* aQueue);
+	void SetPostProcessDependency(ID3D12CommandQueue* aQueue);
+
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
 	ID3D12CommandAllocator* GetCommandAllocator() { return m_commandAllocator; }
 	ID3D12DescriptorHeap* GetSRVHeap() { return m_srvHeap; }
@@ -95,6 +117,7 @@ private:
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12Fence* m_fence;
 	HANDLE m_fenceEvent;
+	public:
 	unsigned long long m_fenceValue;
 
 
@@ -120,5 +143,9 @@ private:
 	FSceneGraph mySceneGraph;
 
 	std::vector<FPostProcessEffect*> myPostEffects;
+
+	GPUMutex myRenderPassGputMtx;
+	GPUMutex myPostProcessGpuMtx;
+	GPUMutex myTestMutex;
 };
 

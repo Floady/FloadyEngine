@@ -181,6 +181,17 @@ void FScreenQuad::Init()
 		// do we need this?
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+		// wait for cmdlist to be done before returning
+		ID3D12Fence* m_fence;
+		HANDLE m_fenceEvent;
+		m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+		int fenceToWaitFor = 1; // what value?
+		HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+		result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+		m_fence->SetEventOnCompletion(1, m_fenceEvent);
+		WaitForSingleObject(m_fenceEvent, INFINITE);
+		m_fence->Release();
 	}
 
 	skipNextRender = false;
@@ -201,6 +212,17 @@ void FScreenQuad::Render()
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// wait for cmdlist to be done before returning
+	//ID3D12Fence* m_fence;
+	//HANDLE m_fenceEvent;
+	//m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	//int fenceToWaitFor = 1; // what value?
+	//HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	//result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	//m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	//WaitForSingleObject(m_fenceEvent, INFINITE);
+	//m_fence->Release();
 }
 
 void FScreenQuad::PopulateCommandList()
@@ -318,6 +340,15 @@ void FScreenQuad::PopulateCommandList()
 
 void FScreenQuad::PopulateCommandListAsync()
 {
+	if (skipNextRender)
+	{
+		skipNextRender = false;
+		return;
+	}
+
+	if (!m_commandList)
+		return;
+
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
@@ -414,7 +445,7 @@ void FScreenQuad::PopulateCommandListAsync()
 	// Record commands.
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
+	cmdList->DrawInstanced(6, 1, 0, 0);
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	if (myIsDeferred)
@@ -552,6 +583,17 @@ void FScreenQuad::SetShader()
 		m_commandList->Close();
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+		// wait for cmdlist to be done before returning
+		ID3D12Fence* m_fence;
+		HANDLE m_fenceEvent;
+		m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+		int fenceToWaitFor = 1; // what value?
+		HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+		result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+		m_fence->SetEventOnCompletion(1, m_fenceEvent);
+		WaitForSingleObject(m_fenceEvent, INFINITE);
+		m_fence->Release();
 	}
 
 	firstFrame = false;

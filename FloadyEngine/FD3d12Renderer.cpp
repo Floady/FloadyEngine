@@ -15,6 +15,23 @@
 #include <functional>
 #include "windows.h"
 #include "FProfiler.h"
+#define USE_PIX
+
+#include <pix3.h>
+
+#define OLDSCHOOL_FENCE { \
+ID3D12Fence* m_fence2; \
+HANDLE m_fenceEvent2; \
+HRESULT result; \
+int fenceToWaitFor = InterlockedIncrement(&FD3d12Renderer::GetInstance()->m_fenceValue); \
+m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS); \
+result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2); \
+result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor); \
+m_fence2->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent2); \
+WaitForSingleObject(m_fenceEvent2, INFINITE);  \
+m_fence2->Release(); \
+CloseHandle(m_fenceEvent2); \
+}
 
 FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
 
@@ -23,7 +40,6 @@ FD3d12Renderer::FD3d12Renderer()
 	, m_viewport()
 	, m_scissorRect()
 {
-	ourInstance = this;
 	m_device = 0;
 	m_commandQueue = 0;
 	m_swapChain = 0;
@@ -86,6 +102,14 @@ void FD3d12Renderer::CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DE
 
 	myCurrentRTVHeapOffset++;
 	assert(result == S_OK && "CREATING scratch buffer FAILED");
+}
+
+FD3d12Renderer * FD3d12Renderer::GetInstance()
+{
+	if (ourInstance == nullptr)
+		ourInstance = new FD3d12Renderer();
+
+	return ourInstance;
 }
 
 int FD3d12Renderer::CreateConstantBuffer(ID3D12Resource *& aResource, UINT8 *& aMapToPtr)
@@ -663,9 +687,10 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	// command allocators for worker threads
 	int nrWorkerThreads = FJobSystem::GetInstance()->GetNrWorkerThreads();
-	m_workerThreadCmdAllocators = new ID3D12CommandAllocator*[nrWorkerThreads];
-	m_workerThreadCmdLists = new ID3D12GraphicsCommandList*[nrWorkerThreads];
-	for (int i = 0; i < nrWorkerThreads; i++)
+	int nrOfThreads = nrWorkerThreads + 1; // workers + main
+	m_workerThreadCmdAllocators = new ID3D12CommandAllocator*[nrOfThreads];
+	m_workerThreadCmdLists = new ID3D12GraphicsCommandList*[nrOfThreads];
+	for (int i = 0; i < nrOfThreads; i++)
 	{
 		result = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator), (void**)&m_workerThreadCmdAllocators[i]);
 		if (FAILED(result))
@@ -683,7 +708,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	m_commandList->SetName(L"D3DClass cmd list");
 
 	// command lists for worker thread
-	for (int i = 0; i < nrWorkerThreads; i++)
+	for (int i = 0; i < nrOfThreads; i++)
 	{
 		result = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerThreadCmdAllocators[i], NULL, __uuidof(ID3D12GraphicsCommandList), (void**)&m_workerThreadCmdLists[i]);
 		m_workerThreadCmdLists[i]->SetName(L"WorkerThread");
@@ -733,6 +758,14 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
+	result = m_commandQueue->Signal(m_fence, m_fenceValue);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	
+	myRenderPassGputMtx.Init(m_device, "RenderPassMtx");
+	myPostProcessGpuMtx.Init(m_device, "PostProcessMtx");
+	myTestMutex.Init(m_device, "Test");
+
 	return true;
 }
 
@@ -741,93 +774,10 @@ static unsigned int frameCounter = 0;
 bool FD3d12Renderer::Render()
 {
 	FPROFILE_FUNCTION("FD3d12Renderer Render");
-
-	HRESULT result;
-	D3D12_RESOURCE_BARRIER barrier;
-	unsigned int renderTargetViewDescriptorSize;
-	float color[4];
-	ID3D12CommandList* ppCommandLists[1];
-	unsigned long long fenceToWaitFor;
-
-	// Reset (re-use) the memory associated command allocator.
-	result = m_commandAllocator->Reset();
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	// Reset the command list, use empty pipeline state for now since there are no shaders and we are just clearing the screen.
-	result = m_commandList->Reset(m_commandAllocator, m_pipelineState);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	// Record commands in the command list now.
-	// Start by setting the resource barrier.
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = m_backBufferRenderTarget[m_bufferIndex];
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	m_commandList->ResourceBarrier(1, &barrier);
-
-	// Get the render target view handle for the current back buffer.
-	myRenderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
-	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	if (m_bufferIndex == 1)
-	{
-		myRenderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
-	}
-
-	// Set the back buffer as the render target.
-	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	m_commandList->OMSetRenderTargets(1, &myRenderTargetViewHandle, FALSE, &dsvHandle);
-
-	// Then set the color to clear the window to.
-	color[0] = 0.0;
-	color[1] = 0.0;
-	color[2] = 0.0;
-	color[3] = 1.0;
-	m_commandList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
-
-	for (int i = 0; i < Gbuffer_count; i++)
-	{
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		m_commandList->ClearRenderTargetView(m_gbufferViews[i], color, 0, NULL);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	}
-
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	
-	for (int i = 0; i < 10; i++)
-	{
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-		m_commandList->ClearDepthStencilView(myShadowMapViewHandle[i], D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	}
-
-	// Indicate that the back buffer will now be used to present.
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	m_commandList->ResourceBarrier(1, &barrier);
-
-	// Close the list of commands.
-	result = m_commandList->Close();
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	// Load the command list array (only one command list for now).
-	ppCommandLists[0] = m_commandList;
-
-	// Execute the list of commands.
-	m_commandQueue->ExecuteCommandLists(1, ppCommandLists);
-
+	//DoClearBuffers();
+	//myRenderPassGputMtx.Signal(GetCommandQueue());
+	
 	if (firstFrame)
 	{
 		myQuad->Init();
@@ -845,126 +795,54 @@ bool FD3d12Renderer::Render()
 	}
 	else
 	{
-		
 		mySceneGraph.InitNewObjects();
+		myRenderPassGputMtx.WaitFor();
+		myPostProcessGpuMtx.WaitFor();
+
+		//*
 		{
 			FPROFILE_FUNCTION("Shadow Pass");
-			FJobSystem* test = FJobSystem::GetInstance();
 
 			//@todo: only shadowcasting lights.. improve
+			ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
 			const std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
 			FLightManager::GetInstance()->SetActiveLight(-1);
+
 			for (int i = 0; i < pointlights.size() + 1; i++)
 			{
-				int nrWorkerThreads = test->GetNrWorkerThreads();
+				commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
+				for (FRenderableObject* object : mySceneGraph.GetObjects())
 				{
-						FPROFILE_FUNCTION("ShadowResetAlloc");
-						for (int i = 0; i < nrWorkerThreads; i++)
-						{
-							m_workerThreadCmdAllocators[i]->Reset();
-							m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
-						}
+					object->PopulateCommandListAsyncShadows();
 				}
+
+				commandList->Close();
+				ID3D12CommandList* ppCommandLists[] = { commandList };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+				myRenderPassGputMtx.Signal(GetCommandQueue());
+				myRenderPassGputMtx.WaitFor();
 				
-				{
-
-					FPROFILE_FUNCTION("ShadowFillQueue");
-					test->Pause();
-					test->ResetQueue();
-
-					for (FRenderableObject* object : mySceneGraph.GetObjects())
-					{
-						test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsyncShadows>(object));
-					}
-
-				}
-
-				test->UnPause();
-
-				{
-					FPROFILE_FUNCTION("ShadowWait");
-					test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-				}
-				{
-					FPROFILE_FUNCTION("ShadowExec");
-					for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
-					{
-						m_workerThreadCmdLists[i]->Close();
-						ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-						GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-					}
-				}
-				// wait for cmdlist to be done before returning
-				ID3D12Fence* m_fence2;
-				HANDLE m_fenceEvent2;
-				HRESULT result;
-				int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-				{
-					FPROFILE_FUNCTION("ShadowFence Con");
-					m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-					result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2);
-				}
-				result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor);
-				m_fence2->SetEventOnCompletion(1, m_fenceEvent2);
-				WaitForSingleObject(m_fenceEvent2, INFINITE);// what value? per-thread counter or something in case you execute multiple ones
-				{
-					FPROFILE_FUNCTION("ShadowFence Del");
-					m_fence2->Release();
-					CloseHandle(m_fenceEvent2);
-				}
-
 				FLightManager::GetInstance()->SetActiveLight(i);
 			}
-
 		}
+			//*/
 
 		{
 			FPROFILE_FUNCTION("Render Pass");
-
-			FJobSystem* test = FJobSystem::GetInstance();
-			int nrWorkerThreads = test->GetNrWorkerThreads();
-			for (int i = 0; i < nrWorkerThreads; i++)
-			{
-				m_workerThreadCmdAllocators[i]->Reset();
-				m_workerThreadCmdLists[i]->Reset(m_workerThreadCmdAllocators[i], nullptr);
-			}
-
-			test->Pause();
-			test->ResetQueue();
-
-			for (FRenderableObject* object : mySceneGraph.GetObjects())
-			{
-				test->QueueJob(FDelegate2<void()>::from<FRenderableObject, &FRenderableObject::PopulateCommandListAsync>(object));
-			}
-
-			test->UnPause();
-
-			test->WaitForAllJobs(); // this no longer works if workerthreads start queueing up stuff
-
-			for (int i = 0; i < nrWorkerThreads; i++) // you can send commandlists when they are done to let the GPU run ahead a bit (send when queue is at 50%?)
-			{
-				m_workerThreadCmdLists[i]->Close();
-				ID3D12CommandList* ppCommandLists[] = { m_workerThreadCmdLists[i] };
-				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-			}
-
-			// wait for cmdlist to be done before returning
-			ID3D12Fence* m_fence3;
-			HANDLE m_fenceEvent3;
-			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
-			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
-			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
-			WaitForSingleObject(m_fenceEvent3, INFINITE);
-			m_fence3->Release();
-			CloseHandle(m_fenceEvent3);
+			DoRenderToGBuffer();
 		}
 
 		// deferred combine pass
-		myQuad->Render();
 
+		PIXBeginEvent(m_commandQueue, 0, L"DeferredCombine");
+		myQuad->Render();
+		PIXEndEvent(m_commandQueue);
+
+		//*
 		//post effects
+
+		PIXBeginEvent(m_commandQueue, 0, L"PostEffects");
 
 		// copy combined onto first scratch
 		myCurrentPostProcessBufferIdx = 1; // 0 is the one we render to, 1 is the one we bind as resource
@@ -976,54 +854,59 @@ bool FD3d12Renderer::Render()
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_gbuffer[Gbuffer_Combined], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 			m_commandList->Close();
-			ID3D12Fence* m_fence3;
-			HANDLE m_fenceEvent3;
-			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-			int fenceToWaitFor = 17; // what value? per-thread counter or something in case you execute multiple ones
+
 			ID3D12CommandList* ppCommandLists[] = { m_commandList };
 			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
-			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
-			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
-			WaitForSingleObject(m_fenceEvent3, INFINITE);
-			m_fence3->Release();
-			CloseHandle(m_fenceEvent3);
+			
+			myPostProcessGpuMtx.Signal(GetCommandQueue());
+			myPostProcessGpuMtx.WaitFor();
+			
 		}
 
-		myCurrentPostProcessBufferIdx = 0;
+		ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
+		commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
 
+		myCurrentPostProcessBufferIdx = 0;
 		// render all post effects while swapping back/forth between scratch - copy result over for next posteffect
 		for (FPostProcessEffect* postEffect : myPostEffects)
 		{
-			postEffect->Render();
+			myPostProcessGpuMtx.Signal(GetCommandQueue());
+			myPostProcessGpuMtx.WaitFor();
 
+			postEffect->RenderAsync();
+
+			commandList->Close();
+
+			ID3D12CommandList* ppCommandLists[] = { commandList }; // have to execute shader cmd list first, cause you cant copy a resource that is statically bound
+			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+			myPostProcessGpuMtx.WaitFor();
+			myPostProcessGpuMtx.Signal(GetCommandQueue());
+
+			commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);			
 			{
 				int nextScratchBuffIdx = myCurrentPostProcessBufferIdx == 0 ? 1 : 0; // nrOfScratchBuffers
-				m_commandList->Reset(m_commandAllocator, m_pipelineState);
-				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
-				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
-				m_commandList->CopyResource(myPostProcessScratchBuffers[nextScratchBuffIdx], myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
-				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-				m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-				m_commandList->Close();
-				ID3D12Fence* m_fence3;
-				HANDLE m_fenceEvent3;
-				m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-				int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
-				ID3D12CommandList* ppCommandLists[] = { m_commandList };
-				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-
-				HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
-				result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
-				m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
-				WaitForSingleObject(m_fenceEvent3, INFINITE);
-				m_fence3->Release();
-				CloseHandle(m_fenceEvent3);
-
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+				commandList->CopyResource(myPostProcessScratchBuffers[nextScratchBuffIdx], myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+				
 				myCurrentPostProcessBufferIdx = nextScratchBuffIdx;
+
+				commandList->Close();
+
+				ID3D12CommandList* ppCommandLists[] = { commandList };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+				
+				commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
 			}
+			
 		}
+		commandList->Close();
+
+		myPostProcessGpuMtx.Signal(GetCommandQueue());
+		myPostProcessGpuMtx.WaitFor();
 
 		{
 			m_commandList->Reset(m_commandAllocator, m_pipelineState);
@@ -1033,31 +916,47 @@ bool FD3d12Renderer::Render()
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 			m_commandList->Close();
-			ID3D12Fence* m_fence3;
-			HANDLE m_fenceEvent3;
-			m_fenceEvent3 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-			int fenceToWaitFor = 1; // what value? per-thread counter or something in case you execute multiple ones
 			ID3D12CommandList* ppCommandLists[] = { m_commandList };
-			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for event here I think before combine pass
-
-			HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence3);
-			result = GetCommandQueue()->Signal(m_fence3, fenceToWaitFor);
-			m_fence3->SetEventOnCompletion(1, m_fenceEvent3);
-			WaitForSingleObject(m_fenceEvent3, INFINITE);
-			m_fence3->Release();
-			CloseHandle(m_fenceEvent3);
+			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists); // you have to wait for e
 		}
+		
+		PIXEndEvent(m_commandQueue);
+
+		myPostProcessGpuMtx.Signal(GetCommandQueue());
+		myPostProcessGpuMtx.WaitFor();
 
 		// debug draws
+		PIXBeginEvent(m_commandQueue, 0, L"DebugDrawer");
 		myDebugDrawer->Render();
+		myTestMutex.Signal(GetCommandQueue());
+		PIXEndEvent(m_commandQueue);
+		//*/
+
+		//*
+		PIXBeginEvent(m_commandQueue, 0, L"TransparantOr2D");
+
+		{
+			{
+				ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
+				commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
+				PIXBeginEvent(m_commandQueue, 0, L"TransparantOr2D");
+				for (FRenderableObject* object : mySceneGraph.GetTransparantObjects())
+				{
+					object->PopulateCommandListAsync();
+				}
+			
+				commandList->Close();
+				ID3D12CommandList* ppCommandLists[] = { commandList };
+				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+				myTestMutex.Signal(GetCommandQueue());
+				PIXEndEvent(m_commandQueue);
+			}
+		}
+		PIXEndEvent(m_commandQueue);
 	}
 
-	for (FRenderableObject* object : mySceneGraph.GetTransparantObjects())
-	{
-		object->Render();
-	}
-
-		
+	HRESULT result;
 	// Finally present the back buffer to the screen since rendering is complete.
 	if (m_vsync_enabled)
 	{
@@ -1077,25 +976,10 @@ bool FD3d12Renderer::Render()
 			return false;
 		}
 	}
-	// Signal and increment the fence value.
-	fenceToWaitFor = m_fenceValue;
-	result = m_commandQueue->Signal(m_fence, fenceToWaitFor);
-	if (FAILED(result))
-	{
-		return false;
-	}
-	m_fenceValue++;
 
-	// Wait until the GPU is done rendering.
-	if (m_fence->GetCompletedValue() < fenceToWaitFor)
-	{
-		result = m_fence->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent);
-		if (FAILED(result))
-		{
-			return false;
-		}
-		WaitForSingleObject(m_fenceEvent, INFINITE);
-	}
+	// wait for cmdlists to be done
+	myTestMutex.Signal(GetCommandQueue());
+	myTestMutex.WaitFor();
 
 	// Alternate the back buffer index back and forth between 0 and 1 each frame.
 	m_bufferIndex = m_bufferIndex == 0 ? 1 : 0;
@@ -1202,4 +1086,234 @@ void FD3d12Renderer::Shutdown()
 	}
 
 	return;
+}
+
+void FD3d12Renderer::DoClearBuffers()
+{
+	HRESULT result;
+	D3D12_RESOURCE_BARRIER barrier;
+	unsigned int renderTargetViewDescriptorSize;
+	float color[4];
+	ID3D12CommandList* ppCommandLists[1];
+
+
+	// Wait for highlightPost before resetting commandAlloc 
+	myPostProcessGpuMtx.WaitFor();
+
+
+	// reset fences
+	m_fenceValue = 0; 
+	myPostProcessGpuMtx.Reset();
+	myTestMutex.Reset();
+	myRenderPassGputMtx.Reset();
+
+	m_workerThreadCmdAllocators[0]->Reset();
+
+
+	// Reset (re-use) the memory associated command allocator.
+	result = m_commandAllocator->Reset();
+	if (FAILED(result))
+	{
+		return;
+	}
+
+	// Reset the command list, use empty pipeline state for now since there are no shaders and we are just clearing the screen.
+	result = m_commandList->Reset(m_commandAllocator, m_pipelineState);
+	if (FAILED(result))
+	{
+		return;
+	}
+
+	// Record commands in the command list now.
+	// Start by setting the resource barrier.
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_backBufferRenderTarget[m_bufferIndex];
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	m_commandList->ResourceBarrier(1, &barrier);
+
+	// Get the render target view handle for the current back buffer.
+	myRenderTargetViewHandle = m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
+	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	if (m_bufferIndex == 1)
+	{
+		myRenderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
+	}
+
+	PIXBeginEvent(m_commandQueue, 0, L"ClearBuffers");
+
+	// Set the back buffer as the render target.
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	m_commandList->OMSetRenderTargets(1, &myRenderTargetViewHandle, FALSE, &dsvHandle);
+
+	// Then set the color to clear the window to.
+	color[0] = 0.0;
+	color[1] = 0.0;
+	color[2] = 0.0;
+	color[3] = 1.0;
+	m_commandList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
+
+	for (int i = 0; i < Gbuffer_count; i++)
+	{
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		m_commandList->ClearRenderTargetView(m_gbufferViews[i], color, 0, NULL);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+	for (int i = 0; i < 10; i++)
+	{
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		m_commandList->ClearDepthStencilView(myShadowMapViewHandle[i], D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[i], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
+	// Indicate that the back buffer will now be used to present.
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	m_commandList->ResourceBarrier(1, &barrier);
+
+	// Close the list of commands.
+	result = m_commandList->Close();
+	if (FAILED(result))
+	{
+		return;
+	}
+
+	// Load the command list array (only one command list for now).
+	ppCommandLists[0] = m_commandList;
+
+	// Execute the list of commands.
+	m_commandQueue->ExecuteCommandLists(1, ppCommandLists);
+	
+	myPostProcessGpuMtx.Signal(GetCommandQueue());
+
+	PIXEndEvent(m_commandQueue);
+}
+
+void FD3d12Renderer::DoRenderToGBuffer()
+{
+	PIXBeginEvent(m_commandQueue, 0, L"RenderPass");
+
+	ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
+	commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
+
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
+	{
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
+
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	commandList->RSSetViewports(1, &GetViewPort());
+	commandList->RSSetScissorRects(1, &GetScissorRect());
+	ID3D12DescriptorHeap* ppHeaps[] = { GetSRVHeap() };
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	for (FRenderableObject* object : mySceneGraph.GetObjects())
+	{
+		object->PopulateCommandListAsync();
+	}
+
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
+	{
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
+	commandList->Close();
+	ID3D12CommandList* ppCommandLists[] = { commandList };
+	GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	myPostProcessGpuMtx.Signal(GetCommandQueue());
+	myPostProcessGpuMtx.WaitFor();
+
+	PIXEndEvent(m_commandQueue);
+}
+
+void FD3d12Renderer::SetRenderPassDependency(ID3D12CommandQueue * aQueue)
+{
+	myRenderPassGputMtx.Signal(aQueue);
+}
+
+void FD3d12Renderer::SetPostProcessDependency(ID3D12CommandQueue * aQueue)
+{
+	myPostProcessGpuMtx.Signal(aQueue);
+}
+
+FD3d12Renderer::GPUMutex::GPUMutex()
+{
+	myFence = nullptr;
+	myFenceEvent = nullptr;
+	myCmdQueue = nullptr;
+}
+
+void FD3d12Renderer::GPUMutex::Reset()
+{
+	myFenceValue = 0;
+	myCmdQueue = nullptr;
+}
+
+FD3d12Renderer::GPUMutex::~GPUMutex()
+{
+	if(myFence)
+		myFence->Release();
+
+	if (myFenceEvent)
+		CloseHandle(myFenceEvent);
+}
+
+void FD3d12Renderer::GPUMutex::Init(ID3D12Device * aDevice, const char* aDebugName)
+{
+	HRESULT result = aDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&myFence);
+	myFenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+																	 // you bind a value to the event
+	// Signal sets a value to the fence, which triggers the event that is bound to that value
+	// the WaitFor waits until the fenceEvent happens (which is a value + fence binding)
+	// so for now we can use 1 since all fence objects are unique, replace with 1 fence + n fenceEvents with unique values
+
+	// Fence value can be reset at the start of the frame, but events trigger when fenceValue on cmdlist > required fence, so use 1 counter per cmdqueue
+	// in my case the frame fencevalue and mutex values were basically accelerating each other
+	myDebugName = aDebugName;
+}
+#pragma optimize("", off)
+
+void FD3d12Renderer::GPUMutex::Signal(ID3D12CommandQueue * aCmdQueue)
+{
+	if(myCmdQueue)
+		WaitFor();
+
+	PIXBeginEvent(aCmdQueue, 0, myDebugName);
+	myCmdQueue = aCmdQueue;
+	myFenceValue = InterlockedIncrement(&FD3d12Renderer::GetInstance()->m_fenceValue);
+	HRESULT result = aCmdQueue->Signal(myFence, myFenceValue);
+	PIXEndEvent(aCmdQueue);
+}
+
+void FD3d12Renderer::GPUMutex::WaitFor()
+{
+	if (!myCmdQueue)
+		return;
+
+	PIXBeginEvent(myCmdQueue, 0, myDebugName);
+	UINT64 completedVal = myFence->GetCompletedValue();
+	UINT64 completedValAfter;
+	if (completedVal < myFenceValue)
+	{
+		HRESULT result = myFence->SetEventOnCompletion(myFenceValue, myFenceEvent);
+		if (FAILED(result))
+		{
+			return;
+		}
+		WaitForSingleObject(myFenceEvent, INFINITE);
+		completedValAfter = myFence->GetCompletedValue();
+	}
+
+	PIXEndEvent(myCmdQueue);
 }

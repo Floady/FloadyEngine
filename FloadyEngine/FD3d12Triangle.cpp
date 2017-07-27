@@ -1,7 +1,8 @@
 #include "FD3d12Triangle.h"
 #include "d3dx12.h"
 #include "D3dCompiler.h"
-
+#include "FD3d12Renderer.h"
+#include "FGame.h"
 #include <vector>
 
 using namespace DirectX;
@@ -272,6 +273,16 @@ void FD3d12Triangle::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* a
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
+		// wait for cmdlist to be done before returning
+		ID3D12Fence* m_fence;
+		HANDLE m_fenceEvent;
+		m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+		int fenceToWaitFor = 1; // what value?
+		HRESULT result = FGame::GetInstance()->GetRenderer()->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+		result = FGame::GetInstance()->GetRenderer()->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+		m_fence->SetEventOnCompletion(1, m_fenceEvent);
+		WaitForSingleObject(m_fenceEvent, INFINITE);
+		m_fence->Release();
 		// Sleep(1000);
 	}
 
@@ -322,4 +333,15 @@ void FD3d12Triangle::Render(ID3D12Resource* aRenderTarget, ID3D12CommandAllocato
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	aCmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = FGame::GetInstance()->GetRenderer()->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = FGame::GetInstance()->GetRenderer()->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 }

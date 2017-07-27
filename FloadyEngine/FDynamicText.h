@@ -46,6 +46,7 @@ private:
 	
 	char myText[128];
 	FD3d12Renderer* myManagerClass;
+	std::vector<FPrimitiveGeometry::Vertex> myTriangleVertices;
 
 	int myHeapOffsetCBV;
 	int myHeapOffsetText;

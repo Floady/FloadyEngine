@@ -78,6 +78,7 @@ void FGameEntity::Init(const FJsonObject & anObj)
 
 void FGameEntity::Update(double aDeltaTime)
 {
+	myGraphicsObject->RecalcModelMatrix();
 }
 
 void FGameEntity::PostPhysicsUpdate()
@@ -98,7 +99,6 @@ void FGameEntity::PostPhysicsUpdate()
 	m[13] = 0;
 	m[14] = 0;
 
-	XMFLOAT4X4 matrix(m);
 	myGraphicsObject->SetRotMatrix(m);
 	myPos = FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ());
 	myGraphicsObject->SetPos(FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ()));

@@ -53,35 +53,35 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			memcpy(&FPrimitiveGeometry::Box::GetIndices()[0], &indices, sizeof(int) * _countof(indices));
 
 			std::vector<Vertex>& vertices = FPrimitiveGeometry::Box::GetVertices();
-			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, 0, -1, 0.0f, 1.0f));
-			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, 0, -1, 0.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, 0, -1, 1.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, 0, -1, 1.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, -0.5f, -0.5f, 0, 0, -1, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, -0.5f, 0, 0, -1, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, -0.5f, 0, 0, -1, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, -0.5f, -0.5f, 0, 0, -1, 1.0f, 1.0f));
 
-			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, 0, +1, 1.0f, 1.0f));
-			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, 0, +1, 0.0f, 1.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, 0, +1, 0.0f, 0.0f));
-			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, 0, +1, 1.0f, 0.0f));
+			vertices.push_back(Vertex(-0.5f, -0.5f, +0.5f, 0, 0, +1, 1.0f, 1.0f));
+			vertices.push_back(Vertex(+0.5f, -0.5f, +0.5f, 0, 0, +1, 0.0f, 1.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, +0.5f, 0, 0, +1, 0.0f, 0.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, +0.5f, 0, 0, +1, 1.0f, 0.0f));
 
-			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, 0, +1, 0, 0.0f, 1.0f));
-			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, 0, +1, 0, 0.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, 0, +1, 0, 1.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, 0, +1, 0, 1.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, -0.5f, 0, +1, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, +0.5f, 0, +1, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, +0.5f, 0, +1, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, -0.5f, 0, +1, 0, 1.0f, 1.0f));
 
-			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, 0, -1, 0, 1.0f, 1.0));
-			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, 0, -1, 0, 0.0f, 1.0));
-			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, 0, -1, 0, 0.0f, 0.0));
-			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, 0, -1, 0, 1.0f, 0.0));
+			vertices.push_back(Vertex(-0.5f, -0.5f, -0.5f, 0, -1, 0, 1.0f, 1.0));
+			vertices.push_back(Vertex(+0.5f, -0.5f, -0.5f, 0, -1, 0, 0.0f, 1.0));
+			vertices.push_back(Vertex(+0.5f, -0.5f, +0.5f, 0, -1, 0, 0.0f, 0.0));
+			vertices.push_back(Vertex(-0.5f, -0.5f, +0.5f, 0, -1, 0, 1.0f, 0.0));
 
-			vertices.push_back(Vertex(-1.0f, -1.0f, +1.0f, -1, 0, 0, 0.0f, 1.0f));
-			vertices.push_back(Vertex(-1.0f, +1.0f, +1.0f, -1, 0, 0, 0.0f, 0.0f));
-			vertices.push_back(Vertex(-1.0f, +1.0f, -1.0f, -1, 0, 0, 1.0f, 0.0f));
-			vertices.push_back(Vertex(-1.0f, -1.0f, -1.0f, -1, 0, 0, 1.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, -0.5f, +0.5f, -1, 0, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, +0.5f, -1, 0, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(-0.5f, +0.5f, -0.5f, -1, 0, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(-0.5f, -0.5f, -0.5f, -1, 0, 0, 1.0f, 1.0f));
 
-			vertices.push_back(Vertex(+1.0f, -1.0f, -1.0f, +1, 0, 0, 0.0f, 1.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, -1.0f, +1, 0, 0, 0.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, +1.0f, +1.0f, +1, 0, 0, 1.0f, 0.0f));
-			vertices.push_back(Vertex(+1.0f, -1.0f, +1.0f, +1, 0, 0, 1.0f, 1.0f));
+			vertices.push_back(Vertex(+0.5f, -0.5f, -0.5f, +1, 0, 0, 0.0f, 1.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, -0.5f, +1, 0, 0, 0.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, +0.5f, +0.5f, +1, 0, 0, 1.0f, 0.0f));
+			vertices.push_back(Vertex(+0.5f, -0.5f, +0.5f, +1, 0, 0, 1.0f, 1.0f));
 
 			HRESULT hr = aDevice->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -125,7 +125,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			std::vector<Vertex>& ret = FPrimitiveGeometry::Box2::GetVertices();
 			std::vector<int>& indices = FPrimitiveGeometry::Box2::GetIndices();
 			{
-				float radius = 1.0f;
+				float radius = 0.5f;
 				int sliceCount = 10;
 				int stackCount = 10;
 

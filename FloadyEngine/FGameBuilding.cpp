@@ -4,9 +4,11 @@
 #include "FGameEntity.h"
 #include "FGameAgent.h"
 #include "FGame.h"
+#include "FPlacingManager.h"
 
+REGISTER_GAMEENTITY2(FGameBuilding);
 
-FGameBuilding::FGameBuilding(const char* aSetup) : FGameEntity()
+FGameBuildingBlueprint::FGameBuildingBlueprint(const char* aSetup) : FGameEntity()
 {
 	myEntity = nullptr;
 
@@ -27,33 +29,79 @@ FGameBuilding::FGameBuilding(const char* aSetup) : FGameEntity()
 
 	while (menuItemObj)
 	{
-		MenuItem menuItem;
-		menuItem.myBuildTime = menuItemObj->GetItem("buildTime").GetAs<double>();
 		const FJsonObject* agentNode = menuItemObj->GetChildByName("agent");
-		menuItem.mySetup = agentNode->GetFirstChild();
-		menuItem.myClassName = agentNode->GetName();
-		menuItem.myIcon = menuItemObj->GetItem("icon").GetAs<string>();
+		CreateAgentMenuItem* menuItem = new CreateAgentMenuItem(agentNode->GetName(), menuItemObj->GetItem("icon").GetAs<string>());
+		menuItem->myBuildTime = menuItemObj->GetItem("buildTime").GetAs<double>();
+		menuItem->mySetup = agentNode->GetFirstChild();
 		myMenuItems.push_back(menuItem);
 
 		menuItemObj = child->GetNextChild();
 	}
 
 	myRallyPointPos = FVector3(5.0, 0, 0);
+
+	SetRallyPointMenuItem* item = new SetRallyPointMenuItem("RallyPos");
+	myMenuItems.push_back(item);
 }
 
+
+FGameBuildingBlueprint::~FGameBuildingBlueprint()
+{
+}
+
+void FGameBuildingBlueprint::ExecuteMenuItem(int aIdx) const
+{
+	char buff[100];
+	sprintf(buff, "Menu item: %i \n", aIdx);
+	OutputDebugStringA(buff);
+	myMenuItems[aIdx]->Execute();
+}
+
+FGameEntity * FGameBuildingBlueprint::CreateBuilding()
+{
+	return new FGameBuilding(this);
+}
+
+FGameBuilding::FGameBuilding(FGameBuildingBlueprint* aBluePrint)
+	: FGameEntity()
+	, myBluePrint(aBluePrint)
+{
+	FGameEntity::Init(aBluePrint->GetPos(), FVector3(1, 1, 1), FGameEntity::ModelType::Box);
+	myRallyPointPos = aBluePrint->GetRallyPointPos();
+}
 
 FGameBuilding::~FGameBuilding()
 {
 }
 
-void FGameBuilding::ExecuteMenuItem(int aIdx) const
+void FGameBuilding::Init(const FJsonObject & anObj)
 {
-	char buff[100];
-	sprintf(buff, "Menu item: %i \n", aIdx);
-	OutputDebugStringA(buff);
-	
+	FGameEntity::Init(anObj);
+}
+
+void FGameBuilding::Update(double aDeltaTime)
+{
+	FGameEntity::Update(aDeltaTime);
+}
+
+void FGameBuildingBlueprint::CreateAgentMenuItem::Execute()
+{
+	const FGameBuilding* selectedEntity = dynamic_cast<const FGameBuilding*>(FGame::GetInstance()->GetSelectedEntity());
+	if (!selectedEntity)
+		return;
+
 	FGameAgent* newAgent = new FGameAgent();
-	newAgent->Init(*myMenuItems[aIdx].mySetup);
-	newAgent->SetPos(myEntity->GetPos() + myRallyPointPos);
+	newAgent->Init(*mySetup);
+	newAgent->SetPos(selectedEntity->GetPos() + selectedEntity->GetRallyPointPos());
 	FGame::GetInstance()->AddEntity(newAgent);
+}
+
+void FGameBuildingBlueprint::SetRallyPointMenuItem::Execute()
+{
+	FGameBuilding* selectedEntity = dynamic_cast<FGameBuilding*>(FGame::GetInstance()->GetSelectedEntity());
+	if (!selectedEntity)
+		return;
+
+	FGame::GetInstance()->GetPlacingManager()->ClearPlacable();
+	FGame::GetInstance()->GetPlacingManager()->SetPlacable(true, FVector3(1, 1, 1), FDelegate2<void(FVector3)>::from<FGameBuilding, &FGameBuilding::SetRallyPointPosWorld>(selectedEntity));
 }

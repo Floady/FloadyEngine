@@ -10,7 +10,12 @@ void FSceneGraph::InitNewObjects()
 {
 	for (FRenderableObject* object : myInitObjects)
 	{
-		object->Init();
+		static int once = 1;
+	//	if (once > 0)
+		{
+			object->Init();
+			once--;
+		}
 	}
 
 	myInitObjects.clear();

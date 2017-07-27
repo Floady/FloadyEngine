@@ -12,8 +12,11 @@ void FGameUIPanelBuildings::Update()
 	float currentX = startX;
 
 	// show building actions on right side
-	const FGameEntity* selectedEntity = FGame::GetInstance()->GetSelectedEntity();
-	const FGameBuilding* selectedBuilding = dynamic_cast<const FGameBuilding*>(selectedEntity);
+	const FGameBuilding* selectedEntity = dynamic_cast<const FGameBuilding*>(FGame::GetInstance()->GetSelectedEntity());
+	if (!selectedEntity)
+		return;
+
+	const FGameBuildingBlueprint* selectedBuilding = selectedEntity->GetBluePrint();
 	if (selectedBuilding && selectedBuilding != myCurrentlySelectedBuilding) // check for building
 	{
 		DestroyAllItems();
@@ -22,10 +25,10 @@ void FGameUIPanelBuildings::Update()
 		currentX = startX;
 		width = 0.1f;
 		int idx = 0;
-		for (const FGameBuilding::MenuItem& item : selectedBuilding->GetMenuItems())
+		for (FMenuItemBase* item : selectedBuilding->GetMenuItems())
 		{
-			FGUIButton* button = new FGUIButton(FVector3(currentX, 0.85f, 0.0), FVector3(currentX + width, 0.95f, 0.0), "buttonBlanco.png", FDelegate2<void(int)>::from<FGameBuilding, &FGameBuilding::ExecuteMenuItem>(selectedBuilding), idx);
-			button->SetDynamicText(item.myIcon.c_str());
+			FGUIButton* button = new FGUIButton(FVector3(currentX, 0.85f, 0.0), FVector3(currentX + width, 0.95f, 0.0), "buttonBlanco.png", FDelegate2<void(int)>::from<FGameBuildingBlueprint, &FGameBuildingBlueprint::ExecuteMenuItem>(selectedBuilding), idx);
+			button->SetDynamicText(item->GetIcon().c_str());
 			AddObject(button);
 			currentX += width;
 			idx++;

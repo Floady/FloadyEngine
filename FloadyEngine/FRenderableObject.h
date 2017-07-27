@@ -14,6 +14,7 @@ public:
 
 	virtual void SetTexture(const char* aFilename) = 0;
 	virtual void SetShader(const char* aFilename) = 0;
+	virtual void RecalcModelMatrix() {}
 
 	// todo: this needs some base implementation (pull modelmatrix here, any renderable has a matrix to set and to render with)
 	virtual void SetPos(FVector3 aPos) { myPos = aPos; }

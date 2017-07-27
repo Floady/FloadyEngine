@@ -1,6 +1,9 @@
 #include "FPathfindComponent.h"
 #include "FNavMeshManager.h"
 #include "FGameEntity.h"
+#include "FNavMeshManagerRecast.h"
+#include "FD3d12Renderer.h"
+#include "FDebugDrawer.h"
 
 FPathfindComponent::FPathfindComponent(FGameEntity* aGameEntity)
 {
@@ -12,6 +15,8 @@ FPathfindComponent::FPathfindComponent(FGameEntity* aGameEntity)
 void FPathfindComponent::FindPath(FVector3 aStart, FVector3 anEnd)
 {
 	myPath = FNavMeshManager::GetInstance()->FindPath(aStart, anEnd);
+
+	myPath = FNavMeshManagerRecast::GetInstance()->FindPath(aStart, anEnd);
 	myPathLength = 0.0f;
 	myCurPosOnPath = 0.0f;
 	myCurTargetIdx = -1;
@@ -37,10 +42,19 @@ void FPathfindComponent::Update(double aDeltaTime)
 
 	if(myCurTargetIdx >= 0 && myCurTargetIdx < myPath.size())
 	{
-		if ((myGameEntity->GetPos() - myPath[myCurTargetIdx]).Length() < 0.5f)
+		if ((myGameEntity->GetPos() - myPath[myCurTargetIdx]).Length() < 1.0f)
 		{
 			myCurTargetIdx++;
 		}
+	}
+
+	// Debug draw path
+	for (int i = 1; i < myPath.size(); i++)
+	{
+		float shade = 0.5f + (i * (0.5f / myPath.size()));
+		FVector3 from = myPath[i - 1];
+		FVector3 to = myPath[i];
+		FD3d12Renderer::GetInstance()->GetDebugDrawer()->drawLine(from, to, FVector3(shade, shade, shade));
 	}
 }
 

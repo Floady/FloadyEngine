@@ -21,7 +21,7 @@ FCamera::FCamera(float aWidth, float aHeight)
 	// near + far set here
 	// Flipping near and far makes depth precision way better but the object dissapears sooner o.0 - also still has artifacts anyway
 	//myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 1.0f, 100.0f);
-	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 60.0f, 0.01f);
+	myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 400.0f, 0.01f);
 	XMStoreFloat4x4(&myProjMatrixFloatVersion, myProjMatrix);
 	UpdateViewProj();
 }

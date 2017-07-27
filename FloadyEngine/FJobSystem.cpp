@@ -10,7 +10,7 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 
 	FJobSystem* jobSystem = (FJobSystem*)aJobSystem;
 
-	FJobSystem::ourThreadIdx = ourWorkerThreadCounter++;
+	FJobSystem::ourThreadIdx = ++ourWorkerThreadCounter;
 
 	// poll for jobs and execute
 	while (true)
@@ -33,6 +33,10 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 			{
 				Sleep(0);
 			}
+		}
+		else
+		{
+			Sleep(2);
 		}
 	}
 

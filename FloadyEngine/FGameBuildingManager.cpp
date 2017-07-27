@@ -54,7 +54,7 @@ FGameBuildingManager::FGameBuildingManager()
 			printf("%ws\n", data.cFileName);
 			std::wstring mywstring(data.cFileName);
 			std::wstring concatted_stdstr = L"configs//buildings//" + mywstring;
-			myBuildingTemplates[ConvertFromUtf16ToUtf8(data.cFileName)] = new FGameBuilding(std::string(ConvertFromUtf16ToUtf8(concatted_stdstr.c_str())).c_str());
+			myBuildingTemplates[ConvertFromUtf16ToUtf8(data.cFileName)] = new FGameBuildingBlueprint(std::string(ConvertFromUtf16ToUtf8(concatted_stdstr.c_str())).c_str());
 		}
 		while (FindNextFileW(hFind, &data));
 

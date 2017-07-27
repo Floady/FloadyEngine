@@ -2,6 +2,8 @@
 #include "FGame.h"
 #include "FDynamicText.h"
 #include "windows.h"
+#define USE_PIX
+#include <pix3.h>
 
 FProfiler* FProfiler::ourInstance = nullptr;
 unsigned int FProfiler::ourHistoryBufferCount = 120;
@@ -98,4 +100,17 @@ void FProfiler::Render()
 
 		labelIdx++;
 	}
+}
+
+void scopedMarker::Start()
+{
+	PIXBeginEvent(FD3d12Renderer::GetInstance()->GetCommandQueue(), 0, myName);
+	myTimer.Restart();
+}
+
+scopedMarker::~scopedMarker()
+{
+	double time = myTimer.GetTimeMS();
+	FProfiler::GetInstance()->AddTiming(myName, time);
+	PIXEndEvent(FD3d12Renderer::GetInstance()->GetCommandQueue());
 }

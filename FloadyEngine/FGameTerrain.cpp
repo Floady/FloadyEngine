@@ -6,6 +6,8 @@
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
 #include "FGame.h"
+#include "FNavMeshManagerRecast.h"
+#include "FDebugDrawer.h"
 
 using namespace DirectX;
 
@@ -29,38 +31,62 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	UINT8* pVertexDataBegin;
 	UINT8* pIndexDataBegin;
 
-	std::vector<FPrimitiveGeometry::Vertex> vertices;
+	vertices.clear();
 	const float stepX = 1.0f / myTerrainSizeX;
 	const float stepZ = 1.0f / myTerrainSizeZ;
 	const int uvScale = 1;
 	float gradientY = 0.1f;
-	for (size_t j = 0; j < myTerrainSizeZ; j++)
+	vertices.reserve(myTerrainSizeX * myTerrainSizeZ);
+
+	for (size_t i = 0; i < myTerrainSizeX; i++)
 	{
-		for (size_t i = 0; i < myTerrainSizeX; i++)
+		for (size_t j = 0; j < myTerrainSizeZ; j++)
 		{
 			vertices.push_back(FPrimitiveGeometry::Vertex(i * myTileSize, 0.0f, j * myTileSize, 0, 1, 0, i * stepX, j * stepZ));
 		}
 	}
-
-	std::vector<int> indices;
-	for (size_t i = 0; i < myTerrainSizeZ - 1; i++)
+	
+	indices.clear();
+	indices.reserve(myTerrainSizeX * myTerrainSizeZ * 6);
+	for (size_t j = 0; j < myTerrainSizeX - 1; j++)
 	{
-		for (size_t j = 0; j < myTerrainSizeX - 1; j++)
+			for (size_t i = 0; i < myTerrainSizeZ - 1; i++)
 		{
 			indices.push_back(j + (i*myTerrainSizeZ));
-			indices.push_back(j + ((i+1)*(myTerrainSizeZ)) + 1);
 			indices.push_back(j + 1 + (i*myTerrainSizeZ));
+			indices.push_back(j + ((i+1)*(myTerrainSizeZ)) + 1);
 
 			indices.push_back(j + (i*myTerrainSizeZ));
-			indices.push_back(j + (i*myTerrainSizeZ) + ((1)*myTerrainSizeZ));
 			indices.push_back(j + (i*myTerrainSizeZ) + ((1)*myTerrainSizeZ) + 1);
+			indices.push_back(j + (i*myTerrainSizeZ) + ((1)*myTerrainSizeZ));
 		}
 	}
 
 	// test extruding some faces
-	ExtrudeFace(3, FVector3(0, 10, 0), vertices, indices);
-	ExtrudeFace(25, FVector3(0, 5, 0), vertices, indices);
+	//*
+	const int randSeed = 20;
+	srand(randSeed);
+	std::vector<int> extrudeFaces;
+	std::vector<float> extrudeFaceHeights;
+	const int baseHeight = 1;
+	const int maxHeight = 20;
+	const int percentageOfExtrudes = 10;
+	for (size_t i = 1; i < myTerrainSizeX-1; i++)
+		for (size_t j = 1; j < myTerrainSizeZ-1; j++)
+		{
+			int idx = i + j * myTerrainSizeX;
+			if (rand() % 100 < percentageOfExtrudes)
+			{
+				extrudeFaces.push_back(idx);
+				extrudeFaceHeights.push_back(baseHeight + (rand() % (maxHeight - baseHeight)));
+			}
+		}
 
+	for (size_t i = 0; i < extrudeFaces.size(); i++)
+	{
+		ExtrudeFace(extrudeFaces[i], FVector3(0, extrudeFaceHeights[i], 0), vertices, indices);
+	}
+	//*/
 
 	HRESULT hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -128,11 +154,35 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	btRigidBody::btRigidBodyConstructionInfo rigidBodyConstructionInfo(0.0f, motionState, myColShape, btVector3(0, 0, 0));
 	btRigidBody* rigidBodyTerrain = new btRigidBody(rigidBodyConstructionInfo);
 	FGame::GetInstance()->GetPhysics()->AddTerrain(rigidBodyTerrain, myColShape, this);
+
+
+	// Recast
+	
+	FNavMeshManagerRecast::FInputMesh mesh;
+	for (FPrimitiveGeometry::Vertex& vtx : vertices)
+	{
+		mesh.myVertices.push_back(vtx.position.x);
+		mesh.myVertices.push_back(vtx.position.y);
+		mesh.myVertices.push_back(vtx.position.z);
+	}
+
+	for (int idx : indices)
+	{
+		mesh.myTriangles.push_back(idx);
+	}
+
+	FNavMeshManagerRecast::GetInstance()->SetInputMesh(mesh);
+	FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 }
 
 
 FGameTerrain::~FGameTerrain()
 {
+}
+
+void FGameTerrain::Update(double aDeltaTime)
+{
+	FGameEntity::Update(aDeltaTime);
 }
 
 void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<FPrimitiveGeometry::Vertex>& aVertices, std::vector<int>& anIndices)
@@ -162,18 +212,19 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 	aVertices.push_back(br);
 	aVertices.push_back(bl);
 	anIndices.push_back(lastIdx);
-	anIndices.push_back(lastIdx + 2);
 	anIndices.push_back(lastIdx + 1);
-	anIndices.push_back(lastIdx);
-	anIndices.push_back(lastIdx + 3);
 	anIndices.push_back(lastIdx + 2);
+	anIndices.push_back(lastIdx);
+	anIndices.push_back(lastIdx + 2);
+	anIndices.push_back(lastIdx + 3);
 	lastIdx = aVertices.size();
 
 	{
 		// add left face (imagine from top view)
 		FPrimitiveGeometry::Vertex newtl = aVertices[idx];
 		FPrimitiveGeometry::Vertex newbl = aVertices[idx + myTerrainSizeX];
-		FVector3 faceNormal = FVector3(-1, 0, 0);
+		FVector3 faceNormal = FVector3(0, 0, -1);
+
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
 		newtl.normal.x = faceNormal.x; newtl.normal.y = faceNormal.y; newtl.normal.z = faceNormal.z;
@@ -187,25 +238,26 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		aVertices.push_back(newbl);
 		aVertices.push_back(newtl);
 		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 1);
-		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 3);
 		anIndices.push_back(lastIdx + 2);
+		anIndices.push_back(lastIdx);
+		anIndices.push_back(lastIdx + 2);
+		anIndices.push_back(lastIdx + 3);
 		lastIdx = aVertices.size();
 
+		//*
 		// add right face (imagine from top view)
 		newtl = aVertices[idx];
 		newbl = aVertices[idx + myTerrainSizeX];
-		faceNormal = FVector3(1, 0, 0);
+		faceNormal = FVector3(0, 0, 1);
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
 		newtl.normal.x = faceNormal.x; newtl.normal.y = faceNormal.y; newtl.normal.z = faceNormal.z;
 		newbl.normal.x = faceNormal.x; newbl.normal.y = faceNormal.y; newbl.normal.z = faceNormal.z;
-		tl.position.x += myTileSize;
-		newtl.position.x += myTileSize;
-		bl.position.x += myTileSize;
-		newbl.position.x += myTileSize;
+		tl.position.z += myTileSize;
+		newtl.position.z += myTileSize;
+		bl.position.z += myTileSize;
+		newbl.position.z+= myTileSize;
 		tl.uv.x = 0; tl.uv.y = 0;
 		bl.uv.x = 0; bl.uv.y = 1;
 		newtl.uv.x = 1; newtl.uv.y = 0;
@@ -215,12 +267,13 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		aVertices.push_back(newbl);
 		aVertices.push_back(newtl);
 		anIndices.push_back(lastIdx);
+		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 1);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 3);
+		anIndices.push_back(lastIdx + 2);
 		lastIdx = aVertices.size();
+		//*/
 	}
 
 	{
@@ -236,7 +289,8 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		// add top face (imagine from top view)
 		FPrimitiveGeometry::Vertex newtl = aVertices[idx + myTerrainSizeX];
 		FPrimitiveGeometry::Vertex newbl = aVertices[idx + myTerrainSizeX + 1];
-		FVector3 faceNormal = FVector3(0, 0, -1);
+		FVector3 faceNormal = FVector3(-1, 0, 0);
+
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
 		newtl.normal.x = faceNormal.x; newtl.normal.y = faceNormal.y; newtl.normal.z = faceNormal.z;
@@ -250,25 +304,26 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		aVertices.push_back(newbl);
 		aVertices.push_back(newtl);
 		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 1);
-		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 3);
 		anIndices.push_back(lastIdx + 2);
+		anIndices.push_back(lastIdx);
+		anIndices.push_back(lastIdx + 2);
+		anIndices.push_back(lastIdx + 3);
 		lastIdx = aVertices.size();
 
+		//*
 		// add bot face (imagine from top view)
 		newtl = aVertices[idx + myTerrainSizeX];
 		newbl = aVertices[idx + myTerrainSizeX + 1];
-		faceNormal = FVector3(0, 0, 1);
+		faceNormal = FVector3(1, 0, 0);
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
 		newtl.normal.x = faceNormal.x; newtl.normal.y = faceNormal.y; newtl.normal.z = faceNormal.z;
 		newbl.normal.x = faceNormal.x; newbl.normal.y = faceNormal.y; newbl.normal.z = faceNormal.z;
-		tl.position.z -= myTileSize;
-		newtl.position.z -= myTileSize;
-		bl.position.z -= myTileSize;
-		newbl.position.z -= myTileSize;
+		tl.position.x -= myTileSize;
+		newtl.position.x -= myTileSize;
+		bl.position.x -= myTileSize;
+		newbl.position.x -= myTileSize;
 		tl.uv.x = 0; tl.uv.y = 0;
 		bl.uv.x = 0; bl.uv.y = 1;
 		newtl.uv.x = 1; newtl.uv.y = 0;
@@ -278,10 +333,11 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		aVertices.push_back(newbl);
 		aVertices.push_back(newtl);
 		anIndices.push_back(lastIdx);
+		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 1);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx);
-		anIndices.push_back(lastIdx + 2);
 		anIndices.push_back(lastIdx + 3);
+		anIndices.push_back(lastIdx + 2);
+		//*/
 	}
 }

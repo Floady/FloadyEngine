@@ -70,6 +70,10 @@ void FGameLightEntity::Update(double aDeltaTime)
 
 	//FLightManager::GetInstance()->SetLightColor(myLightId, FVector3(myColorAlpha, myColorAlpha, myColorAlpha));
 	//FLightManager::GetInstance()->GetLight(myLightId)->myColor = FVector3(myColorAlpha, myColorAlpha, myColorAlpha);
-	FLightManager::GetInstance()->GetLight(myLightId)->myDir.y = sin(myColorAlpha * PI);
-	FLightManager::GetInstance()->GetLight(myLightId)->myDir.x = cos(myColorAlpha * PI);
+	
+	
+	//FLightManager::GetInstance()->GetLight(myLightId)->myDir.y = sin(myColorAlpha * PI);
+	//FLightManager::GetInstance()->GetLight(myLightId)->myDir.x = cos(myColorAlpha * PI);
+
+	FGameEntity::Update(aDeltaTime);
 }

@@ -3,6 +3,7 @@
 #include "FRenderWindow.h"
 #include "FD3d12Renderer.h"
 #include <DirectXMath.h>
+#include "FNavMeshManagerRecast.h"
 
 
 F3DPicker::F3DPicker(FCamera* aCam, FRenderWindow* aWindow)
@@ -24,7 +25,10 @@ FVector3 F3DPicker::PickNavMeshPos(FVector3 a2DPos)
 
 	FVector3 line = pickPosNear + (direction * -(pickPosNear.y / direction.y));
 	
-	return line;
+
+	return FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(FNavMeshManagerRecast::GetInstance()->RayCast(pickPosNear, line));
+
+	//return line;
 }
 
 FVector3 F3DPicker::UnProject(FVector3 aMousePos)

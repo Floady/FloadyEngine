@@ -8,6 +8,7 @@
 #include "FLightManager.h"
 #include "FPrimitiveGeometry.h"
 #include "FDebugDrawer.h"
+#include "FProfiler.h"
 
 using namespace DirectX;
 
@@ -40,10 +41,28 @@ void FDebugDrawer::drawLine(const FVector3 & from, const FVector3 & to, const FV
 
 void FDebugDrawer::DrawTriangle(const FVector3 & aV1, const FVector3 & aV2, const FVector3 & aV3, const FVector3& aColor)
 {
+	FPROFILE_FUNCTION("DebugDrawer Tri");
 	Triangle t;
 	t.myVtx1 = aV1;
 	t.myVtx2 = aV2;
 	t.myVtx3 = aV3;
+	t.myColor = aColor;
+	myTriangles.push_back(t);
+}
+
+void FDebugDrawer::DrawPoint(const FVector3 & aV, float aSize, const FVector3 & aColor)
+{
+	Triangle t;
+	float size = aSize / 2.0f;
+	t.myVtx1 = aV - FVector3(size, 0, 0);
+	t.myVtx2 = aV + FVector3(size, 0, 0);
+	t.myVtx3 = aV + FVector3(0, 0, size);
+	t.myColor = aColor;
+	myTriangles.push_back(t);	
+
+	t.myVtx1 = aV - FVector3(-size, 0, 0);
+	t.myVtx2 = aV + FVector3(-size, 0, 0);
+	t.myVtx3 = aV + FVector3(0, 0, -size);
 	t.myColor = aColor;
 	myTriangles.push_back(t);
 }
@@ -129,7 +148,7 @@ void FDebugDrawer::Init()
 	hr = myManagerClass->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FVector3) * 2 * 256000), // pos + color * nrOfMaxLines(256.000 for now)
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FVector3) * 2 * 512000), // pos + color * nrOfMaxLines(256.000 for now)
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&myVertexBufferLines));
@@ -139,7 +158,7 @@ void FDebugDrawer::Init()
 	hr = myManagerClass->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FVector3) * 2 * 256000),  // pos + color * nrOfMaxTriangles(256.000 for now)
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FVector3) * 2 * 512000),  // pos + color * nrOfMaxTriangles(256.000 for now)
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&myVertexBufferTriangles));
@@ -187,6 +206,17 @@ void FDebugDrawer::Render()
 	m_commandList->Close();
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 }
 
 void FDebugDrawer::PopulateCommandListAsync()
@@ -201,24 +231,28 @@ void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdLi
 
 	// copy data to GPU
 	std::vector<FVector3> verticesLines;
+	verticesLines.reserve(myLines.size() * 4);
 	for (size_t i = 0; i < myLines.size(); i++)
 	{
-		verticesLines.push_back(myLines[i].myStart);
-		verticesLines.push_back(myLines[i].myColor);
-		verticesLines.push_back(myLines[i].myEnd);
-		verticesLines.push_back(myLines[i].myColor);
+		FDebugDrawer::Line& line = myLines[i];
+		verticesLines.push_back(line.myStart);
+		verticesLines.push_back(line.myColor);
+		verticesLines.push_back(line.myEnd);
+		verticesLines.push_back(line.myColor);
 	}
 	myLines.clear();
 
 	std::vector<FVector3> verticesTriangles;
+	verticesTriangles.reserve(myTriangles.size() * 6);
 	for (size_t i = 0; i < myTriangles.size(); i++)
 	{
-		verticesTriangles.push_back(myTriangles[i].myVtx1);
-		verticesTriangles.push_back(myTriangles[i].myColor);
-		verticesTriangles.push_back(myTriangles[i].myVtx2);
-		verticesTriangles.push_back(myTriangles[i].myColor);
-		verticesTriangles.push_back(myTriangles[i].myVtx3);
-		verticesTriangles.push_back(myTriangles[i].myColor);
+		FDebugDrawer::Triangle& tri = myTriangles[i];
+		verticesTriangles.push_back(tri.myVtx1);
+		verticesTriangles.push_back(tri.myColor);
+		verticesTriangles.push_back(tri.myVtx2);
+		verticesTriangles.push_back(tri.myColor);
+		verticesTriangles.push_back(tri.myVtx3);
+		verticesTriangles.push_back(tri.myColor);
 	}
 	myTriangles.clear();
 

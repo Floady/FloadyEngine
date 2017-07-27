@@ -32,15 +32,16 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 	result.position = mul(result.position, myData.g_transform);
 	
 	// test: tile UVs on x/z plane - but how do we fix y? :p
-	result.uv.x = result.position.x / (20.0f * 5.0f);
-	result.uv.y = result.position.z / (20.0f * 5.0f);
-	result.uv *= 10;
-	result.uv = result.uv % 1;
+	float2 newUV;
+	newUV.x = result.position.x / 5.0f;
+	newUV.y = result.position.z / 5.0f;
+	
+	result.uv = newUV.xy;
 	
 	result.position = mul(result.position, myData.g_viewProjMatrix);
 	result.depth    = (result.position.z);
 	
-	result.uv = uv;
+	//result.uv = uv;
 	result.normal = normal;
 	result.normal.w = 0.0f;
 	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform);
@@ -57,6 +58,25 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	output.normal = input.normal;
 	output.depth	 = input.depth;
 	output.depth = input.position.z;
-	//output.color = float4(1.0f, 1.0f, 0.1f, 1.0f);		
+	//output.color = float4(input.uv, 1, 1);
+	//output.color = float4(1.0f, 1.0f, 0.1f, 1.0f);	
+
+	
+	// create a solid band where the tiles are extruded to prevent texture stretch
+	// this is to color the sides in a solid color for now (we dont have good uv's for them)
+	float bandWidth = 0.01;
+	float4 bandColor = float4(0.4, 0.4, 0.4, 1.0);
+	if(fmod(input.uv.x, 1.0) < bandWidth || fmod(input.uv.y, 1.0) < bandWidth)
+	{
+		output.color = bandColor;
+	}
+	
+	else if((fmod(input.uv.x, 1.0) > 1.0 - bandWidth) || (fmod(input.uv.y, 1.0) > 1.0-bandWidth))
+	{
+		output.color = bandColor;
+	}
+	//~band
+	
+	
 	return output;
 }

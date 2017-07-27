@@ -159,7 +159,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			// Get light direction for this fragment
 			float4 lightPos = float4(myLights.myLights[qh].myWorldPos.xyz, 1);
 			float distToLight = length(worldPos.xyz - lightPos.xyz);
-		
+					
 			float3 lightDir = normalize(worldPos.xyz - lightPos.xyz); // per pixel diffuse lighting - point light / spot light type
 			
 			// directional has parallel beams
@@ -185,7 +185,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			shadowBias = clamp(shadowBias, 0.0f, 0.1f);
 			
 			// a zero value here means its outside the frustrum
-			bool isOutOfLightZone = shadowDepth == 0;
+			bool isOutOfLightZone = false;//shadowDepth == 0;
 			
 			// check for inside spotlight cone
 			if(isSpot)
@@ -212,6 +212,11 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				}
 				
 				shadowBias = -0.000005f; // test for spotlights, better shadows
+			}
+			else
+			{
+				if(distToLight > 400)			// arbitrary <X> cap for now for direcitonal light to avoid artifact in sky
+					isOutOfLightZone = true;
 			}
 			
 			// check for shadow culled

@@ -222,6 +222,15 @@ __forceinline FVector3 operator+(FVector3* v2 )
 #endif
 }
 
+friend FVector3 operator+(const FVector3& v1, const FVector3& v2)
+{
+#if NONVECTORIZED
+	return FVector3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+#else
+	return _mm_add_ps(v1.xyz, v2.xyz);
+#endif
+}
+
 friend FVector3 operator^( const FVector3& A, const FVector3& B )
 {
 	return FVector3(A.y*B.z-A.z*B.y,A.z*B.x-A.x*B.z,A.x*B.y-A.y*B.x);

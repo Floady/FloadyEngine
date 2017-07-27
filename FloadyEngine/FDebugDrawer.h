@@ -18,7 +18,8 @@ public:
 	FDebugDrawer(FD3d12Renderer* aManager);
 	~FDebugDrawer();
 
-	void	DrawTriangle(const FVector3& aV1, const FVector3& aV2, const FVector3& aV3, const FVector3& aColor);
+	void DrawTriangle(const FVector3& aV1, const FVector3& aV2, const FVector3& aV3, const FVector3& aColor);
+	void DrawPoint(const FVector3& aV, float aSize, const FVector3& aColor);
 	void drawLine(const FVector3 & from, const FVector3 & to, const FVector3 & color);
 	// FRenderableObject
 	void Init() override;

@@ -41,6 +41,7 @@ public:
 	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, const char* aDebugName = nullptr);
 	~FPostProcessEffect();
 	void Render();
+	void RenderAsync();
 	void Init(int aPostEffectBufferIdx);
 	void SetShader();
 

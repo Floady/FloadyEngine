@@ -11,7 +11,7 @@
 #include <math.h>
 #include <string>
 #include <algorithm>
-
+#include "FProfiler.h"
 
 using namespace std;
 
@@ -2128,6 +2128,8 @@ FNavMeshManager * FNavMeshManager::GetInstance()
 
 FNavMeshManager::FNavMeshManager()
 {
+	// Test code to check navmesh generation
+	/*
 	Shx pt;
 	srand(1);
 
@@ -2165,7 +2167,7 @@ FNavMeshManager::FNavMeshManager()
 			triads[i].bc = newBC;
 		}
 	}
-
+	*/
 }
 
 
@@ -2175,6 +2177,7 @@ FNavMeshManager::~FNavMeshManager()
 
 void FNavMeshManager::DebugDraw(FDebugDrawer * aDebugDrawer)
 {
+	FPROFILE_FUNCTION("NavMeshDebugDraw");
 
 	for (int i = 0; i < pts.size(); i++)
 	{

@@ -168,7 +168,18 @@ void FDynamicText::Init()
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
-	
+
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
+
 	skipNextRender = false;
 }
 
@@ -187,6 +198,17 @@ void FDynamicText::Render()
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// wait for cmdlist to be done before returning
+	//ID3D12Fence* m_fence;
+	//HANDLE m_fenceEvent;
+	//m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	//int fenceToWaitFor = 1; // what value?
+	//HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	//result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	//m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	//WaitForSingleObject(m_fenceEvent, INFINITE);
+	//m_fence->Release();
 }
 
 void FDynamicText::PopulateCommandList()
@@ -304,6 +326,15 @@ void FDynamicText::PopulateCommandList()
 
 void FDynamicText::PopulateCommandListAsync()
 {
+	if (skipNextRender)
+	{
+		skipNextRender = false;
+		return;
+	}
+
+	if (!m_commandList)
+		return;
+
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
@@ -448,7 +479,7 @@ void FDynamicText::SetText(const char * aNewText)
 		uvBR.uv.x = 1;
 		uvBR.uv.y = 1;
 
-		FPrimitiveGeometry::Vertex* triangleVertices = new FPrimitiveGeometry::Vertex[myWordLength * 6];
+		myTriangleVertices.reserve(myWordLength * 6);
 		float xoffset = 0.0f;
 
 		int vtxIdx = 0;
@@ -470,22 +501,22 @@ void FDynamicText::SetText(const char * aNewText)
 			xoffset += wordInfo.myKerningOffset[i] * scaleFactorWidth; // todo fix this with the scaling .. :) did an attempt, but current font has no kerning to double check with
 
 			// draw quad
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, 0, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y);
-										 																											   
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ,  0,0,-1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, glyphHeight, quadZ, 0,0,-1, uvBR.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0,0,-1, uvBR.uv.x, uvBR.uv.y);
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, 0, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y));
+
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvBR.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y));
 
 			xoffset += halfGlyphWidth; // move half
 			//xoffset += 0.1; //custom spacing
 		}
 
 		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
-		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
+		memcpy(pVertexDataBegin, &myTriangleVertices[0], vertexBufferSize);
 
-		delete[] triangleVertices;
+		myTriangleVertices.clear();
 	}
 }
 
@@ -556,6 +587,17 @@ void FDynamicText::SetShader()
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
+
+	// wait for cmdlist to be done before returning
+	ID3D12Fence* m_fence;
+	HANDLE m_fenceEvent;
+	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
+	int fenceToWaitFor = 1; // what value?
+	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
+	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
+	m_fence->SetEventOnCompletion(1, m_fenceEvent);
+	WaitForSingleObject(m_fenceEvent, INFINITE);
+	m_fence->Release();
 
 	firstFrame = false;
 }
