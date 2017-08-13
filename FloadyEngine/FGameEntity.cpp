@@ -6,12 +6,15 @@
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FGameEntity.h"
 #include "FPathfindComponent.h"
+#include "FProfiler.h"
 
 REGISTER_GAMEENTITY2(FGameEntity);
 
 using namespace DirectX;
 FGameEntity::FGameEntity(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aType, float aMass /* = 0.0f */, bool aIsNavBlocker /* = false */)
 {
+	myPhysicsObject = nullptr;
+	myGraphicsObject = nullptr;
 	Init(aPos, aScale, aType, aMass, aIsNavBlocker);
 }
 
@@ -20,8 +23,6 @@ void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aT
 	myOwner = nullptr;
 	myPos = aPos;
 	myIsPhysicsActive = true;
-	myGraphicsObject = nullptr;
-	myPhysicsObject = nullptr;
 
 	if (myPhysicsObject)
 	{
@@ -33,8 +34,9 @@ void FGameEntity::Init(FVector3 aPos, FVector3 aScale, FGameEntity::ModelType aT
 	{
 		FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
 		delete myGraphicsObject;
+		myGraphicsObject = nullptr;
 	}
-	
+
 	if(aType == ModelType::Sphere)
 	{
 		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), aPos, aScale, FPrimitiveBox::PrimitiveType::Sphere);
@@ -78,7 +80,10 @@ void FGameEntity::Init(const FJsonObject & anObj)
 
 void FGameEntity::Update(double aDeltaTime)
 {
-	myGraphicsObject->RecalcModelMatrix();
+	FPROFILE_FUNCTION("FGameEntity Update");
+
+	if(myGraphicsObject)
+		myGraphicsObject->RecalcModelMatrix();
 }
 
 void FGameEntity::PostPhysicsUpdate()
@@ -110,8 +115,12 @@ void FGameEntity::SetPos(FVector3 aPos)
 	groundTransform.setIdentity();
 	groundTransform.setOrigin(btVector3(aPos.x, aPos.y, aPos.z));
 
-	myPhysicsObject->setWorldTransform(groundTransform);
-	myGraphicsObject->SetPos(aPos);
+	myPos = aPos;
+
+	if(myPhysicsObject)
+		myPhysicsObject->setWorldTransform(groundTransform);
+	if (myGraphicsObject)
+		myGraphicsObject->SetPos(aPos);
 }
 
 FGameEntity::~FGameEntity()

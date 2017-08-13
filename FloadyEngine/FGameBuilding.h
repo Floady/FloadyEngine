@@ -4,6 +4,7 @@
 #include "FGameEntity.h"
 #include "FGameEntityFactory.h"
 
+class FJsonObject;
 class FGameBuildingBlueprint;
 
 class FGameBuilding : public FGameEntity
@@ -20,10 +21,14 @@ public:
 	void SetRallyPointPos(FVector3 aPos) { myRallyPointPos = aPos; }
 	void SetRallyPointPosWorld(FVector3 aPos) { myRallyPointPos = aPos - myPos; }
 	const FGameBuildingBlueprint* GetBluePrint() const { return myBluePrint; }
-	
+	FGameEntity* GetRepresentation() const { return myRepresentation; }
+	FRenderableObject* GetRenderableObject() override { return myRepresentation ? myRepresentation->GetRenderableObject() : myGraphicsObject; }
+	void SetPos(FVector3 aPos) override { FGameEntity::SetPos(aPos); myRepresentation->SetPos(aPos); }
+
 private:
 	FGameBuildingBlueprint* myBluePrint;
 	FVector3 myRallyPointPos;
+	FGameEntity* myRepresentation;
 };
 
 
@@ -38,7 +43,7 @@ protected:
 	std::string myIcon;
 };
 
-class FGameBuildingBlueprint : public FGameEntity
+class FGameBuildingBlueprint
 {
 public:
 	class CreateAgentMenuItem : public FMenuItemBase
@@ -60,19 +65,22 @@ public:
 		virtual void Execute() override;
 	};
 
-public:
+	const std::string& GetEntityClassName() { return myEntityClassName; }
+
 	FGameBuildingBlueprint(const char* aSetup);
 	~FGameBuildingBlueprint();
 	const std::vector<FMenuItemBase*>& GetMenuItems() const { return myMenuItems; }
 	void ExecuteMenuItem(int aIdx) const; // @todo: support FGameBuilding* aBuilding,  ... delegates are shit :c
 	FGameEntity* GetEntity() const { return myEntity; }
-	FGameEntity* CreateBuilding();
+	FGameBuilding* CreateBuilding();
 	FVector3 GetRallyPointPos() const { return myRallyPointPos; }
+	const FJsonObject* GetBuildingRepresentation() const;
 
-	FRenderableObject* GetRenderableObject() override { return myEntity->GetRenderableObject(); }
 protected:
 	FGameEntity* myEntity; // representation of building
 	std::vector<FMenuItemBase*> myMenuItems;
 	FVector3 myRallyPointPos;
+	std::string myEntityClassName;
+	FJsonObject* myBuilding;
 };
 

@@ -1,3 +1,4 @@
+#include "FUtilities.h"
 #include "FGame.h"
 #include "FRenderWindow.h"
 #include "FD3d12Input.h"
@@ -27,8 +28,11 @@
 #include "FGameBuildingManager.h"
 #include "FGameUIManager.h"
 #include "FLightManager.h"
+#include "FGameLevel.h"
 #include "FProfiler.h"
 #include "FNavMeshManagerRecast.h"
+#include "FObjLoader.h"
+#include "FGameEntityObjModel.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -51,50 +55,25 @@ void FGame::ConstructBuilding(FVector3 aPos)
 
 	myPlacingManager->ClearPlacable();
 
-	OutputDebugString(L"ConstructBuilding:  ");
-	OutputDebugStringA(myBuildingName);	
-	OutputDebugString(L"\n");
+	FUtilities::FLog("ConstructBuilding: %s\n", myBuildingName);
 
-	FGameEntity* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
+	FGameBuilding* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
 	entity->SetPos(aPos);
-	
-	myEntityContainer.push_back(entity);
 
+	if(myLevel)
+		myLevel->AddEntity(entity);
+	
 	myBuildingName = nullptr;
 }
 
 void FGame::ConstructBuilding(const char * aBuildingName)
 {
-	OutputDebugString(L"ConstructBuilding:  ");
-	OutputDebugStringA(aBuildingName);
-	OutputDebugString(L"\n");
+	FUtilities::FLog("ConstructBuilding: %s\n", aBuildingName);
 	
 	myBuildingName = aBuildingName;
-	myPlacingManager->SetPlacable(true, FVector3(1, 1, 1), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this));
-}
-
-void FGame::Test()
-{
-	OutputDebugString(L"Test\n");
-
-	FGameAgent* newAgent = new FGameAgent();
-	myEntityContainer.push_back(newAgent);
-}
-
-void FGame::Test(FVector3 aPos)
-{
-	OutputDebugString(L"Test aPos\n");
-
-	FGameAgent* newAgent = new FGameAgent(aPos);
-	
-	myEntityContainer.push_back(newAgent);
-
-	FGameBuildingBlueprint* someBuilding = new FGameBuildingBlueprint("Configs//buildings//firstbuilding.json");
-}
-
-void FGame::AddEntity(FGameEntity * anEntity)
-{
-	myEntityContainer.push_back(anEntity);
+	FGameBuilding* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
+	myPlacingManager->SetPlacable(true, entity->GetRepresentation()->GetRenderableObject()->GetScale(), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this), entity->GetRepresentation()->GetRenderableObject()->GetTexture());
+	delete entity;
 }
 
 FGame::FGame()
@@ -115,6 +94,9 @@ FGame::FGame()
 	myBuildingManager = nullptr;
 	myGameUIManager = nullptr;
 	myPickedAgent = nullptr;
+	myLevel = nullptr;
+	mySSAO = nullptr;
+	myAA = nullptr;
 }
 
 FGame::~FGame()
@@ -140,21 +122,21 @@ void FGame::Init()
 	
 	if (!result)
 	{
-		OutputDebugStringA("Failed to init Render window\n");
+		FUtilities::FLog("Failed to init Render window\n");
 		return;
 	}
 
 	// Init engine basics
 	if (!myRenderer->Initialize(myRenderWindow->GetWindowHeight(), myRenderWindow->GetWindowWidth(), myRenderWindow->GetHWND(), false, false))// vsync + fullscreen here
 	{
-		OutputDebugStringA("Failed to init Renderer\n");
+		FUtilities::FLog("Failed to init Renderer\n");
 		return;
 	}
 
 	myRenderer->SetCamera(myCamera);
 	myPhysics->Init(myRenderer);
+	myPhysics->SetPaused(false);
 	
-	myHighlightManager = new FGameHighlightManager();
 	myBuildingManager = new FGameBuildingManager();
 	myGameUIManager = new FGameUIManager();
 
@@ -166,42 +148,13 @@ void FGame::Init()
 	//FGUIManager::GetInstance()->AddObject(button);
 	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
 
-	FJsonObject* level = FJson::Parse("Configs//level.txt");
-	const FJsonObject* child = level->GetFirstChild();
-	while (child)
-	{
-		FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
-		newEntity->Init(*child);
-		myEntityContainer.push_back(newEntity);
-		child = level->GetNextChild();
-	}
+	// Load level
+	myLevel = new FGameLevel("Configs//level.txt");
+	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25, 0.15, 0.05), 0.0f);
 
-	FLightManager::GetInstance()->AddDirectionalLight(FVector3(50, 30, 0), FVector3(0, -1, 1), FVector3(0.2, 0.2, 0.2), 0.0f);
-
-	// test lights
-	//int stepX = 15;
-	//int stepY = 15;
-	//int gridSize = 3;
-	//for (int i = 0; i < gridSize; i++)
-	//{
-	//	for (int j = 0; j < gridSize; j++)
-	//	{
-	//		if (i == 0 && j == 0)
-	//			continue;
-
-	//		FLightManager::GetInstance()->AddLight(FVector3(i * stepX, 2.0f, j * stepY), 10.0f);
-	//	}
-	//}
-
-	//FLightManager::GetInstance()->AddLight(FVector3(30, 15, 10), 10.0f);
-	//FLightManager::GetInstance()->AddSpotlight(FVector3(0, 10, 10), FVector3(0, -1, -1.05), 30.0f, FVector3(1, 0, 0), 25.0f);
-	//FLightManager::GetInstance()->AddSpotlight(FVector3(30, 15, -20), FVector3(0, -1, 0.5), 10.0f, FVector3(0, 1, 0), 25.0f);
-	//FLightManager::GetInstance()->AddLight(FVector3(-20, 15, 10), 10.0f);
-	//FLightManager::GetInstance()->AddLight(FVector3(300, 15, 100), 10.0f);
-	// init navmesh
-	
-	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
-	FNavMeshManager::GetInstance()->GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
+	// init navmesh	
+//	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
+//	FNavMeshManager::GetInstance()->GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
 
 	std::vector<FPostProcessEffect::BindInfo> resources;
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(0), myRenderer->gbufferFormat[0]));
@@ -209,7 +162,15 @@ void FGame::Init()
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(2), myRenderer->gbufferFormat[2]));
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(3), myRenderer->gbufferFormat[3]));
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(4), myRenderer->gbufferFormat[4]));
-	myRenderer->RegisterPostEffect(new FPostProcessEffect(resources, "lightshader2.hlsl", "PostProcess1"));
+	mySSAO = new FPostProcessEffect(resources, "SSAOShaderPost.hlsl", 1, "SSAO");
+	myBlur = new FPostProcessEffect(resources, "SSAOBlurPost.hlsl", 0, "PostSSAOBlur");
+	myAA = new FPostProcessEffect(resources, "lightshader2.hlsl", 0, "FXAA");
+	FD3d12Renderer::GetInstance()->RegisterPostEffect(mySSAO);
+	FD3d12Renderer::GetInstance()->RegisterPostEffect(myBlur);
+
+	// this registers a post effect, we want it at the end cause SSAO + SSAOBlur needs to be first (it doesnt correctly propagate previous results)
+	myHighlightManager = new FGameHighlightManager();
+	FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
 
 	myPlacingManager = new FPlacingManager();
 	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
@@ -222,6 +183,7 @@ bool FGame::Update(double aDeltaTime)
 	FD3d12Renderer::GetInstance()->DoClearBuffers();
 	FD3d12Renderer::GetInstance()->SetRenderPassDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
 
+	FLightManager::GetInstance()->ResetVisibleAABB();
 	{
 
 		FPROFILE_FUNCTION("FGame Update");
@@ -247,15 +209,16 @@ bool FGame::Update(double aDeltaTime)
 		if (myInput->IsKeyDown(VK_F3))
 		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::MainScreen);
+
 			// re-init navmesh
 			std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
-			FNavMeshManager::GetInstance()->RemoveAllBlockingAABB();
+			FNavMeshManagerRecast::GetInstance()->RemoveAllBlockingAABB();
 			for (FBulletPhysics::AABB& aabb : aabbs)
 			{
-				FNavMeshManager::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
+				FNavMeshManagerRecast::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
 			}
 
-			FNavMeshManager::GetInstance()->GenerateMesh(FVector3(-20, 0, -20), FVector3(200, 0, 200));
+			FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 		}
 
 		myGameUIManager->Update();
@@ -264,10 +227,7 @@ bool FGame::Update(double aDeltaTime)
 			myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
 
 		if (myInput->IsKeyDown(VK_F5))
-			myPlacingManager->ClearPlacable();
-
-		if (myInput->IsKeyDown(VK_F6))
-			myPlacingManager->SetPlacable(true, FVector3(2,1,1), FDelegate2<void(FVector3)>::from<FGame, &FGame::Test>(this));
+			myGameUIManager->SetState(FGameUIManager::GuiState::Debug);
 
 		static FVector3 vNavEnd;
 		static FVector3 vNavStart;
@@ -346,18 +306,18 @@ bool FGame::Update(double aDeltaTime)
 				}
 			}
 
-			FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
-			myPlacingManager->UpdateMousePos(navPos);
+			if(myPlacingManager->IsPlacing())
+			{
+				FVector3 navPos = myPicker->PickNavMeshPos(FVector3(windowMouseX, windowMouseY, 0.0f));
+				myPlacingManager->UpdateMousePos(navPos);
+			}
 		}
 
 		myWasLeftMouseDown = myInput->IsMouseButtonDown(true);
 		myWasRightMouseDown = myInput->IsMouseButtonDown(true);
 	
 		// Update world
-		for (FGameEntity* entity : myEntityContainer)
-		{
-			entity->Update(aDeltaTime);
-		}
+		myLevel->Update(aDeltaTime);
 
 		// Step physics
 		if (myInput->IsKeyDown(VK_SPACE))
@@ -369,22 +329,44 @@ bool FGame::Update(double aDeltaTime)
 
 		if (myInput->IsKeyDown(VK_SHIFT))
 		{
-			//FNavMeshManager::GetInstance()->DebugDraw(myRenderer->GetDebugDrawer());
-			myPhysics->DebugDrawWorld();
-			FNavMeshManagerRecast::GetInstance()->DebugDraw();
+			//myRenderer->GetCamera()->SetOverrideLight(true);
 		}
-
-		for (FGameEntity* entity : myEntityContainer)
+		else
 		{
-			entity->PostPhysicsUpdate();
+			//myRenderer->GetCamera()->SetOverrideLight(false);
 		}
 
+		FNavMeshManagerRecast::GetInstance()->DebugDraw();
+
+		myLevel->PostPhysicsUpdate();
 	}
 
 	// Render world
 	{
 		FPROFILE_FUNCTION("FGame Render");
 
+		float constData[80];
+		memcpy(&constData[0], myCamera->GetInvViewProjMatrix().m, 16 * sizeof(float));
+
+		DirectX::XMFLOAT4X4 projMatrix;
+		XMStoreFloat4x4(&projMatrix, XMMatrixTranspose(myCamera->myProjMatrix));
+		memcpy(&constData[16], projMatrix.m, 16 * sizeof(float));
+
+		DirectX::XMFLOAT4X4 invProjMatrix;
+		XMStoreFloat4x4(&invProjMatrix, XMMatrixTranspose(XMMatrixInverse(nullptr, myCamera->myProjMatrix)));
+		memcpy(&constData[32], invProjMatrix.m, 16 * sizeof(float));
+
+		DirectX::XMFLOAT4X4 viewMtx;
+		XMStoreFloat4x4(&viewMtx, XMMatrixTranspose(myCamera->_viewMatrix));
+		memcpy(&constData[48], viewMtx.m, 16 * sizeof(float));
+
+		DirectX::XMFLOAT4X4 invViewMtx;
+		XMStoreFloat4x4(&invViewMtx, XMMatrixTranspose(XMMatrixInverse(nullptr, myCamera->_viewMatrix)));
+		memcpy(&constData[64], invViewMtx.m, 16 * sizeof(float));
+
+		mySSAO->WriteConstBuffer(0, &constData[0], 80 * sizeof(float));
+
+		FLightManager::GetInstance()->UpdateViewProjMatrices();
 		myRenderWindow->CheckForQuit();
 		myHighlightManager->Render();
 		myRenderer->Render();

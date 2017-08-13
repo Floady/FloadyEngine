@@ -27,11 +27,11 @@ public:
 	FVector3 GetPos() const { return myPos; }
 	void SetOwnerEntity(FGameEntity* anEntity) { myOwner = anEntity; }
 	FGameEntity* GetOwnerEntity() { return myOwner ? myOwner->GetOwnerEntity() : this; }
-	void SetPos(FVector3 aPos);
+	virtual void SetPos(FVector3 aPos);
 
 	virtual FRenderableObject* GetRenderableObject() { return myGraphicsObject; }
 
-	~FGameEntity();
+	virtual ~FGameEntity();
 
 protected:
 	void Init(FVector3 aPos, FVector3 aScale, ModelType aType, float aMass = 0.0f, bool aIsNavBlocker = false);

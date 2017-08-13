@@ -21,6 +21,7 @@ public:
 	void DrawTriangle(const FVector3& aV1, const FVector3& aV2, const FVector3& aV3, const FVector3& aColor);
 	void DrawPoint(const FVector3& aV, float aSize, const FVector3& aColor);
 	void drawLine(const FVector3 & from, const FVector3 & to, const FVector3 & color);
+	void drawAABB(const FVector3& aMin, const FVector3& aMax, const FVector3 & color);
 	// FRenderableObject
 	void Init() override;
 	void Render() override;
@@ -28,8 +29,9 @@ public:
 	void PopulateCommandListAsync() override;
 	void PopulateCommandListAsyncShadows() override {};
 
-	void SetTexture(const char* aFilename) override {};
-	void SetShader(const char* aFilename) override {};
+	void SetTexture(const char* aFilename) override {}
+	virtual const char* GetTexture() override { return nullptr; }
+	void SetShader(const char* aFilename) override {}
 
 private:
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);

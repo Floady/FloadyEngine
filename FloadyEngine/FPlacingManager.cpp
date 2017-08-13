@@ -6,20 +6,58 @@
 #include "FRenderableObject.h"
 #include "FPrimitiveGeometry.h"
 #include "FPostProcessEffect.h"
-#include "FPrimitiveBox.h"
+#include "FPrimitiveBoxColorOverride.h"
+#include "FNavMeshManagerRecast.h"
+#include "FUtilities.h"
 
 using namespace DirectX;
 
 FPlacingManager::FPlacingManager()
 {
 	myObject = nullptr;
+	myFitsOnNavMesh = false;
 }
 
 void FPlacingManager::UpdateMousePos(const FVector3& aPos)
 {
 	if (myObject)
 	{
-		myObject->SetPos(aPos);
+		// check if aabb fits on navmesh
+		// todo: should do isinside check instead ( now you can overlap if aabb is bigger than blocking piece)
+		// todo: snap to navmesh edges so it always fits
+		myFitsOnNavMesh = true;
+		FVector3 newPos = aPos;
+		FVector3 delta = FVector3(myObject->GetLocalAABB().myMax.x, 0, myObject->GetLocalAABB().myMax.z);
+		FVector3 point = aPos + delta;
+		FVector3 point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
+		if ((point - point2).SqrLength() > 0.01)
+			myFitsOnNavMesh = false;
+
+		delta = FVector3(myObject->GetLocalAABB().myMin.x, 0, myObject->GetLocalAABB().myMin.z);
+		point = newPos + delta;
+		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
+		if ((point - point2).SqrLength() > 0.01)
+			myFitsOnNavMesh = false;
+
+		delta = FVector3(myObject->GetLocalAABB().myMin.x, 0, myObject->GetLocalAABB().myMax.z);
+		point = newPos + delta;
+		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
+		if ((point - point2).SqrLength() > 0.01)
+			myFitsOnNavMesh = false;
+
+		delta = FVector3(myObject->GetLocalAABB().myMax.x, 0, myObject->GetLocalAABB().myMin.z);
+		point = newPos + delta;
+		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
+		if ((point - point2).SqrLength() > 0.01)
+			myFitsOnNavMesh = false;
+
+		//
+		if (myFitsOnNavMesh)
+			myObject->SetColor(FVector3(0, 1, 0));
+		else
+			myObject->SetColor(FVector3(1, 0, 0));
+		
+		myObject->SetPos(newPos);
 		myObject->RecalcModelMatrix();
 	}
 }
@@ -29,23 +67,27 @@ void FPlacingManager::MouseDown(const FVector3& aPos)
 	if (!myObject)
 		return;
 
+	if (!myFitsOnNavMesh)
+		return;
+
 	if(myPlaceCallback)
 		myPlaceCallback(aPos);
 
 	ClearPlacable();
 }
 
-void FPlacingManager::SetPlacable(bool anIsCube, FVector3 aScale, FDelegate2<void(FVector3)>& aCB)
+void FPlacingManager::SetPlacable(bool anIsCube, FVector3 aScale, FDelegate2<void(FVector3)>& aCB, const char* aTex)
 {
 	ClearPlacable();
 
 	if(anIsCube)
-		myObject = new FPrimitiveBox(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Box);
+		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Box);
 	else
-		myObject = new FPrimitiveBox(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Sphere);
+		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Sphere);
 
-	myObject->SetShader("primitiveshader_deferred.hlsl");
-	//myObject->SetTexture("marble.png");
+	myObject->SetShader("placeable_deferred.hlsl");
+	if(aTex)
+		myObject->SetTexture(aTex);
 	FD3d12Renderer::GetInstance()->GetSceneGraph().AddObject(myObject, false);
 
 	myPlaceCallback = aCB;

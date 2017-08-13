@@ -232,15 +232,20 @@
     <ClCompile Include="FGameBuilding.cpp" />
     <ClCompile Include="FGameBuildingManager.cpp" />
     <ClCompile Include="FGameEntityFactory.cpp" />
+    <ClCompile Include="FGameEntityObjModel.cpp" />
     <ClCompile Include="FGameHighlightManager.cpp" />
+    <ClCompile Include="FGameLevel.cpp" />
     <ClCompile Include="FGameLightEntity.cpp" />
     <ClCompile Include="FGameTerrain.cpp" />
     <ClCompile Include="FGameUIManager.cpp" />
     <ClCompile Include="FGameUIPanel.cpp" />
     <ClCompile Include="FGameUIPanelBuildings.cpp" />
+    <ClCompile Include="FGameUIPanelDebug.cpp" />
+    <ClCompile Include="FGUIButtonToggle.cpp" />
     <ClCompile Include="FNavMeshManager.cpp" />
     <ClCompile Include="FGameEntity.cpp" />
     <ClCompile Include="FNavMeshManagerRecast.cpp" />
+    <ClCompile Include="FObjLoader.cpp" />
     <ClCompile Include="FPathfindComponent.cpp" />
     <ClCompile Include="FPhysicsDebugDrawer.cpp" />
     <ClCompile Include="FPlacingManager.cpp" />
@@ -267,8 +272,11 @@
     <ClCompile Include="FShaderManager.cpp" />
     <ClCompile Include="FTextureManager.cpp" />
     <ClCompile Include="FTimer.cpp" />
+    <ClCompile Include="FUtilities.cpp" />
+    <ClCompile Include="FVector3.cpp" />
     <ClCompile Include="GUI\FGUIButton.cpp" />
     <ClCompile Include="GUI\FGUIManager.cpp" />
+    <ClCompile Include="FPrimitiveBoxColorOverride.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h" />
@@ -281,15 +289,20 @@
     <ClInclude Include="FGameBuilding.h" />
     <ClInclude Include="FGameBuildingManager.h" />
     <ClInclude Include="FGameEntityFactory.h" />
+    <ClInclude Include="FGameEntityObjModel.h" />
     <ClInclude Include="FGameHighlightManager.h" />
+    <ClInclude Include="FGameLevel.h" />
     <ClInclude Include="FGameLightEntity.h" />
     <ClInclude Include="FGameTerrain.h" />
     <ClInclude Include="FGameUIManager.h" />
     <ClInclude Include="FGameUIPanel.h" />
     <ClInclude Include="FGameUIPanelBuildings.h" />
+    <ClInclude Include="FGameUIPanelDebug.h" />
+    <ClInclude Include="FGUIButtonToggle.h" />
     <ClInclude Include="FNavMeshManager.h" />
     <ClInclude Include="FGameEntity.h" />
     <ClInclude Include="FNavMeshManagerRecast.h" />
+    <ClInclude Include="FObjLoader.h" />
     <ClInclude Include="FPathfindComponent.h" />
     <ClInclude Include="FPhysicsDebugDrawer.h" />
     <ClInclude Include="FPlacingManager.h" />
@@ -316,9 +329,11 @@
     <ClInclude Include="FShaderManager.h" />
     <ClInclude Include="FTextureManager.h" />
     <ClInclude Include="FTimer.h" />
+    <ClInclude Include="FUtilities.h" />
     <ClInclude Include="FVector3.h" />
     <ClInclude Include="GUI\FGUIButton.h" />
     <ClInclude Include="GUI\FGUIManager.h" />
+    <ClInclude Include="FPrimitiveBoxColorOverride.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\lightshader.hlsl">

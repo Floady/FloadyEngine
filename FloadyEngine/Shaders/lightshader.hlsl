@@ -27,7 +27,7 @@ struct Light
 
 struct MyLightArray
 {
-	Light myLights[10];
+	Light myLights[32];
 };
 Texture2D<float4> g_colortexture : register(t0);
 Texture2D<float4> g_normaltexture : register(t1);
@@ -64,7 +64,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
 	//return output;
 	
-	output.color = g_shadowTexture5.Sample(g_sampler, input.uv) * 150.1;
+	//output.color = g_shadowTexture.Sample(g_sampler, input.uv) * 150.1;
 	//return output;
 	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
@@ -82,7 +82,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	output.color = float4(0,0,0,0);
 	
 	[loop]
-	for( int qh = 0; qh < 10; qh++ )
+	for( int qh = 0; qh < 32; qh++ )
 	{
 		bool isDirectional = myLights.myLights[qh].myLightType == 1.0f;		
 		bool isSpot = myLights.myLights[qh].myLightType == 2.0f;
@@ -180,7 +180,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			float specLighting = pow(saturate(dot(h, normals.xyz)), SpecularPower);
 			float4 texel = colors;
 			
-			float shadowBiasParam = 0.00001f;
+			float shadowBiasParam = 0.001f;
 			float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
 			shadowBias = clamp(shadowBias, 0.0f, 0.1f);
 			
@@ -219,9 +219,19 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					isOutOfLightZone = true;
 			}
 			
+		//	output.color = float4(shadowDepth, shadowDepth, shadowDepth, 1) * 50.1;
+		//	return output;
+			
 			// check for shadow culled
-			if(!isOutOfLightZone && (projShadowDepth < shadowDepth - shadowBias))
+			if(!isOutOfLightZone && shadowDepth != 0 && (projShadowDepth < shadowDepth - shadowBias))
 				isOutOfLightZone = true;
+				
+			if(shadowDepth != 0)
+			{			
+			//	output.color = float4(1,0,1, 1);
+			//	return output;
+			}
+				
 				
 			if(!isOutOfLightZone)
 			{

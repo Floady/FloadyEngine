@@ -15,6 +15,7 @@ public:
 	void StartFrame();
 	void SetPause(bool aPaused) { myIsPaused = aPaused; }
 	void Render();
+	void SetVisible(bool aVisible);
 
 protected:
 	static FProfiler* ourInstance;
@@ -33,6 +34,7 @@ private:
 	std::vector<FDynamicText*> myLabels;
 	unsigned int myCurrentFrame;
 	bool myIsPaused;
+	bool myIsVisible;
 };
 
 struct scopedMarker

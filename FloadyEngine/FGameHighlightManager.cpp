@@ -91,7 +91,7 @@ FGameHighlightManager::FGameHighlightManager()
 
 	std::vector<FPostProcessEffect::BindInfo> resources;
 	resources.push_back(FPostProcessEffect::BindInfo(myScratchBuffer, DXGI_FORMAT_R8G8B8A8_UNORM));
-	FD3d12Renderer::GetInstance()->RegisterPostEffect(new FPostProcessEffect(resources, "highlightShaderPost.hlsl", "HighlightPost"));
+	FD3d12Renderer::GetInstance()->RegisterPostEffect(new FPostProcessEffect(resources, "highlightShaderPost.hlsl", 0, "HighlightPost"));
 }
 
 void FGameHighlightManager::Render()

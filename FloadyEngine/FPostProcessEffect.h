@@ -38,12 +38,13 @@ public:
 	static const BindBufferMask BindBufferMaskAll = Buffer_color | Buffer_normals | Buffer_Depth | Buffer_Shadow | Buffer_Present;
 
 	FPostProcessEffect(BindBufferMask aBindMask, const char* aShaderName, const char* aDebugName = nullptr);
-	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, const char* aDebugName = nullptr);
+	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, int aNrOfCBV = 0, const char* aDebugName = nullptr);
 	~FPostProcessEffect();
 	void Render();
 	void RenderAsync();
 	void Init(int aPostEffectBufferIdx);
 	void SetShader();
+	void WriteConstBuffer(int i, float* aData, int aSize);
 
 protected:
 	ID3D12RootSignature* myRootSignature;
@@ -68,5 +69,15 @@ protected:
 		DXGI_FORMAT myResourceFormat;
 	};
 	std::vector<BindResource> myResources;
+
+	int myNrOfCBV;
+	
+	struct ConstBuffer
+	{
+		ID3D12Resource* myConstBuffer;
+		UINT8* myConstantBufferPtr;
+	};
+
+	std::vector<ConstBuffer> myConstBuffers;
 };
 

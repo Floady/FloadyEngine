@@ -5,24 +5,22 @@
 #include "FGameAgent.h"
 #include "FGame.h"
 #include "FPlacingManager.h"
+#include "FUtilities.h"
+#include "FGameLevel.h"
 
 REGISTER_GAMEENTITY2(FGameBuilding);
 
-FGameBuildingBlueprint::FGameBuildingBlueprint(const char* aSetup) : FGameEntity()
+FGameBuildingBlueprint::FGameBuildingBlueprint(const char* aSetup)
 {
 	myEntity = nullptr;
 
-	FJsonObject* building = FJson::Parse(aSetup);
+	myBuilding = FJson::Parse(aSetup);
 	
 	// get building representation
-	const FJsonObject* child = building->GetFirstChild();
-	myEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
-	myEntity->Init(*child);
-	myEntity->SetPhysicsActive(true);
-	myEntity->SetOwnerEntity(this);
+	const FJsonObject* child = myBuilding->GetFirstChild();
 
 	// menu items
-	child = building->GetNextChild();
+	child = myBuilding->GetNextChild();
 	const FJsonObject* menuItemObj = nullptr;
 	if (child)
 		menuItemObj = child->GetFirstChild();
@@ -51,27 +49,34 @@ FGameBuildingBlueprint::~FGameBuildingBlueprint()
 
 void FGameBuildingBlueprint::ExecuteMenuItem(int aIdx) const
 {
-	char buff[100];
-	sprintf(buff, "Menu item: %i \n", aIdx);
-	OutputDebugStringA(buff);
+	FUtilities::FLog("Menu item: %i \n", aIdx);
 	myMenuItems[aIdx]->Execute();
 }
 
-FGameEntity * FGameBuildingBlueprint::CreateBuilding()
+FGameBuilding * FGameBuildingBlueprint::CreateBuilding()
 {
 	return new FGameBuilding(this);
+}
+
+const FJsonObject * FGameBuildingBlueprint::GetBuildingRepresentation() const
+{
+	return myBuilding->GetFirstChild();
 }
 
 FGameBuilding::FGameBuilding(FGameBuildingBlueprint* aBluePrint)
 	: FGameEntity()
 	, myBluePrint(aBluePrint)
 {
-	FGameEntity::Init(aBluePrint->GetPos(), FVector3(1, 1, 1), FGameEntity::ModelType::Box);
 	myRallyPointPos = aBluePrint->GetRallyPointPos();
+
+	myRepresentation = FGameEntityFactory::GetInstance()->Create(aBluePrint->GetBuildingRepresentation()->GetName());
+	myRepresentation->Init(*aBluePrint->GetBuildingRepresentation());
+	myRepresentation->SetOwnerEntity(this);
 }
 
 FGameBuilding::~FGameBuilding()
 {
+	delete myRepresentation;
 }
 
 void FGameBuilding::Init(const FJsonObject & anObj)
@@ -93,7 +98,7 @@ void FGameBuildingBlueprint::CreateAgentMenuItem::Execute()
 	FGameAgent* newAgent = new FGameAgent();
 	newAgent->Init(*mySetup);
 	newAgent->SetPos(selectedEntity->GetPos() + selectedEntity->GetRallyPointPos());
-	FGame::GetInstance()->AddEntity(newAgent);
+	FGame::GetInstance()->GetLevel()->AddEntity(newAgent);
 }
 
 void FGameBuildingBlueprint::SetRallyPointMenuItem::Execute()
@@ -103,5 +108,5 @@ void FGameBuildingBlueprint::SetRallyPointMenuItem::Execute()
 		return;
 
 	FGame::GetInstance()->GetPlacingManager()->ClearPlacable();
-	FGame::GetInstance()->GetPlacingManager()->SetPlacable(true, FVector3(1, 1, 1), FDelegate2<void(FVector3)>::from<FGameBuilding, &FGameBuilding::SetRallyPointPosWorld>(selectedEntity));
+	FGame::GetInstance()->GetPlacingManager()->SetPlacable(true, FVector3(0.1, 0.1, 0.1), FDelegate2<void(FVector3)>::from<FGameBuilding, &FGameBuilding::SetRallyPointPosWorld>(selectedEntity));
 }

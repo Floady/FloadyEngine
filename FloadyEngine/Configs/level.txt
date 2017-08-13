@@ -1,22 +1,8 @@
 {
-"FGameEntity" : 
-{
-  "posX" : 2.0,
-  "posY" : 12.0,
-"posZ" : 2.0,
-"scaleX" : 1.0,
-"scaleY" : 1.0,
-"scaleZ" : 1.0,
-"mass" : 10.0,
-"isNavBlocker" : true,
-"canMove" : true,
-"type" : 1,
-"tex" : "marble.png"
-},
 "FGameLightEntity" : 
 {
 	"type" : 1.0,
-	"radius" : 1.0,
+	"radius" : 6.1,
 	"r" : 1.0,
 	"g" : 1.0,
 	"b" : 1.0,
@@ -30,7 +16,7 @@
 	"FGameEntity" : 
 	{
 	  "posX" : 20.0,
-	  "posY" : 15.0,
+	  "posY" : 5.0,
 	"posZ" : 40.0,
 	"scaleX" : 0.2,
 	"scaleY" : 0.2,
@@ -41,6 +27,21 @@
 	"type" : 1,
 	"tex" : "marble.png"
 	}
+},
+"FGameEntityObjModel" : 
+{
+  "posX" : 4.0,
+  "posY" : 1.0,
+"posZ" : 4.0,
+"scaleX" : 1.0,
+"scaleY" : 1.0,
+"scaleZ" : 1.0,
+"mass" : 0.0,
+"isNavBlocker" : false,
+"canMove" : false,
+"type" : 1,
+"tex" : "F16s.png",
+"model" : "f16.obj"
 },
 "FGameTerrain" : 
 {

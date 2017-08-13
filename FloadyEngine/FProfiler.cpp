@@ -7,7 +7,8 @@
 
 FProfiler* FProfiler::ourInstance = nullptr;
 unsigned int FProfiler::ourHistoryBufferCount = 120;
-static const float textHeight = 0.05f;
+static const float textHeight = 0.04f;
+static const float textWidth = 0.5f;
 FProfiler * FProfiler::GetInstance()
 {
 	if (!ourInstance)
@@ -21,7 +22,7 @@ FProfiler::FProfiler()
 {
 	myCurrentFrame = 0;
 	myIsPaused = 0;
-
+	myIsVisible = 0;
 
 	ghMutex = CreateMutex(
 		NULL,              // default security attributes
@@ -51,8 +52,7 @@ void FProfiler::AddTiming(const char * aName, double aTime)
 			myTimings[aName].resize(ourHistoryBufferCount);
 
 			// add a label for it
-			myLabels.push_back(new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(-1.0f, -1.0f, 0.0), "FPS Counter", 0.5f, textHeight, true, true));
-			FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myLabels[myLabels.size() - 1], true); // transparant == nondeferred for now..
+			myLabels.push_back(new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(-1.0f, -1.0f, 0.0), "FPS Counter", textWidth, textHeight, true, true));
 		}
 		ReleaseMutex(ghMutex);
 	}
@@ -76,6 +76,9 @@ void FProfiler::StartFrame()
 
 void FProfiler::Render()
 {
+	if (!myIsVisible)
+		return;
+
 	int labelIdx = 0;
 
 	char buff[128];
@@ -90,7 +93,8 @@ void FProfiler::Render()
 		myLabels[labelIdx]->SetText(buff);
 		myLabels[labelIdx]->SetPos(pos);
 
-		pos.y -= textHeight * 2;
+		pos.y -= textHeight;
+		pos.y -= 0.01; // custom spacing
 
 		if (pos.y < -1)
 		{
@@ -99,6 +103,19 @@ void FProfiler::Render()
 		}
 
 		labelIdx++;
+	}
+}
+
+void FProfiler::SetVisible(bool aVisible)
+{
+	myIsVisible = aVisible;
+
+	for (FDynamicText* label : myLabels)
+	{
+		if(myIsVisible)
+			FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(label, true);
+		else
+			FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(label);
 	}
 }
 

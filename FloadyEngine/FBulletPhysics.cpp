@@ -9,6 +9,7 @@
 FBulletPhysics::FBulletPhysics()
 {
 	myEnabled = false;
+	myDebugDrawEnabled = false;
 }
 
 
@@ -89,15 +90,18 @@ void FBulletPhysics::Update(double aDeltaTime)
 	{
 		m_dynamicsWorld->stepSimulation(static_cast<float>(aDeltaTime));
 	}
-}
 
-void FBulletPhysics::DebugDrawWorld()
-{
-	if (m_dynamicsWorld)
+	if (m_dynamicsWorld && myDebugDrawEnabled)
 	{
 		m_dynamicsWorld->debugDrawWorld();
 	}
 }
+
+void FBulletPhysics::SetDebugDrawEnabled(bool anEnabled)
+{
+	myDebugDrawEnabled = anEnabled;
+}
+
 btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/, FGameEntity* anEntity /*= nullptr*/)
 {
 	FVector3 extends = aScale / 2.0f;

@@ -5,6 +5,7 @@
 
 class FScreenQuad;
 class btRigidBody;
+class FDynamicText;
 
 class FGUIButton : public FGUIObject
 {
@@ -24,16 +25,16 @@ public:
 	void Update();
 
 	~FGUIButton() override;
+protected:
+	bool myShouldDoCallback;
+	FScreenQuad* myGraphicsObject;
 
 private:
-
-	FScreenQuad* myGraphicsObject;
 	FDynamicText* myDynTexLabel;
 	FDelegate2<void()> myCallback;
 	FDelegate2<void(const char*)> myCallbackConstChar;
 	FDelegate2<void(int)> myCallbackInteger;
 	const char* myString;
-	bool myShouldDoCallback;
 	FVector3 myTL;
 	FVector3 myBR;
 	int myNumber;

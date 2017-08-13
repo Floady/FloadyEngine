@@ -233,8 +233,9 @@ void FD3d12Quad::Render()
 	memcpy(myConstBufferShaderPtr, shaderConstData2, sizeof(shaderConstData2));
 
 	// Set lights
-	static float lightData[74*10];
-	memset(&lightData, 0.0f, sizeof(float) * 74 * 10);
+	const int maxLights = 32;
+	static float lightData[32* maxLights]; // 32 floats per light
+	memset(&lightData, 0.0f, sizeof(float) * 32 * maxLights);
 	int idx = 0;
 
 	int lightIdx = 0;
@@ -242,7 +243,7 @@ void FD3d12Quad::Render()
 	const std::vector<FLightManager::DirectionalLight>& directionallights = FLightManager::GetInstance()->GetDirectionalLights();
 	for (const FLightManager::DirectionalLight& directionalLight : directionallights)
 	{
-		XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(lightIdx);
+		const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(lightIdx);
 		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
 		idx += 16;
 
@@ -276,9 +277,15 @@ void FD3d12Quad::Render()
 	lightIdx = 0;
 	
 	const std::vector<FLightManager::SpotLight>& spotlights = FLightManager::GetInstance()->GetSpotlights();
+	int numLights = 1;
 	for (const FLightManager::SpotLight& spotLight : spotlights)
 	{
-		XMFLOAT4X4 lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
+		if (numLights >= maxLights)
+			break;
+
+		numLights++;
+
+		const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
 		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
 		idx += 16;
 

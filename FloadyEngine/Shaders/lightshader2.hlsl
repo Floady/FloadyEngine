@@ -30,61 +30,15 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : T
 PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
-	output.color = float4(1.0f, 0.0f, 1.0f, 1.0f);
-	//output.color = float4(0.0f, 1.0f, 1.0f, 1.0f);
-	output.color = float4(input.uv, 0.0f, 1.0f);
 	
 	float2 uvStride = float2(1.0f/800.0f, 1.0f/600.0f);
-	float depth = g_depthTexture.Sample(g_sampler, input.uv);
-	bool isEdge = false;
 		
-	output.color = g_combinedTexture.Sample(g_sampler, input.uv);
+	output.color = scratchbuff.Sample(g_sampler, input.uv);
 	
-	// Edge detection test 1 - todo should use dot normals :)
-	bool doEdgeDetection = false;
-	if(doEdgeDetection)
-	{
-		float threshold = 0.00009f; 
-		[loop]
-		for( int i = -3; i < 3; i++ )
-		{
-			[loop]
-			for( int j = -3; j < 3; j++ )
-			{
-				float neighbourDepth = g_depthTexture.Sample(g_sampler, input.uv - float2(uvStride.x * i, uvStride.y * j));
-				if(abs(depth-neighbourDepth) > threshold)
-				{
-					output.color = float4(1,1,1,1);
-					return output;
-				}
-			}
-		}
-	}
-	
-	// make this into a DoF	
 	bool doBlur = false;
-	if(doBlur)
-	{
-		float totalColor = 0.0f; 
-		int extends = 1;
-		int counter = 0;
-		[loop]
-		for( int i = -extends; i <= extends; i++ )
-		{
-			[loop]
-			for( int j = -extends; j <= extends; j++ )
-			{
-				totalColor += g_combinedTexture.Sample(g_sampler, input.uv + float2(uvStride.x * i, uvStride.y * j));
-				counter++;
-			}
-		}
-		
-		output.color = totalColor / counter;
-	}	
-	
-	
-	float3 dir; // this is the direction across we want to blur after luma edge analysis
-	float3 normalizedDir;
+
+	float3 dir = float3(0,0,0); // this is the direction across we want to blur after luma edge analysis
+	float3 normalizedDir = float3(1,0,0);
 	bool doFXAA = true;
 	if(doFXAA)
 	{
@@ -132,7 +86,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		currentPixLuma = weights.x*colorM.x + weights.y*colorM.y + weights.z*colorM.z;
 		float contrast = max(maxLuma, currentPixLuma) - min(minLuma, currentPixLuma);
 		float minThreshold = 0.05f;
-		float threshold = 0.4f;
+		float threshold = 0.8f;
 		
 		// this is the early out test - if pixel should get blurred or not, if so - calculate the direction and do a blur pass
 		if(contrast > max(minThreshold, maxLuma * threshold))
@@ -145,49 +99,43 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			doBlur = true;
 			
 			// debug draw luma edge detection
-		//	output.color = float4(abs(normalizedDir.x), abs(normalizedDir.y), 0.0f, 1.0f);
-		//	return output;
+			//output.color = float4(abs(normalizedDir.x), abs(normalizedDir.y), 0.0f, 1.0f);
+			//return output;
 		}
 		
 	}
 	
 	// FXAA blur over direction
+	doBlur = false;
 	if(doBlur)
 	{
 		float4 totalColor = float4(0, 0, 0, 0); 
-		//float totalColor = 0;
-		const float maxBlurDist = 5;
-		float scale = 3.0f;
+		const float maxBlurDist = 8.0f;
+		float scale = 10.0f;
 		int extendsX = min(maxBlurDist, abs(normalizedDir.x) * scale);
 		int extendsY = min(maxBlurDist, abs(normalizedDir.y) * scale);
-		//extendsX = 5; extendsY = 1;
 		int counter = 0;
+		//extendsX = 0;
+		//extendsY = 8;
+		
 		[loop]
 		for( int i = -extendsX; i <= extendsX; i++ )
 		{
 			[loop]
 			for( int j = -extendsY; j <= extendsY; j++ )
 			{
-				totalColor += g_combinedTexture.Sample(g_sampler, input.uv + float2(uvStride.x * i, uvStride.y * j));
+				totalColor += scratchbuff.Sample(g_sampler, input.uv + float2(uvStride.x * i, uvStride.y * j));
 				counter++;
 			}
 		}
-				
-		output.color = totalColor / counter;
 		
-		// DEBUG OVERRIDE
-		float4 debugColor = float4(normalizedDir, 1);
-		debugColor = debugColor / 2.0f;
-		debugColor = debugColor + float4(0.5, 0.5, 0, 0);
-		//output.color = debugColor;
+		output.color = totalColor / (counter);
 		
 		// TEST
-		float4 colorFinal = g_combinedTexture.Sample(g_sampler, input.uv + float2(uvStride.x * dir.x, uvStride.y * dir.y));
-		colorFinal += g_combinedTexture.Sample(g_sampler, input.uv - float2(uvStride.x * dir.x, uvStride.y * dir.y));
-		output.color = colorFinal / 2.0;
+		//float4 colorFinal = scratchbuff.Sample(g_sampler, input.uv + float2(uvStride.x * dir.x, uvStride.y * dir.y));
+		//colorFinal += scratchbuff.Sample(g_sampler, input.uv - float2(uvStride.x * dir.x, uvStride.y * dir.y));
+		//output.color = colorFinal / 2.0;
 	}	
-	
-	output.color += scratchbuff.Sample(g_sampler, input.uv) * float4(0.1,0.1,0.5,1);
-	
+		
 	return output;	
 }

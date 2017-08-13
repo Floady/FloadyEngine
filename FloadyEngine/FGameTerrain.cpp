@@ -1,6 +1,5 @@
 #include "FGameTerrain.h"
 #include "FRenderableObject.h"
-
 #include "FBulletPhysics.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "btBulletDynamicsCommon.h"
@@ -8,6 +7,9 @@
 #include "FGame.h"
 #include "FNavMeshManagerRecast.h"
 #include "FDebugDrawer.h"
+#include "FCamera.h"
+#include "FLightManager.h"
+#include "FUtilities.h"
 
 using namespace DirectX;
 
@@ -133,7 +135,7 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	
 	myGraphicsObject->SetShader("terrainShader.hlsl");
 
-	OutputDebugStringA("Terrain made \n");
+	FUtilities::FLog("Terrain made \n");
 
 	btTriangleMesh* triangleMeshTerrain = new btTriangleMesh();
 	for (int i = 0; i < indices.size(); i+=3)
@@ -147,17 +149,22 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 		triangleMeshTerrain->addTriangle(posA, posB, posC);
 	}
 
+	// @todo - hack: remove original phys obj
+	if (myPhysicsObject)
+	{
+		FGame::GetInstance()->GetPhysics()->RemoveObject(myPhysicsObject);
+		myPhysicsObject = nullptr;
+	}
+
+	// add terrain collision mesh
 	btCollisionShape* myColShape = new btBvhTriangleMeshShape(triangleMeshTerrain, true);
-
 	btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-
 	btRigidBody::btRigidBodyConstructionInfo rigidBodyConstructionInfo(0.0f, motionState, myColShape, btVector3(0, 0, 0));
-	btRigidBody* rigidBodyTerrain = new btRigidBody(rigidBodyConstructionInfo);
-	FGame::GetInstance()->GetPhysics()->AddTerrain(rigidBodyTerrain, myColShape, this);
+	myPhysicsObject = new btRigidBody(rigidBodyConstructionInfo);
+	FGame::GetInstance()->GetPhysics()->AddTerrain(myPhysicsObject, myColShape, this);
 
 
-	// Recast
-	
+	// send mesh to Recast	
 	FNavMeshManagerRecast::FInputMesh mesh;
 	for (FPrimitiveGeometry::Vertex& vtx : vertices)
 	{
@@ -183,6 +190,23 @@ FGameTerrain::~FGameTerrain()
 void FGameTerrain::Update(double aDeltaTime)
 {
 	FGameEntity::Update(aDeltaTime);
+
+	// update light AABB
+	FCamera* cam = FD3d12Renderer::GetInstance()->GetCamera();
+	FAABB& aabb = FLightManager::GetInstance()->GetVisibleAABB();
+
+	for (int i = 0; i < vertices.size(); i++)
+	{
+		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z))
+		{
+			aabb.Grow(FVector3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z));
+		}
+	}
+
+	// bloat visible by tilesize
+	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMax + FVector3(myTileSize, myTileSize, myTileSize));
+	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMin - FVector3(myTileSize, myTileSize, myTileSize));
+	
 }
 
 void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<FPrimitiveGeometry::Vertex>& aVertices, std::vector<int>& anIndices)
@@ -289,7 +313,7 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		// add top face (imagine from top view)
 		FPrimitiveGeometry::Vertex newtl = aVertices[idx + myTerrainSizeX];
 		FPrimitiveGeometry::Vertex newbl = aVertices[idx + myTerrainSizeX + 1];
-		FVector3 faceNormal = FVector3(-1, 0, 0);
+		FVector3 faceNormal = FVector3(1, 0, 0);
 
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
@@ -315,7 +339,7 @@ void FGameTerrain::ExtrudeFace(int anIdxTL, FVector3 anExtrudeVec, std::vector<F
 		// add bot face (imagine from top view)
 		newtl = aVertices[idx + myTerrainSizeX];
 		newbl = aVertices[idx + myTerrainSizeX + 1];
-		faceNormal = FVector3(1, 0, 0);
+		faceNormal = FVector3(-1, 0, 0);
 		tl.normal.x = faceNormal.x; tl.normal.y = faceNormal.y; tl.normal.z = faceNormal.z;
 		bl.normal.x = faceNormal.x; bl.normal.y = faceNormal.y; bl.normal.z = faceNormal.z;
 		newtl.normal.x = faceNormal.x; newtl.normal.y = faceNormal.y; newtl.normal.z = faceNormal.z;

@@ -39,6 +39,64 @@ void FDebugDrawer::drawLine(const FVector3 & from, const FVector3 & to, const FV
 	myLines.push_back(line);
 }
 
+void FDebugDrawer::drawAABB(const FVector3& aMin, const FVector3& aMax, const FVector3 & color)
+{
+	// 
+	drawLine(
+		FVector3(aMin.x, aMax.y, aMax.z),
+		FVector3(aMax.x, aMax.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMax.x, aMin.y, aMax.z),
+		FVector3(aMin.x, aMin.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMax.x, aMin.y, aMin.z),
+		FVector3(aMin.x, aMin.y, aMin.z), color);
+
+	drawLine(
+		FVector3(aMax.x, aMax.y, aMin.z),
+		FVector3(aMin.x, aMax.y, aMin.z), color);
+
+	// ~
+
+	// 
+	drawLine(
+		FVector3(aMax.x, aMax.y, aMin.z),
+		FVector3(aMax.x, aMax.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMax.x, aMin.y, aMin.z),
+		FVector3(aMax.x, aMin.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMin.x, aMin.y, aMin.z),
+		FVector3(aMin.x, aMin.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMin.x, aMax.y, aMin.z),
+		FVector3(aMin.x, aMax.y, aMax.z), color);
+	// ~
+
+	// 
+	drawLine(
+		FVector3(aMax.x, aMin.y, aMax.z),
+		FVector3(aMax.x, aMax.y, aMax.z), color);
+
+	drawLine(
+		FVector3(aMax.x, aMin.y, aMin.z),
+		FVector3(aMax.x, aMax.y, aMin.z), color);
+
+	drawLine(
+		FVector3(aMin.x, aMin.y, aMin.z),
+		FVector3(aMin.x, aMax.y, aMin.z), color);
+
+	drawLine(
+		FVector3(aMin.x, aMin.y, aMax.z),
+		FVector3(aMin.x, aMax.y, aMax.z), color);
+	// ~
+}
+
 void FDebugDrawer::DrawTriangle(const FVector3 & aV1, const FVector3 & aV2, const FVector3 & aV3, const FVector3& aColor)
 {
 	FPROFILE_FUNCTION("DebugDrawer Tri");

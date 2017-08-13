@@ -3,57 +3,8 @@
 #include <tchar.h>
 #include <stdio.h>
 #include "D3dCompiler.h"
+#include "FUtilities.h"
 
-namespace
-{
-	std::string ConvertFromUtf16ToUtf8(const std::wstring& wstr)
-	{
-		std::string convertedString;
-		int requiredSize = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, 0, 0, 0, 0);
-		if (requiredSize > 0)
-		{
-			std::vector<char> buffer(requiredSize);
-			WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &buffer[0], requiredSize, 0, 0);
-			convertedString.assign(buffer.begin(), buffer.end() - 1);
-		}
-		return convertedString;
-	}
-
-	std::wstring ConvertFromUtf8ToUtf16(const std::string& str)
-	{
-		std::wstring convertedString;
-		int requiredSize = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, 0, 0);
-		if (requiredSize > 0)
-		{
-			std::vector<wchar_t> buffer(requiredSize);
-			MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &buffer[0], requiredSize);
-			convertedString.assign(buffer.begin(), buffer.end() - 1);
-		}
-
-		return convertedString;
-	}
-
-
-
-	void OutputShaderErrorMessage(ID3D10Blob* errorMessage)
-	{
-		char* compileErrors;
-		size_t bufferSize;
-
-		// Get a pointer to the error message text buffer.
-		compileErrors = (char*)(errorMessage->GetBufferPointer());
-
-		// Get the length of the message.
-		bufferSize = errorMessage->GetBufferSize();
-		OutputDebugStringA(compileErrors);
-		
-		// Release the error message.
-		errorMessage->Release();
-		errorMessage = 0;
-
-		return;
-	}
-}
 
 FShaderManager::FShaderManager()
 {
@@ -106,11 +57,11 @@ void FShaderManager::ReloadShaders()
 			ID3DBlob* errorMessage = nullptr;
 			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorMessage);
 			if(errorMessage)
-				OutputShaderErrorMessage(errorMessage);
+				FUtilities::OutputShaderErrorMessage(errorMessage);
 			errorMessage = nullptr;
 			D3DCompileFromFile(concatted_stdstr.c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorMessage);
 			if (errorMessage)
-				OutputShaderErrorMessage(errorMessage);
+				FUtilities::OutputShaderErrorMessage(errorMessage);
 			errorMessage = nullptr;
 
 			ID3D12ShaderReflection* lVertexShaderReflection = nullptr;
@@ -165,7 +116,7 @@ void FShaderManager::ReloadShaders()
 				shader.myInputElementDescs.push_back(desc);
 			}
 
-			myShaders[std::string(ConvertFromUtf16ToUtf8(data.cFileName))] = shader;
+			myShaders[std::string(FUtilities::ConvertFromUtf16ToUtf8(data.cFileName))] = shader;
 
 
 		} while (FindNextFileW(hFind, &data));

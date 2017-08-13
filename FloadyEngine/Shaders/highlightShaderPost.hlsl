@@ -12,7 +12,6 @@ struct PSOutput
 
 Texture2D<float4> g_scratchtexture : register(t0);
 Texture2D<float4> g_combinedTexture : register(t1);
-Texture2D<float4> scratchbuff : register(t2);
 
 SamplerState g_sampler : register(s0);
 
@@ -32,25 +31,25 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	// Edge detection test 1 - todo should use dot normals :)
 	bool doEdgeDetection = true;
 	float4 color = g_scratchtexture.Sample(g_sampler, input.uv);
+	output.color = g_combinedTexture.Sample(g_sampler, input.uv);
 	if(doEdgeDetection)
 	{
 		float threshold = 0.2f; 
 		[loop]
-		for( int i = -1; i < 1; i++ )
+		for( int i = -2; i < 2; i++ )
 		{
 			[loop]
-			for( int j = -1; j < 1; j++ )
+			for( int j = -2; j < 2; j++ )
 			{
 				float neighbourColor = g_scratchtexture.Sample(g_sampler, input.uv - float2(uvStride.x * i, uvStride.y * j));
 				if(abs(color.x-neighbourColor.x) > threshold)
 				{
-					output.color = float4(1,1,1,1);
+					output.color += float4(0.2, 0.2, 0.4 ,1);
 					return output;
 				}
 			}
 		}
 	}
 	
-	output.color = float4(0,0,0,1);
 	return output;	
 }

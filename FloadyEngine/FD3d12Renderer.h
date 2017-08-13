@@ -75,6 +75,7 @@ public:
 	ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue; }
 	void IncreaseInt();
 	ID3D12Resource* GetRenderTarget() { return m_backBufferRenderTarget[m_bufferIndex]; }
+	void SetDebugDrawEnabled(bool anEnabled);
 	ID3D12Resource* GetGBufferTarget(int i) { return m_gbuffer[i]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
 	ID3D12Resource* GetShadowMapBuffer(int i) { return myShadowMap[i]; }
@@ -119,6 +120,7 @@ private:
 	HANDLE m_fenceEvent;
 	public:
 	unsigned long long m_fenceValue;
+	bool myDebugDrawEnabled;
 
 
 	ID3D12DescriptorHeap* m_srvHeap; // shader resource view

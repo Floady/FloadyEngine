@@ -29,8 +29,9 @@ public:
 	void SetUVOffset(const FVector3& aTL, const FVector3& aBR);
 
 	// dont care for text - could use it to change font
-	virtual void SetTexture(const char* aFilename) {};
-	virtual void SetShader(const char* aFilename) {};
+	virtual void SetTexture(const char* aFilename) {}
+	virtual const char* GetTexture() override { return nullptr; }
+	virtual void SetShader(const char* aFilename) {}
 private:
 	bool myUseKerning;
 

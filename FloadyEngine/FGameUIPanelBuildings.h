@@ -2,6 +2,7 @@
 #include "FGameUIPanel.h"
 
 class FGameEntity;
+class FGameBuildingBlueprint;
 
 class FGameUIPanelBuildings : public FGameUIPanel
 {
@@ -10,6 +11,6 @@ public:
 	FGameUIPanelBuildings();
 	~FGameUIPanelBuildings();
 private:
-	const FGameEntity* myCurrentlySelectedBuilding;
+	const FGameBuildingBlueprint* myCurrentlySelectedBuilding;
 };
 

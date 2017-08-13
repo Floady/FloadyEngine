@@ -3,6 +3,7 @@
 #include <vector>
 #include "FVector3.h"
 
+class FGameLevel;
 class FPlacingManager;
 class FScreenQuad;
 class FGameEntity;
@@ -21,6 +22,7 @@ class FGameAgent;
 class FGameHighlightManager;
 class FGameBuildingManager;
 class FGameUIManager;
+class FPostProcessEffect;
 
 class FGame
 {
@@ -35,9 +37,7 @@ public:
 	FPlacingManager* GetPlacingManager() { return myPlacingManager; }
 	void ConstructBuilding(FVector3 aPos);
 	FGameBuildingManager* GetBuildingManager() { return myBuildingManager; }
-	void Test();
-	void Test(FVector3 aPos);
-	void AddEntity(FGameEntity* anEntity);
+	FGameLevel* GetLevel() { return myLevel; }
 	FGame();
 	~FGame();
 	FGameEntity* GetSelectedEntity() const { return myPickedEntity; }
@@ -46,6 +46,7 @@ private:
 private:
 	FRenderWindow* myRenderWindow;
 	FD3d12Renderer* myRenderer;
+	FGameLevel* myLevel;
 	FD3d12Input* myInput;
 	FGameCamera* myCamera;
 	FBulletPhysics* myPhysics;
@@ -55,7 +56,6 @@ private:
 	FDynamicText* myFpsCounter;
 
 	static FGame* ourInstance;
-	std::vector<FGameEntity*> myEntityContainer;
 	bool myIsMouseCaptured;
 	F3DPicker* myPicker;
 	FGameEntity* myPickedEntity;
@@ -67,5 +67,9 @@ private:
 
 	bool myWasRightMouseDown;
 	bool myWasLeftMouseDown;
+
+	FPostProcessEffect* myAA;
+	FPostProcessEffect* mySSAO;
+	FPostProcessEffect* myBlur;
 };
 

@@ -3,61 +3,8 @@
 #include "FShaderManager.h"
 #include "FPrimitiveGeometry.h"
 #include "FJobSystem.h"
-
-// temp - move to utils
-
-namespace
-{
-	std::string ConvertFromUtf16ToUtf8(const std::wstring& wstr)
-	{
-		std::string convertedString;
-		int requiredSize = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, 0, 0, 0, 0);
-		if (requiredSize > 0)
-		{
-			std::vector<char> buffer(requiredSize);
-			WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &buffer[0], requiredSize, 0, 0);
-			convertedString.assign(buffer.begin(), buffer.end() - 1);
-		}
-		return convertedString;
-	}
-
-	std::wstring ConvertFromUtf8ToUtf16(const std::string& str)
-	{
-		std::wstring convertedString;
-		int requiredSize = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, 0, 0);
-		if (requiredSize > 0)
-		{
-			std::vector<wchar_t> buffer(requiredSize);
-			MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &buffer[0], requiredSize);
-			convertedString.assign(buffer.begin(), buffer.end() - 1);
-		}
-
-		return convertedString;
-	}
-	void OutputShaderErrorMessage(ID3D10Blob* errorMessage)
-	{
-		if (!errorMessage)
-			return;
-
-		char* compileErrors;
-		size_t bufferSize;
-
-		// Get a pointer to the error message text buffer.
-		compileErrors = (char*)(errorMessage->GetBufferPointer());
-
-		// Get the length of the message.
-		bufferSize = errorMessage->GetBufferSize();
-		OutputDebugStringA(compileErrors);
-
-		// Release the error message.
-		errorMessage->Release();
-		errorMessage = 0;
-
-		return;
-	}
-
-}
-
+#include "FUtilities.h"
+#include "comdef.h"
 
 FPostProcessEffect::FPostProcessEffect(BindBufferMask aBindMask, const char* aShaderName, const char* aDebugName)
 {
@@ -68,9 +15,10 @@ FPostProcessEffect::FPostProcessEffect(BindBufferMask aBindMask, const char* aSh
 	myCommandList = nullptr;
 	myDebugName = aDebugName;
 	myUseResource = false;
+	myNrOfCBV = 0;
 }
 
-FPostProcessEffect::FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char * aShaderName, const char * aDebugName)
+FPostProcessEffect::FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char * aShaderName, int aNrOfCBV, const char * aDebugName)
 {
 	myUseResource = true;
 	myShaderName = aShaderName;
@@ -78,6 +26,7 @@ FPostProcessEffect::FPostProcessEffect(const std::vector<BindInfo>& aResourcesTo
 	myRootSignature = nullptr;
 	myCommandList = nullptr;
 	myDebugName = aDebugName;
+	myNrOfCBV = aNrOfCBV;
 
 	for (const BindInfo& resource : aResourcesToBind)
 	{
@@ -112,6 +61,16 @@ void FPostProcessEffect::Init(int aPostEffectBufferIdx)
 		}
 	}
 
+	for (int i = 0; i < myNrOfCBV; i++)
+	{
+		ConstBuffer constBuffer;
+		FD3d12Renderer::GetInstance()->CreateConstantBuffer(constBuffer.myConstBuffer, constBuffer.myConstantBufferPtr);
+		constBuffer.myConstBuffer->SetName(FUtilities::ConvertFromUtf8ToUtf16(std::string(myDebugName).append("Const")).c_str());
+		myConstBuffers.push_back(constBuffer);
+		float data[16] = { 0 };
+		WriteConstBuffer(i, &data[0], 16 * 4);
+	}
+
 	HRESULT hr;
 	{
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -134,12 +93,14 @@ void FPostProcessEffect::Init(int aPostEffectBufferIdx)
 		if (myUseResource)
 			nrOfSRVs = myResources.size();
 
-		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-		
+		//*
+		CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+
 		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, nrOfSRVs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, myNrOfCBV, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
 		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
+		rootParameters[0].InitAsDescriptorTable(myNrOfCBV > 0 ? 2 : 1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -158,14 +119,16 @@ void FPostProcessEffect::Init(int aPostEffectBufferIdx)
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDesc;
 		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-		//rootSignatureDesc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
+		
 		ID3DBlob* signature;
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
-		OutputShaderErrorMessage(error);
+		FUtilities::OutputShaderErrorMessage(error);
 		hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&myRootSignature));
-		myRootSignature->SetName(ConvertFromUtf8ToUtf16(std::string(myDebugName)).c_str());
+		/*/
+		myRootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(nrOfSRVs, myNrOfCBV);
+		//*/
+		myRootSignature->SetName(FUtilities::ConvertFromUtf8ToUtf16(std::string(myDebugName)).c_str());
 	}
 
 	SetShader();
@@ -244,7 +207,8 @@ void FPostProcessEffect::SetShader()
 	if (myCommandList)
 		myCommandList->Release();
 
-
+	// you can make a root sig out of the shadder blob - https://stackoverflow.com/questions/35785271/id3d12devicecreatecomputepipelinestate-fails-e-invalidargs
+	// FD3d12Renderer::GetInstance()->GetDevice()->CreateRootSignature(0, shader.myPixelShader, signature->GetBufferSize(), IID_PPV_ARGS(&myRootSignature));
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.InputLayout = { &shader.myInputElementDescs[0], (UINT)shader.myInputElementDescs.size() };
 	psoDesc.pRootSignature = myRootSignature;
@@ -262,9 +226,22 @@ void FPostProcessEffect::SetShader()
 
 	HRESULT hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&myPipelineState));
 
+	if (FAILED(hr))
+	{
+		_com_error err(hr);
+		LPCTSTR errMsg = err.ErrorMessage();
+		FUtilities::FLog(FUtilities::ConvertFromUtf16ToUtf8(std::wstring(errMsg).append(L"\n")).c_str());
+	}
+
 	hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, FD3d12Renderer::GetInstance()->GetCommandAllocator(), myPipelineState, IID_PPV_ARGS(&myCommandList));
 	myCommandList->Close();
-	myCommandList->SetName(ConvertFromUtf8ToUtf16(std::string(myDebugName)).c_str());
+	myCommandList->SetName(FUtilities::ConvertFromUtf8ToUtf16(std::string(myDebugName)).c_str());
+}
+
+void FPostProcessEffect::WriteConstBuffer(int i, float* aData, int aSize)
+{
+	if(i < myConstBuffers.size() && myConstBuffers[i].myConstantBufferPtr)
+		memcpy(myConstBuffers[i].myConstantBufferPtr, aData, aSize);
 }
 
 void FPostProcessEffect::Render()

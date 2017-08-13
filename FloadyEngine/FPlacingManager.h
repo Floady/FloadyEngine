@@ -5,6 +5,7 @@
 #include "FDelegate.h"
 
 class FGameEntity;
+class FPrimitiveBoxColorOverride;
 
 class FPlacingManagerObject : public FRenderableObject
 {
@@ -18,12 +19,13 @@ public:
 
 	void UpdateMousePos(const FVector3& aPos);
 	void MouseDown(const FVector3& aPos);
-	void SetPlacable(bool anIsCube, FVector3 aScale, FDelegate2<void(FVector3)>& aCB); //anIsCube should be replaced with mesh name
+	void SetPlacable(bool anIsCube, FVector3 aScale, FDelegate2<void(FVector3)>& aCB, const char* aTex = nullptr); //anIsCube should be replaced with mesh name
 	void ClearPlacable();
 	bool IsPlacing() const { return myObject != nullptr; }
 private:
 
-	FRenderableObject* myObject;
+	FPrimitiveBoxColorOverride* myObject;
 	FDelegate2<void (FVector3)> myPlaceCallback;
+	bool myFitsOnNavMesh;
 };
 

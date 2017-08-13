@@ -16,11 +16,20 @@ FNavMeshManagerRecast::FNavMeshManagerRecast()
 	m_filterLowHangingObstacles = false;
 	m_filterLedgeSpans = false;
 	m_filterWalkableLowHeightSpans = false;
+	myDebugFlags = 0;
 }
 
 
 FNavMeshManagerRecast::~FNavMeshManagerRecast()
 {
+}
+
+void FNavMeshManagerRecast::SetDebugDrawEnabled(bool aShouldDebugDraw)
+{
+	if(aShouldDebugDraw)
+		myDebugFlags = (1 << DebugDrawFlags::DRAW_POLYS) | (1 << DebugDrawFlags::DRAW_VERTICES) | (1 << DebugDrawFlags::DRAW_PATHS) | (1 << DebugDrawFlags::DRAW_EDGES);
+	else
+		myDebugFlags = 0;
 }
 
 void FNavMeshManagerRecast::Update()
@@ -29,12 +38,11 @@ void FNavMeshManagerRecast::Update()
 
 void FNavMeshManagerRecast::DebugDraw()
 {
-	myDebugFlags = (1 << DebugDrawFlags::DRAW_POLYS) | (1 << DebugDrawFlags::DRAW_VERTICES) | (1 << DebugDrawFlags::DRAW_PATHS) | (1 << DebugDrawFlags::DRAW_EDGES);
-	myDebugFlags = (1 << DebugDrawFlags::DRAW_POLYS) | (1 << DebugDrawFlags::DRAW_PATHS);
+	// myDebugFlags = (1 << DebugDrawFlags::DRAW_POLYS) | (1 << DebugDrawFlags::DRAW_PATHS);
 
 	FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
 
-	if (!debugDrawer)
+	if (!debugDrawer || !m_pmesh || !myDebugFlags)
 		return;
 	
 	const int nvp = m_pmesh->nvp;
@@ -106,7 +114,7 @@ void FNavMeshManagerRecast::DebugDraw()
 
 				const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-				FVector3 colorNav(1,1,1);
+				FVector3 colorNav(0.5,0.8,0.5);
 				dtPolyRef base = navmesh->getPolyRefBase(tile);
 				const dtNavMeshQuery* query = nullptr;
 				unsigned char flags = 0;
@@ -114,6 +122,8 @@ void FNavMeshManagerRecast::DebugDraw()
 					colorNav = FVector3(1, 0.8, 0);
 				else
 				{
+					if (p->getArea() == 1) // these flags are game specific - todo improve with enums and area costs
+						colorNav = FVector3(0.8, 0.2, 0.2);
 					/*
 					if (flags & DU_DRAWNAVMESH_COLOR_TILES) //DU_DRAWNAVMESH_COLOR_TILES
 						col = tileColor;
@@ -280,6 +290,7 @@ void FNavMeshManagerRecast::DebugDraw()
 
 }
 
+#pragma optimize("", off)
 bool FNavMeshManagerRecast::GenerateNavMesh()
 {
 	float m_cellSize = 0.3;
@@ -313,7 +324,7 @@ bool FNavMeshManagerRecast::GenerateNavMesh()
 	m_cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
 
 	float bmin[] = { 0, 0, 0 };
-	float bmax[] = { 200, 200, 200 };
+	float bmax[] = { 400, 200, 400 };
 	rcVcopy(m_cfg.bmin, bmin);
 	rcVcopy(m_cfg.bmax, bmax);
 	rcCalcGridSize(m_cfg.bmin, m_cfg.bmax, m_cfg.cs, &m_cfg.width, &m_cfg.height);
@@ -401,6 +412,30 @@ bool FNavMeshManagerRecast::GenerateNavMesh()
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not erode.");
 		return false;
+	}
+
+	// these areas are not automatically eroded with charRadius
+	for (int i = 0; i < myAABBList.size(); ++i)
+	{
+		FVector3 points[4];
+		points[0] = myAABBList[i].myMin;
+		points[1] = FVector3(myAABBList[i].myMin.x, myAABBList[i].myMin.y, myAABBList[i].myMax.z);
+		points[2] = myAABBList[i].myMax;
+		points[3] = FVector3(myAABBList[i].myMax.x, myAABBList[i].myMin.y, myAABBList[i].myMin.z);
+
+		float hmin = 0.0f;
+		float hmax = 100.0f;
+
+		float verts[4 * 3];
+		int vertCount = 0;
+		for (int  i = 0; i < 4; i++)
+		{
+			verts[vertCount++] = points[i].x;
+			verts[vertCount++] = points[i].y;
+			verts[vertCount++] = points[i].z;
+		}
+
+		rcMarkConvexPolyArea(m_ctx, verts, 4, hmin, hmax, (unsigned char)1, *m_chf); // area type is game defined - todo: wrap in enum flags and area costs
 	}
 
 	// Partition, check sample for different partition options (watershed is the best but slowest, monotone is the fastest
@@ -580,7 +615,6 @@ namespace
 	}
 }
 
-#pragma optimize("", off)
 int intersect3D_RayTriangle(Ray R, Triangle T, FVector3& I)
 {
 
@@ -679,21 +713,38 @@ FVector3 FNavMeshManagerRecast::RayCast(FVector3 aStart, FVector3 anEnd)
 
 	FD3d12Renderer::GetInstance()->GetDebugDrawer()->DrawTriangle(t.V0, t.V1, t.V2, FVector3(0.8, 0.3, 0.3));
 	return closestPos;
-	
-
-	return FVector3();
 }
 
 FVector3 FNavMeshManagerRecast::GetClosestPointOnNavMesh(FVector3 aPoint)
 {
+	if (!m_navQuery)
+		return FVector3();
+
 	float extends[3] = { 10, 10, 10 }; // how far to search for
 	dtQueryFilter m_filter;
 	float nearestPt[3];
 	dtPolyRef nearestPoly;
 	dtStatus status = m_navQuery->findNearestPoly(&aPoint.x, extends, &m_filter, &nearestPoly, nearestPt);
-	
+
 	if (nearestPoly == 0)
 		return FVector3();
+
+	return FVector3(nearestPt[0], nearestPt[1], nearestPt[2]);
+}
+
+FVector3 FNavMeshManagerRecast::GetClosestPointOnNavMesh(FVector3 aPoint, FVector3 aMaxExtends)
+{
+	if (!m_navQuery)
+		return FVector3();
+
+	float extends[3] = { aMaxExtends.x, aMaxExtends.y, aMaxExtends.z }; // how far to search for
+	dtQueryFilter m_filter;
+	float nearestPt[3];
+	dtPolyRef nearestPoly;
+	dtStatus status = m_navQuery->findNearestPoly(&aPoint.x, extends, &m_filter, &nearestPoly, nearestPt);
+
+	if (nearestPoly == 0)
+		return aPoint;// FVector3();
 
 	return FVector3(nearestPt[0], nearestPt[1], nearestPt[2]);
 }
@@ -739,7 +790,7 @@ std::vector<FVector3> FNavMeshManagerRecast::FindPath(FVector3 aStart, FVector3 
 		if (polys[npolys - 1] != endRef)
 			m_navQuery->closestPointOnPoly(polys[npolys - 1], epos, epos, 0);
 
-		int m_straightPathOptions; //enum: dtStraightPathOptions
+		int m_straightPathOptions = 0; //enum: dtStraightPathOptions
 		float m_straightPath[MAX_POLYS * 3];
 		int m_nstraightPath;
 		unsigned char m_straightPathFlags[MAX_POLYS];
@@ -757,6 +808,19 @@ std::vector<FVector3> FNavMeshManagerRecast::FindPath(FVector3 aStart, FVector3 
 	}
 	
 	return path;
+}
+
+void FNavMeshManagerRecast::AddBlockingAABB(FVector3 aMin, FVector3 aMax)
+{
+	FAABB aabb;
+	FVector3 aDimensions = aMax - aMin;
+
+	aMin = aMin - (aDimensions.Normalized() * 0.5f); // fake erosion with charRadius (currently hardcode 50cm)
+	aMax = aMax + (aDimensions.Normalized() * 0.5f);
+
+	aabb.myMin = aMin;
+	aabb.myMax = aMax;
+	myAABBList.push_back(aabb);
 }
 
 FNavMeshManagerRecast * FNavMeshManagerRecast::GetInstance()

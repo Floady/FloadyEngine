@@ -7,13 +7,14 @@ class FGameLightEntity :
 public:
 	REGISTER_GAMEENTITY(FGameLightEntity);
 	FGameLightEntity();
-	~FGameLightEntity();
+	virtual ~FGameLightEntity();
 
 	virtual void Init(const FJsonObject& anObj) override;
 	virtual void Update(double aDeltaTime) override;
-
+	void SetPos(FVector3 aPos) override;
 private:
 	unsigned int myLightId;
+	FVector3 myOffset;
 	float myColorAlpha;
 	float myAlphaStep;
 };

@@ -1,6 +1,21 @@
 #include "FRenderableObject.h"
 
+#include "FDebugDrawer.h"
+#include "FD3d12Renderer.h"
 
+FAABB FRenderableObject::GetAABB() const
+{
+	FAABB aabb = myAABB;
+	aabb.myMax += myPos;
+	aabb.myMin += myPos;
+	return aabb;
+}
+
+FAABB FRenderableObject::GetLocalAABB() const
+{
+	FAABB aabb = myAABB;
+	return aabb;
+}
 
 FRenderableObject::FRenderableObject()
 {
@@ -10,3 +25,18 @@ FRenderableObject::FRenderableObject()
 FRenderableObject::~FRenderableObject()
 {
 }
+
+bool FAABB::IsInside(const FVector3& aPoint) const
+{
+	if (aPoint.x > myMin.x && aPoint.x < myMax.x && aPoint.x > myMin.y && aPoint.y < myMax.y &&aPoint.z > myMin.z && aPoint.z < myMax.z)
+		return true;
+}
+
+bool FAABB::IsInside(const FAABB& anAABB) const
+{
+	bool isInside = false;
+	isInside |= IsInside(anAABB.myMin);
+	isInside |= IsInside(anAABB.myMax);
+	return isInside;
+}
+

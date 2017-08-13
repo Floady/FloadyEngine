@@ -63,7 +63,8 @@ void FGUIButton::SetDynamicText(const char * aText)
 {
 	if (!myDynTexLabel)
 	{
-		myDynTexLabel = new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(myTL.x, -myBR.y, 0.0f), aText, myBR.x-myTL.x, myBR.y-myTL.y, true, true);
+		float distFromEdge = 0.02f;
+		myDynTexLabel = new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(myTL.x + distFromEdge, -myBR.y + distFromEdge, 0.0f), aText, (myBR.x-myTL.x) - distFromEdge*2, (myBR.y-myTL.y) - distFromEdge*2, true, true);
 		FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myDynTexLabel, true);
 	}
 	else
@@ -86,16 +87,6 @@ FGUIButton::~FGUIButton()
 
 	FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
 	delete myGraphicsObject;
-}
-
-void FGUIButton::OnMouseEnter(float aX, float aY)
-{
-	myGraphicsObject->SetUVOffset(FVector3(0.0, 0.33, 0), FVector3(1, 0.66, 0));
-}
-
-void FGUIButton::OnMouseLeave(float aX, float aY)
-{
-	myGraphicsObject->SetUVOffset(FVector3(0, 0, 0), FVector3(1, 0.33, 0));
 }
 
 void FGUIButton::Hide()
@@ -124,6 +115,16 @@ void FGUIButton::Show()
 	}
 
 	FGUIObject::Show();
+}
+
+void FGUIButton::OnMouseEnter(float aX, float aY)
+{
+	myGraphicsObject->SetUVOffset(FVector3(0.0, 0.33, 0), FVector3(1, 0.66, 0));
+}
+
+void FGUIButton::OnMouseLeave(float aX, float aY)
+{
+	myGraphicsObject->SetUVOffset(FVector3(0, 0, 0), FVector3(1, 0.33, 0));
 }
 
 void FGUIButton::OnMouseDown(float aX, float aY)

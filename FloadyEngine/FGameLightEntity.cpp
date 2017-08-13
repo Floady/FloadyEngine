@@ -16,10 +16,12 @@ FGameLightEntity::FGameLightEntity()
 	myLightId = 0;
 	myColorAlpha = 0;
 	myAlphaStep = 0.3;
+	myPos.x = 0; myPos.y = 0; myPos.z = 0;
 }
 
 FGameLightEntity::~FGameLightEntity()
 {
+	FLightManager::GetInstance()->RemoveLight(myLightId);
 }
 
 void FGameLightEntity::Init(const FJsonObject & anObj)
@@ -38,20 +40,20 @@ void FGameLightEntity::Init(const FJsonObject & anObj)
 	color.y = anObj.GetItem("g").GetAs<double>();
 	color.z = anObj.GetItem("b").GetAs<double>();
 
-	FVector3 offset;
-	offset.x = anObj.GetItem("offsetX").GetAs<double>();
-	offset.y = anObj.GetItem("offsetY").GetAs<double>();
-	offset.z = anObj.GetItem("offsetZ").GetAs<double>();
+	myOffset;
+	myOffset.x = anObj.GetItem("offsetX").GetAs<double>();
+	myOffset.y = anObj.GetItem("offsetY").GetAs<double>();
+	myOffset.z = anObj.GetItem("offsetZ").GetAs<double>();
 
-	double type = anObj.GetItem("b").GetAs<double>();
+	double type = anObj.GetItem("type").GetAs<double>();
 
 	if (type == 1.0)
 	{
 		double radius = anObj.GetItem("radius").GetAs<double>();
-		myLightId = FLightManager::GetInstance()->AddSpotlight(myPos + offset, dir, radius, color);
+		myLightId = FLightManager::GetInstance()->AddSpotlight(myPos + myOffset, dir, radius, color);
 	}
 	else if (type == 2.0)
-		myLightId = FLightManager::GetInstance()->AddDirectionalLight(myPos + offset, dir, color);
+		myLightId = FLightManager::GetInstance()->AddDirectionalLight(myPos + myOffset, dir, color);
 }
 
 void FGameLightEntity::Update(double aDeltaTime)
@@ -76,4 +78,10 @@ void FGameLightEntity::Update(double aDeltaTime)
 	//FLightManager::GetInstance()->GetLight(myLightId)->myDir.x = cos(myColorAlpha * PI);
 
 	FGameEntity::Update(aDeltaTime);
+}
+
+void FGameLightEntity::SetPos(FVector3 aPos)
+{
+	FGameEntity::SetPos(aPos);
+	FLightManager::GetInstance()->SetLightPos(myLightId, aPos + myOffset);
 }

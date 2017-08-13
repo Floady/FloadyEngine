@@ -85,6 +85,19 @@ FPrimitiveBox::FPrimitiveBox(FD3d12Renderer* aManager, FVector3 aPos, FVector3 a
 			m_indexBufferView.SizeInBytes = FPrimitiveGeometry::Box::GetIndicesBufferSize();
 		}
 	}
+
+	// setup AABB
+	std::vector<FPrimitiveGeometry::Vertex>& verts = FPrimitiveGeometry::Box2::GetVertices();
+	for (FPrimitiveGeometry::Vertex& vert  : verts)
+	{
+		myAABB.myMax.x = max(myAABB.myMax.x, vert.position.x * GetScale().x);
+		myAABB.myMax.y = max(myAABB.myMax.y, vert.position.y * GetScale().y);
+		myAABB.myMax.z = max(myAABB.myMax.z, vert.position.z * GetScale().z);
+
+		myAABB.myMin.x = min(myAABB.myMin.x, vert.position.x * GetScale().x);
+		myAABB.myMin.y = min(myAABB.myMin.y, vert.position.y * GetScale().y);
+		myAABB.myMin.z = min(myAABB.myMin.z, vert.position.z * GetScale().z);
+	}
 }
 
 FPrimitiveBox::~FPrimitiveBox()
@@ -161,11 +174,11 @@ void FPrimitiveBox::Init()
 
 	// create constant buffer for modelview
 	{
+		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
 		myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr);
 		m_ModelProjMatrix->SetName(L"PrimitiveBoxConst");
 		myHeapOffsetAll = myHeapOffsetCBV;
 		myHeapOffsetText = myManagerClass->GetNextOffset();
-		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
 	}
 	
 	// create SRV for texture
@@ -503,8 +516,8 @@ void FPrimitiveBox::SetRotMatrix(float * m)
 		}
 	}
 
-//	if (bSame)
-	//	return;
+	if (bSame)
+		return;
 
 	myIsMatrixDirty = true;
 	FRenderableObject::SetRotMatrix(m);

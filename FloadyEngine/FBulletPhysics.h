@@ -37,7 +37,7 @@ public:
 	~FBulletPhysics();
 	void Init(FD3d12Renderer* aRendererForDebug);
 	void Update(double aDeltaTime);
-	void DebugDrawWorld();
+	void SetDebugDrawEnabled(bool anEnabled);
 	btRigidBody* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false, FGameEntity* anEntity = nullptr);
 	void AddTerrain(btRigidBody* aBody, btCollisionShape* aCollisionShape, FGameEntity* anOwner);
 	void RemoveObject(btRigidBody* aBody);
@@ -64,6 +64,7 @@ private:
 		btCollisionShape* myCollisionEntity;
 	};
 	btAlignedObjectArray<FPhysicsBody>	myRigidBodies;
+	bool myDebugDrawEnabled;
 	
 };
 

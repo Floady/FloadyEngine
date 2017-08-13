@@ -1,6 +1,6 @@
 ﻿#include "FNavMeshManager.h"
 #include "FDebugDrawer.h"
-
+#include "FUtilities.h"
 #include <iostream>
 //#include <hash_set.h>
 //#include <hash_set>
@@ -2557,7 +2557,7 @@ std::vector<FVector3> FNavMeshManager::FindPath(FVector3 aStart, FVector3 anEnd)
 		{
 			if (curTri == startTriangle)
 			{
-				OutputDebugStringA("Path could not be computed\n"); //path impossible
+				FUtilities::FLog("Path could not be computed\n"); //path impossible
 				break;
 			}
 			continue;
@@ -2594,7 +2594,7 @@ std::vector<FVector3> FNavMeshManager::FindPath(FVector3 aStart, FVector3 anEnd)
 	{
 		if (tri == -1)
 		{
-			OutputDebugStringA("PrevNode not set, abort backtrace\n");
+			FUtilities::FLog("PrevNode not set, abort backtrace\n");
 			return std::vector<FVector3>();
 			//break;
 		}

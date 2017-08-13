@@ -1,0 +1,81 @@
+{	
+	
+	"FGameLightEntity" : 
+	{
+		"type" : 1.0,
+		"radius" : 6.1,
+		"r" : 1.0,
+		"g" : 1.0,
+		"b" : 0.2,
+		"dirX" : 0.0,
+		"dirY" : -1.0,
+		"dirZ" : 0.1,
+		"offsetX" : 0.0,
+		"offsetY" : 3.3,
+		"offsetZ" : 0.1,
+		
+		"FGameEntity" : 
+		{
+		  "posX" : 20.0,
+		  "posY" : 5.0,
+		"posZ" : 40.0,
+		"scaleX" : 0.2,
+		"scaleY" : 0.2,
+		"scaleZ" : 0.2,
+		"mass" : 0.0,
+		"isNavBlocker" : false,
+		"canMove" :true,
+		"type" : 1,
+		"tex" : "marble.png"
+		}
+	},
+	
+	"MenuItems" :
+	{
+		"Item1" :
+		{
+			"agent" :
+			{
+				"FGameAgent" : 
+				{
+					"posX" : 2.0,
+					"posY" : 12.0,
+					"posZ" : 2.0,
+					"scaleX" : 1.0,
+					"scaleY" : 1.0,
+					"scaleZ" : 1.0,
+					"mass" : 10.0,
+					"isNavBlocker" : false,
+					"canMove" : true,
+					"type" : 0,
+					"tex" : "wood.png"
+				}
+			},
+			"buildTime" : 2.0,
+			"icon" : "recruit.png"
+		},
+		
+		"Item2" :
+		{
+			"agent" :
+			{
+				"FGameAgent" : 
+				{
+					"posX" : 2.0,
+					"posY" : 12.0,
+					"posZ" : 2.0,
+					"scaleX" : 1.0,
+					"scaleY" : 1.0,
+					"scaleZ" : 1.0,
+					"mass" : 10.0,
+					"isNavBlocker" : false,
+					"canMove" : true,
+					"type" : 0,
+					"tex" : "wood.png"
+				}
+			},
+			"buildTime" : 10.0,
+			"icon" : "paladin.png"
+		}
+	}
+}

@@ -7,10 +7,12 @@
 #include "FGameBuilding.h"
 #include "FGameEntity.h"
 #include "FGameUIPanelBuildings.h"
+#include "FGameUIPanelDebug.h"
 
 FGameUIManager::FGameUIManager()
 {
 	myBuildingPanel = new FGameUIPanelBuildings();
+	myDebugPanel = new FGameUIPanelDebug();
 }
 
 void FGameUIManager::Update()
@@ -41,11 +43,18 @@ void FGameUIManager::SetState(GuiState aState)
 
 	//FGUIManager::GetInstance()->ClearAll();
 
+	myDebugPanel->Hide();
+
 	switch (myState)
 	{
 		case MainScreen:
 		{
 			myBuildingPanel->Hide();
+			break;
+		}
+		case Debug:
+		{
+			myDebugPanel->Show();
 			break;
 		}
 		case InGame:

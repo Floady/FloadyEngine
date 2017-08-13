@@ -14,7 +14,7 @@ FGameCamera::~FGameCamera()
 
 void FGameCamera::Update(double aDeltaTime)
 {
-	float movSpeed = static_cast<float>(40 * aDeltaTime);
+	float movSpeed = static_cast<float>(10 * aDeltaTime);
 	if (myInputSystem->IsKeyDown(65))
 		Move(-movSpeed, 0, 0);
 	if (myInputSystem->IsKeyDown(68))

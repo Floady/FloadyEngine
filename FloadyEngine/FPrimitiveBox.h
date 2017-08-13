@@ -35,6 +35,7 @@ public:
 	void SetRotMatrix(float* m) override;
 
 	void SetTexture(const char* aFilename) override;
+	const char* GetTexture() override { return myTexName.c_str(); };
 	void SetShader(const char* aFilename) override;
 	virtual void SetPos(FVector3 aPos) override;
 
@@ -43,7 +44,7 @@ public:
 	int GetIndicesCount() { return myIndicesCount; }
 	bool IsInitialized() { return myIsInitialized; }
 
-private:
+protected:
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12RootSignature* m_rootSignatureShadows;
 	ID3D12PipelineState* m_pipelineState;

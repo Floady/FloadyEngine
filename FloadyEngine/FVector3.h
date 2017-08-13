@@ -23,6 +23,7 @@ public:
 	FVector3& operator=(FVector3&& other) { x = other.x; y = other.y; z = other.z; return *this; }
 	//FVector3& operator=(FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
 	FVector3& operator=(const FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
+	void Rotate(float anAngleX, float anAngleY, float anAngleZ);
 	
 	void Set( float a_X, float a_Y, float a_Z )
 	{

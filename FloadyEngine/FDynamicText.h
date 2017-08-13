@@ -27,8 +27,9 @@ public:
 	void SetShader();
 
 	// dont care for text - could use it to change font
-	virtual void SetTexture(const char* aFilename) {};
-	virtual void SetShader(const char* aFilename) {};
+	virtual void SetTexture(const char* aFilename) override {}
+	virtual const char* GetTexture() override { return nullptr;  }
+	virtual void SetShader(const char* aFilename) override {}
 private:
 	bool myUseKerning;
 

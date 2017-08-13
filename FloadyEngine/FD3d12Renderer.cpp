@@ -63,6 +63,7 @@ FD3d12Renderer::FD3d12Renderer()
 	
 	FTextureManager::GetInstance();
 	myDebugDrawer = new FDebugDrawer(this);
+	myDebugDrawEnabled = false;
 }
 
 FD3d12Renderer::~FD3d12Renderer()
@@ -771,9 +772,19 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 static bool firstFrame = true;
 static unsigned int frameCounter = 0;
+
 bool FD3d12Renderer::Render()
 {
-	FPROFILE_FUNCTION("FD3d12Renderer Render");
+	if (myDebugDrawEnabled && myDebugDrawer)
+	{
+		for (FRenderableObject* object : mySceneGraph.GetObjects())
+		{
+			FAABB& aabb = object->GetAABB();
+			myDebugDrawer->drawAABB(aabb.myMin, aabb.myMax, FVector3(0.2, 0.2, 1));
+		}
+	}
+
+	FPROFILE_FUNCTION("FD3d12 Render");
 	
 	//DoClearBuffers();
 	//myRenderPassGputMtx.Signal(GetCommandQueue());
@@ -805,24 +816,30 @@ bool FD3d12Renderer::Render()
 
 			//@todo: only shadowcasting lights.. improve
 			ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
-			const std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
+			std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
 			FLightManager::GetInstance()->SetActiveLight(-1);
 
-			for (int i = 0; i < pointlights.size() + 1; i++)
+			int numLights = min(pointlights.size() + 1, 10);
+			for (int i = 0; i < numLights; i++)
 			{
-				commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
-				for (FRenderableObject* object : mySceneGraph.GetObjects())
+				if(i == 0 || GetCamera()->IsInFrustrum(pointlights[i - 1].GetAABB()))
 				{
-					object->PopulateCommandListAsyncShadows();
+					commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
+					for (FRenderableObject* object : mySceneGraph.GetObjects())
+					{
+						FAABB aabb = object->GetAABB();
+						if(i == 0 || pointlights[i-1].GetAABB().IsInside(aabb))
+							object->PopulateCommandListAsyncShadows();
+					}
+
+					commandList->Close();
+					ID3D12CommandList* ppCommandLists[] = { commandList };
+					GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+					myRenderPassGputMtx.Signal(GetCommandQueue());
+					myRenderPassGputMtx.WaitFor();
 				}
 
-				commandList->Close();
-				ID3D12CommandList* ppCommandLists[] = { commandList };
-				GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-				myRenderPassGputMtx.Signal(GetCommandQueue());
-				myRenderPassGputMtx.WaitFor();
-				
 				FLightManager::GetInstance()->SetActiveLight(i);
 			}
 		}
@@ -835,12 +852,15 @@ bool FD3d12Renderer::Render()
 
 		// deferred combine pass
 
-		PIXBeginEvent(m_commandQueue, 0, L"DeferredCombine");
-		myQuad->Render();
-		PIXEndEvent(m_commandQueue);
-
+		{
+			FPROFILE_FUNCTION("FD3d12 Combine");
+			PIXBeginEvent(m_commandQueue, 0, L"DeferredCombine");
+			myQuad->Render();
+			PIXEndEvent(m_commandQueue);
+		}
 		//*
 		//post effects
+		FPROFILE_FUNCTION("FD3d12 PostEffect");
 
 		PIXBeginEvent(m_commandQueue, 0, L"PostEffects");
 
@@ -998,6 +1018,11 @@ void FD3d12Renderer::IncreaseInt()
 		x /= 2.0f;
 	}
 	InterlockedIncrement(&myInt);
+}
+
+void FD3d12Renderer::SetDebugDrawEnabled(bool anEnabled)
+{
+	myDebugDrawEnabled = anEnabled;
 }
 
 void FD3d12Renderer::Shutdown()
@@ -1217,7 +1242,8 @@ void FD3d12Renderer::DoRenderToGBuffer()
 
 	for (FRenderableObject* object : mySceneGraph.GetObjects())
 	{
-		object->PopulateCommandListAsync();
+		if(FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(object))
+			object->PopulateCommandListAsync();
 	}
 
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
