@@ -196,6 +196,9 @@
     <ClCompile Include="FGUIButtonToggle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FPrimitiveBoxMultiTex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
@@ -359,6 +362,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FGUIButtonToggle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPrimitiveBoxMultiTex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -26,15 +26,22 @@ public:
 	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose = true);
 	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(const DirectX::XMMATRIX& anObjectMatrix);
 	void UpdateViewProj();
-	bool IsInFrustrum(FRenderableObject* anEntity) const;
-	bool IsInFrustrum(const FVector3& aPoint) const;
-	bool IsInFrustrum(float x, float y, float z) const;
-	bool IsInFrustrum(const FAABB& anABB) const;
+	bool IsInFrustum(FRenderableObject* anEntity) const;
+	bool IsInFrustum(const FVector3& aPoint) const;
+	bool IsEncapsulatingFrustum(const FVector3& aPoint, const FVector3& aPoint2) const;
+	bool IsInFrustum(float x, float y, float z) const;
+	bool IsInFrustum(const FAABB& anABB) const;
+	bool LineIntersectsAABB(const FVector3& start, const FVector3& end, const FAABB& anAABB) const;
 	DirectX::XMFLOAT4X4 GetProjMatrix() { return myProjMatrixFloatVersion; }
 	void SetOverrideLight(bool aShouldOverride) { myOverrideWithLight = aShouldOverride; }
 	DirectX::XMMATRIX _viewProjMatrix;
 	DirectX::XMMATRIX _viewMatrix;
 	DirectX::XMMATRIX  myProjMatrix;
+	bool SphereInFrustum(DirectX::XMVECTOR pPosition, float radius);
+
+	void SetFreezeDebug(bool aShouldFreeze) { myFreezeDebugInfo = aShouldFreeze; }
+	void SetDebugDrawEnabled(bool anEnabled) { myDoDebugDraw = anEnabled; }
+
 private:
 	DirectX::XMFLOAT4X4  myProjMatrixFloatVersion;
 	DirectX::XMMATRIX myViewMatrix;
@@ -53,5 +60,16 @@ private:
 	bool myOverrideWithLight;
 
 	FPlane myFrustum[6];
+	FVector3 myFrustumCorners[8]; // NTL, NTR, NBL, NBR, FTL, FTR, FBL, FBR
+
+	// debug stuff
+	bool myDoDebugDraw;
+	bool myFreezeDebugInfo;
+	FPlane myDebugFrustum[6];
+	FVector3 myDebugPos;
+	FVector3 myDebugAt;
+	FVector3 myDebugUp;
+	DirectX::XMMATRIX debugViewProj;
+	FVector3 myDebugFrustumCorners[8]; // NTL, NTR, NBL, NBR, FTL, FTR, FBL, FBR
 };
 

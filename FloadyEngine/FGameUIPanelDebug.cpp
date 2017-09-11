@@ -42,6 +42,27 @@ FGameUIPanelDebug::FGameUIPanelDebug()
 	button6->SetDynamicText("Show profiler");
 	AddObject(button6);
 	pos += offset;
+
+	FGUIButtonToggle* button7 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FLightManager, &FLightManager::SetFreezeDebug>(FLightManager::GetInstance()));
+	button7->SetDynamicText("Freeze LightDebug");
+	AddObject(button7);
+	pos += offset;
+
+	FGUIButtonToggle* button8 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FCamera, &FCamera::SetOverrideLight>(FD3d12Renderer::GetInstance()->GetCamera()));
+	button8->SetDynamicText("Override Light");
+	AddObject(button8);
+	pos += offset;
+
+	FGUIButtonToggle* button9 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FCamera, &FCamera::SetFreezeDebug>(FD3d12Renderer::GetInstance()->GetCamera()));
+	button9->SetDynamicText("CamDebug Frz");
+	AddObject(button9);
+	pos += offset;
+	
+
+	FGUIButtonToggle* button10 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FCamera, &FCamera::SetDebugDrawEnabled>(FD3d12Renderer::GetInstance()->GetCamera()));
+	button10->SetDynamicText("CamDebug Draw");
+	AddObject(button10);
+	pos += offset;
 }
 
 void FGameUIPanelDebug::Update()

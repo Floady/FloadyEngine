@@ -41,8 +41,6 @@ FVector3 F3DPicker::UnProject(FVector3 aMousePos)
 	
 	const const DirectX::XMFLOAT4X4& m = myCamera->GetInvViewProjMatrix();
 
-	const float viewPortHeight = 800;
-	const float viewPortWidth = 800;
 	// Need to invert Y since screen Y-origin point down,
 	// while 3D Y-origin points up (this is an OpenGL only requirement):
 	winY = 1.0f - winY;

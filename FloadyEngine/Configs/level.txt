@@ -43,6 +43,21 @@
 "tex" : "F16s.png",
 "model" : "f16.obj"
 },
+"FGameEntityObjModel" : 
+{
+  "posX" : 24.0,
+  "posY" : 5.0,
+"posZ" : 24.0,
+"scaleX" : 10.0,
+"scaleY" : 10.0,
+"scaleZ" : 10.0,
+"mass" : 0.0,
+"isNavBlocker" : false,
+"canMove" : false,
+"type" : 1,
+"tex" : "marble.png",
+"model" : "buddha.obj"
+},
 "FGameTerrain" : 
 {
   "posX" : 0.0,

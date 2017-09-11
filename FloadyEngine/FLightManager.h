@@ -65,7 +65,7 @@ public:
 	}
 	void SetActiveLight(int anId) { myActiveLight = anId; }
 	int GetActiveLight() { return myActiveLight == -1 ? 0 : myActiveLight + 1; }
-
+	void SetFreezeDebug(bool aShouldFreeze) { myFreezeDebugInfo = aShouldFreeze; }
 	void UpdateViewProjMatrices();
 
 private:
@@ -78,5 +78,16 @@ private:
 	unsigned int myNextFreeLightId;
 	FAABB myAABBVisibleFromCam;
 	bool myDoDebugDraw;
+
+	// debug stuff
+	bool myFreezeDebugInfo;
+	FVector3 myDebugPos;
+	FVector3 myDebugUpvec;
+	FVector3 myDebugAtvec;
+	FVector3 myDebugDimensions;
+	FVector3 myDebugMinCam;
+	FVector3 myDebugMaxCam;
+	FAABB myDebugAABBVisibleFromCam;
+
 };
 

@@ -45,7 +45,7 @@ void FGameLevel::Update(double aDeltaTime)
 	{
 		entity->Update(aDeltaTime);
 
-		if (cam->IsInFrustrum(entity->GetRenderableObject()))
+		if (cam->IsInFrustum(entity->GetRenderableObject()))
 			aabb.Grow(entity->GetRenderableObject()->GetAABB());
 	}
 }

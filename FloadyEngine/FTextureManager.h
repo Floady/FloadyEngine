@@ -13,6 +13,8 @@ public:
 	{
 		void* myRawPixelData;
 		ID3D12Resource* myD3DResource;
+		float myWidth;
+		float myHeight;
 	};
 
 	void InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsCommandList* aCommandList);

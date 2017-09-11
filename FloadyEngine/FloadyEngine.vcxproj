@@ -250,6 +250,7 @@
     <ClCompile Include="FPhysicsDebugDrawer.cpp" />
     <ClCompile Include="FPlacingManager.cpp" />
     <ClCompile Include="FPostProcessEffect.cpp" />
+    <ClCompile Include="FPrimitiveBoxMultiTex.cpp" />
     <ClCompile Include="FProfiler.cpp" />
     <ClCompile Include="FRenderableObject.cpp" />
     <ClCompile Include="FRenderWindow.cpp" />
@@ -307,6 +308,7 @@
     <ClInclude Include="FPhysicsDebugDrawer.h" />
     <ClInclude Include="FPlacingManager.h" />
     <ClInclude Include="FPostProcessEffect.h" />
+    <ClInclude Include="FPrimitiveBoxMultiTex.h" />
     <ClInclude Include="FProfiler.h" />
     <ClInclude Include="FRenderableObject.h" />
     <ClInclude Include="FRenderWindow.h" />

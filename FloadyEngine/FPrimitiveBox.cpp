@@ -417,6 +417,7 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetShadowMapBuffer(FLightManager::GetInstance()->GetActiveLight()), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }
 
+#pragma optimize("", off)
 #define DEPTH_BIAS_D32_FLOAT(d) (d/(1/pow(2,23)))
 void FPrimitiveBox::SetShader()
 {	

@@ -7,6 +7,7 @@
 #include <tchar.h>
 #include <vector>
 #include <stdio.h>
+#include "FUtilities.h"
 
 namespace
 {
@@ -43,7 +44,7 @@ FTextureManager* FTextureManager::ourInstance = nullptr;
 int width, height;
 png_byte color_type;
 png_byte bit_depth;
-png_bytep *row_pointers;
+png_bytep* row_pointers;
 UINT8* transformedBytes;
 void read_png_file(const char *filename) {
 	FILE *fp;
@@ -98,12 +99,13 @@ void read_png_file(const char *filename) {
 	row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
 	size_t rowcounter = png_get_rowbytes(png, info);
 	for (int y = 0; y < height; y++) {
-		row_pointers[y] = (png_byte*)malloc(rowcounter);
+		//row_pointers[y] = (png_byte*)malloc(rowcounter);
+		row_pointers[y] = (png_byte*)png_malloc(png, png_get_rowbytes(png, info));
 	}
 
 	png_read_image(png, row_pointers);
 	const int texpixelsize = 4;
-	const int texsize = height * width * texpixelsize;
+	int texsize = 4096 * 4096 * texpixelsize;// height * width * texpixelsize; //Todo: crash if buffer is smaller
 	transformedBytes = (UINT8*)malloc(texsize);
 
 	for (size_t i = 0; i < height; i++)
@@ -128,22 +130,30 @@ void FTextureManager::ReloadTextures()
 
 	myTextures.clear();
 
-	hFind = FindFirstFileW(L"Textures//*.png", &data);
-	if (hFind != INVALID_HANDLE_VALUE) {
-		do {
-			printf("%ws\n", data.cFileName);
+	LPCWSTR folderFilters[] = { L"Textures//*.png" , L"Textures//sponza//*.png" };
+	LPCWSTR folderPrefix[] = { L"Textures//" , L"Textures//sponza//" };
 
-			std::wstring mywstring(data.cFileName);
-			std::wstring concatted_stdstr = L"Textures//" + mywstring;
+	for (size_t i = 0; i < _countof(folderFilters); i++)
+	{
+		hFind = FindFirstFileW(folderFilters[i], &data);
+		if (hFind != INVALID_HANDLE_VALUE) {
+			do {
+				FUtilities::FLog("%ws\n", data.cFileName);
 
-			std::string cStrFilename = ConvertFromUtf16ToUtf8(mywstring);
-			std::string cStrFilenameConcat = ConvertFromUtf16ToUtf8(concatted_stdstr);
-			read_png_file(cStrFilenameConcat.c_str());
-			myTextures[cStrFilename].myRawPixelData = transformedBytes;
-			myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
-																// also disconnects from render device, so we can use texture + resource managing with other devices
-		} while (FindNextFileW(hFind, &data));
-		FindClose(hFind);
+				std::wstring mywstring(data.cFileName);
+				std::wstring concatted_stdstr = folderPrefix[i] + mywstring;
+
+				std::string cStrFilename = ConvertFromUtf16ToUtf8(mywstring);
+				std::string cStrFilenameConcat = ConvertFromUtf16ToUtf8(concatted_stdstr);
+				read_png_file(cStrFilenameConcat.c_str());
+				myTextures[cStrFilename].myRawPixelData = transformedBytes;
+				myTextures[cStrFilename].myWidth = width;
+				myTextures[cStrFilename].myHeight = height;
+				myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
+																	// also disconnects from render device, so we can use texture + resource managing with other devices
+			} while (FindNextFileW(hFind, &data));
+			FindClose(hFind);
+		}
 	}
 }
 
@@ -209,8 +219,8 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 		D3D12_RESOURCE_DESC textureDesc = {};
 		textureDesc.MipLevels = 1;
 		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureDesc.Width = 256;
-		textureDesc.Height = 256;
+		textureDesc.Width = texture.myWidth;
+		textureDesc.Height = texture.myHeight;
 		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 		textureDesc.DepthOrArraySize = 1;
 		textureDesc.SampleDesc.Count = 1;
@@ -241,8 +251,8 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 		void* texturePixelData = texture.myRawPixelData;
 		D3D12_SUBRESOURCE_DATA textureData = {};
 		textureData.pData = texturePixelData;
-		textureData.RowPitch = 256 * 4;
-		textureData.SlicePitch = textureData.RowPitch * 256;
+		textureData.RowPitch = texture.myWidth * 4;
+		textureData.SlicePitch = textureData.RowPitch * texture.myHeight;
 
 		UpdateSubresources(aCommandList, texture.myD3DResource, textureUploadHeap, 0, 0, 1, &textureData);
 		aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.myD3DResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));

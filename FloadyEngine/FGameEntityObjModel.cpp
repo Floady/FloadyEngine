@@ -11,6 +11,10 @@
 #include "FLightManager.h"
 #include "FUtilities.h"
 #include "FObjLoader.h"
+#include <unordered_map>
+#include "FPrimitiveBox.h"
+#include "FTextureManager.h"
+#include "FPrimitiveBoxMultiTex.h"
 
 using namespace DirectX;
 
@@ -27,30 +31,93 @@ FGameEntityObjModel::~FGameEntityObjModel()
 {
 }
 
+
+void hash_combine(size_t &seed, size_t hash)
+{
+	hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	seed ^= hash;
+}
+
+namespace std {
+	template<> struct hash<FPrimitiveGeometry::Vertex2> {
+		size_t operator()(FPrimitiveGeometry::Vertex2 const& vertex) const {
+
+			size_t seed = 0;
+			seed += vertex.matId;
+			hash<float> hasher;
+			hash_combine(seed, hasher(vertex.position.x));
+			hash_combine(seed, hasher(vertex.position.y));
+			hash_combine(seed, hasher(vertex.position.z));
+			hash_combine(seed, hasher(vertex.normal.x));
+			hash_combine(seed, hasher(vertex.normal.y));
+			hash_combine(seed, hasher(vertex.normal.z));
+			hash_combine(seed, hasher(vertex.uv.x));
+			hash_combine(seed, hasher(vertex.uv.y));
+			return seed;
+		}
+	};
+
+}
 void FGameEntityObjModel::Init(const FJsonObject & anObj)
 {
 	FGameEntity::Init(anObj);
 
-	FObjLoader objLoader;
+	//*
+	FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
+	FVector3 pos = myGraphicsObject->GetPos();
+	FVector3 scale = myGraphicsObject->GetScale();
+	delete myGraphicsObject;
+	myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBox::PrimitiveType::Box);
+	FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myGraphicsObject, false);
+	FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
+	/*/
 	FObjLoader::FObjMesh m;
+	//*/
 
+	FObjLoader objLoader;
+	
 	string model = anObj.GetItem("model").GetAs<string>();
 	string path = "models/";
 	path.append(model);
 	objLoader.LoadObj(path.c_str(), m, "models/", true);
-
-	std::vector<FPrimitiveGeometry::Vertex> vertices;
+	
+	std::unordered_map<FPrimitiveGeometry::Vertex2, uint32_t> uniqueVertices = {};
+	std::vector<FPrimitiveGeometry::Vertex2> vertices;
 	std::vector<int> indices;
+	int count = m.myShapes.size() / 2;  // test to check if cost is bound by vertex data - yes it is :p
+	int counter = 0;
+	int flipflop = 256;
 	for (const auto& shape : m.myShapes)
 	{
-	//	int count = shape.mesh.indices.size() / 2;  // test to check if cost is bound by vertex data - yes it is :p
-	//	int counter = 0;
+		counter++;
+
+		if (counter != flipflop)
+		{
+		//	continue;
+		}
+
+		int idx2 = 0;
+		int matId = 999;
+
+		if (shape.mesh.material_ids.size() > 0)
+			matId = shape.mesh.material_ids[0];
+
+
 		for (const auto& index : shape.mesh.indices)
 		{
-	//		if (counter++ > count)
-	//			break;
+			if ((idx2 % 3) == 0)
+			{
+				matId = shape.mesh.material_ids[idx2/3];
+			}
+			idx2++;
 
-			FPrimitiveGeometry::Vertex vertex;
+			if (matId == 12)
+			{
+
+				FUtilities::FLog("Index %i has mat3", counter);
+			}
+
+			FPrimitiveGeometry::Vertex2 vertex;
 
 			vertex.position.x = m.myAttributes.vertices[3 * index.vertex_index + 0];
 			vertex.position.y = m.myAttributes.vertices[3 * index.vertex_index + 1];
@@ -63,14 +130,25 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 				vertex.normal.z = m.myAttributes.normals[3 * index.normal_index + 2];
 			}
 
-			if(m.myAttributes.texcoords.size() > 0)
+			if (m.myAttributes.texcoords.size() > 0)
 			{
 				vertex.uv.x = m.myAttributes.texcoords[2 * index.texcoord_index + 0];
-				vertex.uv.y = m.myAttributes.texcoords[2 * index.texcoord_index + 1];
+				vertex.uv.y = 1.0f - m.myAttributes.texcoords[2 * index.texcoord_index + 1];
+			}
+			
+			vertex.matId = matId;
+
+			//*
+			if (uniqueVertices.count(vertex) == 0) {
+				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+				vertices.push_back(vertex);
 			}
 
+			indices.push_back(uniqueVertices[vertex]);
+			/*/
 			vertices.push_back(vertex);
 			indices.push_back(indices.size());
+			//*/
 		}
 	}
 
@@ -81,7 +159,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 	HRESULT hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FPrimitiveGeometry::Vertex) * vertices.size()),
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(FPrimitiveGeometry::Vertex2) * vertices.size()),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&m_vertexBuffer));
@@ -92,7 +170,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 
 	// Create the vertex buffer.
 	{
-		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * vertices.size();
+		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex2) * vertices.size();
 		memcpy(pVertexDataBegin, &vertices[0], vertexBufferSize);
 
 		// index buffer
@@ -114,8 +192,8 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 
 	myGraphicsObject->myIndicesCount = nrOfIndices;
 	myGraphicsObject->m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-	myGraphicsObject->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex);
-	myGraphicsObject->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex) * vertices.size();
+	myGraphicsObject->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
+	myGraphicsObject->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * vertices.size();
 
 	myGraphicsObject->m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
 	myGraphicsObject->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
@@ -123,7 +201,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 
 
 	// setup AABB
-	for (FPrimitiveGeometry::Vertex& vert : vertices)
+	for (FPrimitiveGeometry::Vertex2& vert : vertices)
 	{
 		myGraphicsObject->myAABB.myMax.x = max(myGraphicsObject->myAABB.myMax.x, vert.position.x * myGraphicsObject->GetScale().x);
 		myGraphicsObject->myAABB.myMax.y = max(myGraphicsObject->myAABB.myMax.y, vert.position.y * myGraphicsObject->GetScale().y);
@@ -136,6 +214,10 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 
 	string tex = anObj.GetItem("tex").GetAs<string>();
 	myGraphicsObject->SetTexture(tex.c_str());
+
+	FUtilities::FLog("Obj model #vtx: %i\n", vertices.size());
+	FUtilities::FLog("Obj model #idx: %i\n", indices.size());
+	FUtilities::FLog("Obj model #unique idx: %i\n", uniqueVertices.size());
 }
 
 void FGameEntityObjModel::Update(double aDeltaTime)

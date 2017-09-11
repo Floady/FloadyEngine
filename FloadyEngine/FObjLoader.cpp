@@ -298,7 +298,7 @@ bool FObjLoader::LoadObj(const char* filename, FObjMesh& aMesh, const char* base
 
 	tinyobj::attrib_t& attrib = aMesh.myAttributes;
 	std::vector<tinyobj::shape_t>& shapes = aMesh.myShapes;
-	std::vector<tinyobj::material_t> materials = aMesh.myMaterials;
+	std::vector<tinyobj::material_t>& materials = aMesh.myMaterials;
 
 	timerutil t;
 	t.start();

@@ -13,6 +13,8 @@ FGameUIManager::FGameUIManager()
 {
 	myBuildingPanel = new FGameUIPanelBuildings();
 	myDebugPanel = new FGameUIPanelDebug();
+	myDebugPanel->Hide();
+	myBuildingPanel->Hide();
 }
 
 void FGameUIManager::Update()

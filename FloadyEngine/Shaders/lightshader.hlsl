@@ -125,7 +125,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			if(false)
 			{
 				shadowDepth = 0.0f;
-				float2 shadowuvstep = float2(1.0f, 1.0f) / float2(800.0f, 600.0f); // todo fixed resolution here
+				float2 shadowuvstep = float2(1.0f, 1.0f) / float2(1600.0f, 900.0f); // todo fixed resolution here
 				int nrOfPixelsOut = 2;
 				[loop]
 				for( int i = -nrOfPixelsOut; i <= nrOfPixelsOut; i++ )
@@ -184,7 +184,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
 			shadowBias = clamp(shadowBias, 0.0f, 0.1f);
 			
-			// a zero value here means its outside the frustrum
+			// a zero value here means its outside the frustum
 			bool isOutOfLightZone = false;//shadowDepth == 0;
 			
 			// check for inside spotlight cone

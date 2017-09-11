@@ -28,8 +28,10 @@ FRenderableObject::~FRenderableObject()
 
 bool FAABB::IsInside(const FVector3& aPoint) const
 {
-	if (aPoint.x > myMin.x && aPoint.x < myMax.x && aPoint.x > myMin.y && aPoint.y < myMax.y &&aPoint.z > myMin.z && aPoint.z < myMax.z)
+	if (aPoint.x > myMin.x && aPoint.x < myMax.x && aPoint.y > myMin.y && aPoint.y < myMax.y && aPoint.z > myMin.z && aPoint.z < myMax.z)
 		return true;
+
+	return false;
 }
 
 bool FAABB::IsInside(const FAABB& anAABB) const

@@ -106,7 +106,6 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	}
 	
 	// FXAA blur over direction
-	doBlur = false;
 	if(doBlur)
 	{
 		float4 totalColor = float4(0, 0, 0, 0); 

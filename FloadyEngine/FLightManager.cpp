@@ -164,8 +164,8 @@ void FLightManager::SortLights()
 		{
 			FAABB worldAABB = mySpotlights[i].GetAABB();
 			FAABB worldAABB2 = mySpotlights[i-1].GetAABB();
-			bool isInFrustumA = FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(worldAABB);
-			bool isInFrustumB = FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(worldAABB2);
+			bool isInFrustumA = FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(worldAABB);
+			bool isInFrustumB = FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(worldAABB2);
 			if (isInFrustumA && !isInFrustumB)
 			{
 				SpotLight p = mySpotlights[i];
@@ -186,9 +186,11 @@ void FLightManager::SortLights()
 
 void FLightManager::UpdateViewProjMatrices()
 {
+	FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
+
 	for (int i = 0; i < mySpotlights.size(); i++)
 	{
-		float aspectRatio = 800.0f / 600.0f;
+		float aspectRatio = 1600 / 900.0f;
 		float fov = 45.0f;
 		float fovAngleY = mySpotlights[i].myAngle * 2;
 
@@ -208,6 +210,11 @@ void FLightManager::UpdateViewProjMatrices()
 		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(0, 0, 0, 1));
 		XMMATRIX  _viewProjMatrix = XMMatrixTranspose(_viewMatrix * myProjMatrix);
 		XMStoreFloat4x4(&mySpotlights[i].myViewProjMatrix, _viewProjMatrix);
+
+		if (myDoDebugDraw)
+		{
+			debugDrawer->drawAABB(mySpotlights[i].GetAABB(), FVector3(1, 1, 1));
+		}
 	}
 
 	for (int i = 0; i < myDirectionalLights.size(); i++)
@@ -311,16 +318,26 @@ void FLightManager::UpdateViewProjMatrices()
 		FVector3 upVec(XMVectorGetX(vUp), XMVectorGetY(vUp), XMVectorGetZ(vUp));
 		FVector3 atVec(XMVectorGetX(vAt), XMVectorGetY(vAt), XMVectorGetZ(vAt));
 
-		FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
+		if (!myFreezeDebugInfo)
+		{
+			myDebugPos = pos;
+			myDebugDimensions = dimensions;
+			myDebugAtvec = atVec;
+			myDebugUpvec = upVec;
+			myDebugMinCam = FVector3(XMVectorGetX(minCam), XMVectorGetY(minCam), XMVectorGetZ(minCam));
+			myDebugMaxCam = FVector3(XMVectorGetX(maxCam), XMVectorGetY(maxCam), XMVectorGetZ(maxCam));
+			myDebugAABBVisibleFromCam = myAABBVisibleFromCam;
+		}
 
 		if (myDoDebugDraw)
 		{
-			debugDrawer->drawAABB(pos, pos + FVector3(dimensions.x, -dimensions.y, dimensions.z), FVector3(1, 1, 1));
-			debugDrawer->drawLine(pos, pos + upVec * dimensions.y / 2.0f, FVector3(0, 1, 0));
-			debugDrawer->drawLine(pos, pos + atVec * dimensions.z, FVector3(0, 1, 0));
-			debugDrawer->DrawPoint(FVector3(XMVectorGetX(minCam), XMVectorGetY(minCam), XMVectorGetZ(minCam)), 1.0f, FVector3(1, 1, 1));
-			debugDrawer->DrawPoint(FVector3(XMVectorGetX(maxCam), XMVectorGetY(maxCam), XMVectorGetZ(maxCam)), 1.0f, FVector3(1, 1, 1));
-			debugDrawer->drawAABB(myAABBVisibleFromCam.myMin, myAABBVisibleFromCam.myMax, FVector3(1, 0, 0));
+			debugDrawer->DrawPoint(myDebugPos, 1.0f, FVector3(1, 1, 0));
+			debugDrawer->drawAABB(myDebugPos - FVector3(myDebugDimensions.x/2, 0,0), myDebugPos + FVector3(myDebugDimensions.x / 2, -myDebugDimensions.y, myDebugDimensions.z), FVector3(1, 1, 1));
+			debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, FVector3(0, 1, 0));
+			debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
+			debugDrawer->DrawPoint(myDebugMinCam, 1.0f, FVector3(1, 1, 1));
+			debugDrawer->DrawPoint(myDebugMaxCam, 1.0f, FVector3(1, 1, 1));
+			debugDrawer->drawAABB(myDebugAABBVisibleFromCam.myMin, myDebugAABBVisibleFromCam.myMax, FVector3(1, 0, 0));
 		}
 
 		FXMVECTOR eye = XMVectorSet(pos.x, pos.y, pos.z, 1);
@@ -333,17 +350,19 @@ void FLightManager::UpdateViewProjMatrices()
 		XMMATRIX  _viewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix);
 		if (myDoDebugDraw)
 		{
-			debugDrawer->drawLine(pos + upVec * dimensions.y / 2.0f, pos + upVec * dimensions.y / 2.0f + atVec * dimensions.z, FVector3(0, 1, 0));
-			debugDrawer->drawLine(pos - upVec * dimensions.y / 2.0f, pos - upVec * dimensions.y / 2.0f + atVec * dimensions.z, FVector3(0, 1, 0));
+			debugDrawer->drawLine(myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
+			debugDrawer->drawLine(myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f, myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
 		}
 
-		XMStoreFloat4x4(&myDirectionalLights[i].myViewProjMatrix, _viewProjMatrix);
+		if (!myFreezeDebugInfo)
+			XMStoreFloat4x4(&myDirectionalLights[i].myViewProjMatrix, _viewProjMatrix);
 	}
 }
 
 FLightManager::FLightManager()
 	: myNextFreeLightId(1)
 	, myDoDebugDraw(false)
+	, myFreezeDebugInfo(false)
 {
 }
 

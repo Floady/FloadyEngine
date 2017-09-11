@@ -180,6 +180,8 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 
 	FNavMeshManagerRecast::GetInstance()->SetInputMesh(mesh);
 	FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
+
+	myGraphicsObject->myAABB.Grow(FVector3(myTerrainSizeX * myTileSize, 40, myTerrainSizeZ * myTileSize));
 }
 
 
@@ -197,7 +199,7 @@ void FGameTerrain::Update(double aDeltaTime)
 
 	for (int i = 0; i < vertices.size(); i++)
 	{
-		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z))
+		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z))
 		{
 			aabb.Grow(FVector3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z));
 		}

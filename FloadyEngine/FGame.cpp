@@ -33,7 +33,8 @@
 #include "FNavMeshManagerRecast.h"
 #include "FObjLoader.h"
 #include "FGameEntityObjModel.h"
-
+#include <cmath>
+#include <cstdlib>
 FGame* FGame::ourInstance = nullptr;
 
 void * operator new(std::size_t n) throw(std::bad_alloc)
@@ -83,7 +84,7 @@ FGame::FGame()
 	auto someDelegate = FDelegate2<void(UINT, WPARAM, LPARAM)>::from<FD3d12Input, &FD3d12Input::MessageHandler>(myInput);
 	myRenderWindow = new FRenderWindow(someDelegate);
 	myRenderer = FD3d12Renderer::GetInstance();
-	myCamera = new FGameCamera(myInput, 800.0f, 600.0f);
+	myCamera = new FGameCamera(myInput, 1600, 900);
 	myPhysics = new FBulletPhysics();
 	myPicker = new F3DPicker(myCamera, myRenderWindow);
 	ourInstance = this;
@@ -126,36 +127,34 @@ void FGame::Init()
 		return;
 	}
 
-	// Init engine basics
+	// Set up engine basics
 	if (!myRenderer->Initialize(myRenderWindow->GetWindowHeight(), myRenderWindow->GetWindowWidth(), myRenderWindow->GetHWND(), false, false))// vsync + fullscreen here
 	{
 		FUtilities::FLog("Failed to init Renderer\n");
 		return;
 	}
-
 	myRenderer->SetCamera(myCamera);
 	myPhysics->Init(myRenderer);
 	myPhysics->SetPaused(false);
 	
+	// setup game basic systems
 	myBuildingManager = new FGameBuildingManager();
 	myGameUIManager = new FGameUIManager();
+	myPlacingManager = new FPlacingManager();
 
-	FJson jsonObject;
-
-	// Add some objects to the scene
+	// fps counter for performance
 	myFpsCounter = new FDynamicText(myRenderer, FVector3(-1.0f, -1.0f, 0.0),"FPS Counter", 0.3f, 0.05f , true, true);
-	//FGUIButton* button = new FGUIButton(FVector3(0.3f, 0.95f, 0.0), FVector3(0.5f, 1.0f, 0.0), "button.png", FDelegate2<void()>::from<FGame, &FGame::Test>(this));
-	//FGUIManager::GetInstance()->AddObject(button);
 	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
 
-	// Load level
-	myLevel = new FGameLevel("Configs//level.txt");
+	// Load level and add a sunlight
+	myLevel = new FGameLevel("Configs//level2.txt");
 	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25, 0.15, 0.05), 0.0f);
 
-	// init navmesh	
+	// init navmesh	- old 2d navmesh
 //	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
 //	FNavMeshManager::GetInstance()->GenerateMesh(FVector3(0, 0, 0), FVector3(20, 0, 20));
 
+	// setup post process chain
 	std::vector<FPostProcessEffect::BindInfo> resources;
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(0), myRenderer->gbufferFormat[0]));
 	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(1), myRenderer->gbufferFormat[1]));
@@ -167,12 +166,11 @@ void FGame::Init()
 	myAA = new FPostProcessEffect(resources, "lightshader2.hlsl", 0, "FXAA");
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(mySSAO);
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(myBlur);
-
 	// this registers a post effect, we want it at the end cause SSAO + SSAOBlur needs to be first (it doesnt correctly propagate previous results)
 	myHighlightManager = new FGameHighlightManager();
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
 
-	myPlacingManager = new FPlacingManager();
+	// set UI to in game for now
 	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
 }
 
@@ -185,7 +183,6 @@ bool FGame::Update(double aDeltaTime)
 
 	FLightManager::GetInstance()->ResetVisibleAABB();
 	{
-
 		FPROFILE_FUNCTION("FGame Update");
 
 		// update FPS
@@ -196,8 +193,6 @@ bool FGame::Update(double aDeltaTime)
 		// quit on escape
 		if (myInput->IsKeyDown(VK_ESCAPE))
 			return false;
-
-	//	return true;
 
 		if (myInput->IsKeyDown(VK_F2))
 			myRenderer->GetShaderManager().ReloadShaders();

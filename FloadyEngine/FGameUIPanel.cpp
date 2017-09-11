@@ -8,9 +8,6 @@ FGameUIPanel::FGameUIPanel()
 
 void FGameUIPanel::Hide()
 {
-	if (myIsHidden)
-		return;
-
 	myIsHidden = true;
 	for (FGUIObject* obj : myObjects)
 	{

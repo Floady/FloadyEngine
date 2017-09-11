@@ -200,11 +200,11 @@ ID3D12RootSignature* FD3d12Renderer::GetRootSignature(int aNumberOfSamplers, int
 	CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
 	if (aNumberOfSamplers)
 	{
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, aNumberOfSamplers, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[aNumberOfCBs == 0 ? 0 : 1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, aNumberOfSamplers, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 	}
 	if (aNumberOfCBs)
 	{
-		ranges[aNumberOfSamplers == 0 ? 0 : 1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, aNumberOfCBs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, aNumberOfCBs, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 	}
 
 	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
@@ -212,9 +212,9 @@ ID3D12RootSignature* FD3d12Renderer::GetRootSignature(int aNumberOfSamplers, int
 
 	D3D12_STATIC_SAMPLER_DESC sampler = {};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler.MipLODBias = 0;
 	sampler.MaxAnisotropy = 0;
 	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -822,7 +822,7 @@ bool FD3d12Renderer::Render()
 			int numLights = min(pointlights.size() + 1, 10);
 			for (int i = 0; i < numLights; i++)
 			{
-				if(i == 0 || GetCamera()->IsInFrustrum(pointlights[i - 1].GetAABB()))
+				if(i == 0 || GetCamera()->IsInFrustum(pointlights[i - 1].GetAABB()))
 				{
 					commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
 					for (FRenderableObject* object : mySceneGraph.GetObjects())
@@ -1242,7 +1242,7 @@ void FD3d12Renderer::DoRenderToGBuffer()
 
 	for (FRenderableObject* object : mySceneGraph.GetObjects())
 	{
-		if(FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustrum(object))
+		if(FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(object))
 			object->PopulateCommandListAsync();
 	}
 

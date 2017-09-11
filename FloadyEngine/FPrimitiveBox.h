@@ -44,8 +44,8 @@ public:
 	int GetIndicesCount() { return myIndicesCount; }
 	bool IsInitialized() { return myIsInitialized; }
 
-protected:
 	ID3D12RootSignature* m_rootSignature;
+protected:
 	ID3D12RootSignature* m_rootSignatureShadows;
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12PipelineState* m_pipelineStateShadows;
@@ -66,7 +66,10 @@ protected:
 	
 	int myHeapOffsetCBV;
 	int myHeapOffsetCBVShadow;
+public:
 	int myHeapOffsetText;
+
+protected:
 	int myHeapOffsetAll;
 	float myYaw;
 	bool skipNextRender;

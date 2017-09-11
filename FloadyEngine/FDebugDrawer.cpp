@@ -41,6 +41,9 @@ void FDebugDrawer::drawLine(const FVector3 & from, const FVector3 & to, const FV
 
 void FDebugDrawer::drawAABB(const FVector3& aMin, const FVector3& aMax, const FVector3 & color)
 {
+	FVector3 halfDim = (aMax - aMin) / 2.0f;
+	DrawSphere(aMin + halfDim, halfDim.Length(), color);
+
 	// 
 	drawLine(
 		FVector3(aMin.x, aMax.y, aMax.z),
@@ -97,6 +100,11 @@ void FDebugDrawer::drawAABB(const FVector3& aMin, const FVector3& aMax, const FV
 	// ~
 }
 
+void FDebugDrawer::drawAABB(const FAABB & anAABB, const FVector3 & color)
+{
+	drawAABB(anAABB.myMin, anAABB.myMax, color);
+}
+
 void FDebugDrawer::DrawTriangle(const FVector3 & aV1, const FVector3 & aV2, const FVector3 & aV3, const FVector3& aColor)
 {
 	FPROFILE_FUNCTION("DebugDrawer Tri");
@@ -123,6 +131,49 @@ void FDebugDrawer::DrawPoint(const FVector3 & aV, float aSize, const FVector3 & 
 	t.myVtx3 = aV + FVector3(0, 0, -size);
 	t.myColor = aColor;
 	myTriangles.push_back(t);
+}
+
+void FDebugDrawer::DrawSphere(const FVector3 & aPoint, float aRadius, const FVector3 & aColor)
+{
+	DrawPoint(aPoint, 1.0f, aColor);
+
+	int segmentsV = 3 * max(5.0f, aRadius);
+	FVector3 lastPoint(0, 0, 0);
+	for (size_t i = 0; i < segmentsV+1; i++)
+	{
+		float a = i * (1.0f / segmentsV);
+		float x = sin(2 * PI * a);
+		float y = cos(2 * PI * a);
+		FVector3 newPoint = aPoint + FVector3(x, 0, y) * aRadius;
+		if(i > 0)
+			drawLine(lastPoint, newPoint, aColor);
+
+		lastPoint = newPoint;
+	}
+
+	for (size_t i = 0; i < segmentsV + 1; i++)
+	{
+		float a = i * (1.0f / segmentsV);
+		float x = sin(2 * PI * a);
+		float y = cos(2 * PI * a);
+		FVector3 newPoint = aPoint + FVector3(x, y, 0) * aRadius;
+		if (i > 0)
+			drawLine(lastPoint, newPoint, aColor);
+
+		lastPoint = newPoint;
+	}
+
+	for (size_t i = 0; i < segmentsV + 1; i++)
+	{
+		float a = i * (1.0f / segmentsV);
+		float x = sin(2 * PI * a);
+		float y = cos(2 * PI * a);
+		FVector3 newPoint = aPoint + FVector3(0, x, y) * aRadius;
+		if (i > 0)
+			drawLine(lastPoint, newPoint, aColor);
+
+		lastPoint = newPoint;
+	}
 }
 
 void FDebugDrawer::Init()
