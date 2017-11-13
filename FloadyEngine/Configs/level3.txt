@@ -1,0 +1,81 @@
+{
+"FSkyBox" : 
+{
+"Components" : 
+		{
+			"FRenderMeshComponent" : 
+			{
+			  "posX" : 0.0,
+			  "posY" : 0.0,
+				"posZ" : 0.0,
+				"scaleX" : 5.0,
+				"scaleY" : 5.0,
+				"scaleZ" : 5.0,
+				"mass" : 0.0,
+				"isNavBlocker" : false,
+				"canMove" :false,
+				"type" : 0,
+				"tex" : "sky6.png"
+			}
+		},
+		  "posX" : 0.0,
+		  "posY" : 0.0,
+		"posZ" : 0.0,
+		"canMove" :false
+},
+"FGameLightEntity" : 
+{
+	"type" : 1.0,
+	"radius" : 6.1,
+	"r" : 1.0,
+	"g" : 1.0,
+	"b" : 1.0,
+	"dirX" : 0.0,
+	"dirY" : -1.0,
+	"dirZ" : 0.1,
+	"offsetX" : 0.0,
+	"offsetY" : -0.3,
+	"offsetZ" : 0.1,
+	"canMove" :false,
+	
+	"FGameEntity" : 
+	{
+		"Components" : 
+		{
+			"FRenderMeshComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 1.0,
+			"scaleY" : 1.0,
+			"scaleZ" : 1.0,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 2,
+			"tex" : "marble.png",
+			"model" : "f16.obj"
+			}
+		},		
+		"posX" : 20.0,
+		"posY" : 5.0,
+		"posZ" : 40.0,
+		"canMove" :false
+	}
+},
+"FGameTerrain" : 
+{
+    "posX" : 0.0,
+    "posY" : 0.0,
+	"posZ" : 0.0,
+	"scaleX" : 1.0,
+	"scaleY" : 1.0,
+	"scaleZ" : 1.0,
+	"canMove" : false,
+	"type" : 1,
+	"tex" : "wood.png",
+	"terrainSizeX" : 50,
+	"terrainSizeZ" : 50,
+	"tileSize" : 5.0
+}
+}

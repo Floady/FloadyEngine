@@ -48,6 +48,7 @@ float3 getWorldPos(in float2 uv)
 
 float3 getViewPos(in float2 uv)
 {	
+	/* // todo: ok to remove?
 	float depth = g_depthTexture.Sample(g_sampler, float2(uv.x, uv.y)); 
 	float4 H = float4(uv.x * 2 - 1, (uv.y) * 2 - 1, depth, 1);
 	float4 D = mul(H, constData.g_invProjMatrix); 
@@ -56,11 +57,12 @@ float3 getViewPos(in float2 uv)
 	viewPos.z /= 400;
 	// viewPos.y  = 1.0f - viewPos.y; // this is for GL?
 	//return viewPos.xyz;
+	*/
 	
 	// world
-	depth = g_depthTexture.Sample(g_sampler, uv);  // low precision here will cause banding in shadows and specular (currently aweful precision) rebnder this out and see :)
-	H = float4(uv.x * 2 - 1, (1.0f - uv.y) * 2 - 1, depth , 1);
-	D = mul(H, constData.g_invViewProjMatrix); 
+	float depth = g_depthTexture.Sample(g_sampler, uv);  // low precision here will cause banding in shadows and specular (currently aweful precision) rebnder this out and see :)
+	float4 H = float4(uv.x * 2 - 1, (1.0f - uv.y) * 2 - 1, depth , 1);
+	float4 D = mul(H, constData.g_invViewProjMatrix); 
 	float4 worldPos = D / D.w;
 	worldPos.w = 1.0f;
 	
@@ -107,9 +109,9 @@ float random(in float amin, in float amax, in float2 uv)
 
 float doAmbientOcclusion(in float2 tcoord,in float2 uv, in float3 p, in float3 cnorm)
 {
-	float g_intensity = 3.0;
-	float g_scale = 1.0;
-	float g_bias = 0.0;
+	float g_intensity = 4.0;
+	float g_scale = 2.0;
+	float g_bias = 0.1;
 	float3 diff = getViewPos(tcoord + uv) - p;
 	const float3 v = normalize(diff);
 	const float d = length(diff)*g_scale;
@@ -126,18 +128,18 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float3 p = getViewPos(input.uv);
 	float3 n = getNormalViewSpace(input.uv);
 
-	p = getViewPos(input.uv);
-	n = getNormalViewSpace(input.uv);
+//	p = getViewPos(input.uv);
+//	n = getNormalViewSpace(input.uv);
 
 	float2 rand = normalize(float2(random(-1.0f, 1.0f, input.uv), random(-1.0f, 1.0f, 0.5f * input.uv)));
 
 	float ao = 0.0f;
-	float g_sample_rad = 0.2;
+	float g_sample_rad = 1.4;
 	float rad = g_sample_rad/p.z;
 
 	float g_far_clip = 400.0f;
 	int iterations = 4;
-	//int iterations = lerp(6.0,2.0,p.z/g_far_clip);
+	iterations = lerp(6.0,2.0,p.z/g_far_clip);
 	for (int j = 0; j < iterations; ++j)
 	{
 	  float2 coord1 = reflect(vec[j],rand)*rad;
@@ -151,8 +153,9 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	}
 	ao/=(float)iterations*4.0;
 	
-	output.color = float4(scratchbuff.Sample(g_sampler, input.uv).xyz, 1.0);
+	//output.color = float4(scratchbuff.Sample(g_sampler, input.uv).xyz, 1.0);
 	output.color = float4(1.0f - ao.xxx, 1);
+	//output.color = float4(ao.x*5, 0, 0, 1);
 	//output.color += float4(tangent.xyz, 1);
 	//output.color = float4(origin.xyz / 40, 1);
 	//output.color = float4(n.xyz * 0.5 + 0.5, 1);
@@ -161,8 +164,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(p.xyz, 1);
 	//output.color = float4(g_depthTexture.Sample(g_sampler, input.uv) * 1000, 0, 0, 1);
 	
-	//if(p.x > 0.5f)
-	//	output.color = float4(1,1,1,1);
+	//if(ao.x > 0.1f)
+	//	output.color = float4(1,0,0,1);
 		
 	return output;	
 }

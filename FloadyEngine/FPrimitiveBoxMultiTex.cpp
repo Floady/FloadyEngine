@@ -20,7 +20,7 @@ void FPrimitiveBoxMultiTex::Init()
 	FPrimitiveBox::Init();
 
 	// get root sig with 32 SRV's
-	m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(32, 1);
+	m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(64, 1);
 	m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
 	// set to multitex shader
@@ -36,24 +36,35 @@ void FPrimitiveBoxMultiTex::Init()
 	{
 		const tinyobj::material_t& mat = m.myMaterials[i];
 
+		if (!mat.diffuse_texname.empty())
 		{
-			if (!mat.diffuse_texname.empty())
-			{
-				name = mat.diffuse_texname.substr(mat.diffuse_texname.find('\\') + 1, mat.diffuse_texname.length());
-			}
-
-			matcounter++;
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
-			unsigned int srvSize = FD3d12Renderer::GetInstance()->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			FD3d12Renderer::GetInstance()->GetNextOffset();
-			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(FD3d12Renderer::GetInstance()->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText + matcounter, srvSize);
-			ID3D12Resource* texData = FTextureManager::GetInstance()->GetTextureD3D(name.c_str());
-			FD3d12Renderer::GetInstance()->GetDevice()->CreateShaderResourceView(texData, &srvDesc, srvHandle0);
+			name = mat.diffuse_texname.substr(mat.diffuse_texname.find('\\') + 1, mat.diffuse_texname.length());
 		}
+			
+		if (!FD3d12Renderer::GetInstance()->BindTexture(name))
+		{
+			FD3d12Renderer::GetInstance()->GetNextOffset();
+		}
+	}
+
+	for (size_t i = 0; i < m.myMaterials.size(); i++)
+	{
+		const tinyobj::material_t& mat = m.myMaterials[i];
+		if (!mat.bump_texname.empty())
+		{
+			name = mat.bump_texname.substr(mat.bump_texname.find('\\') + 1, mat.bump_texname.length());
+		}
+
+		if (!FD3d12Renderer::GetInstance()->BindTexture(name))
+		{
+			FD3d12Renderer::GetInstance()->GetNextOffset();
+		}
+	}
+
+
+	for (size_t i = m.myMaterials.size() * 2; i < 63; i++)
+	{
+		FD3d12Renderer::GetInstance()->BindTexture("");
 	}
 }
 

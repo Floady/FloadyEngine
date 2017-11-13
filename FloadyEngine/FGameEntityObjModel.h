@@ -18,10 +18,8 @@ public:
 private:
 	ID3D12Resource* m_vertexBuffer;
 	ID3D12Resource* m_indexBuffer;
-	int myTerrainSizeX;
-	int myTerrainSizeZ;
-	float myTileSize;
 	std::vector<FPrimitiveGeometry::Vertex> vertices;
 	std::vector<int> indices;
+	FRenderableObject* myGraphicsObject;
 };
 

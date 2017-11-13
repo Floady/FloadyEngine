@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include "d3d12.h"
 #include "FRenderableObject.h"
+#include "d3d12.h"
 #include "FDelegate.h"
 
 class FGameEntity;

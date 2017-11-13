@@ -24,7 +24,7 @@ FGUIButtonToggle::~FGUIButtonToggle()
 void FGUIButtonToggle::OnMouseLeave(float aX, float aY)
 {
 	if(myIsToggled)
-		myGraphicsObject->SetUVOffset(FVector3(0.0, 0.66, 0), FVector3(1, 1.0, 0));
+		myGraphicsObject->SetUVOffset(FVector3(0.0f, 0.66f, 0), FVector3(1, 1.0f, 0));
 	else
-		myGraphicsObject->SetUVOffset(FVector3(0, 0, 0), FVector3(1, 0.33, 0));
+		myGraphicsObject->SetUVOffset(FVector3(0, 0, 0), FVector3(1, 0.33f, 0));
 }

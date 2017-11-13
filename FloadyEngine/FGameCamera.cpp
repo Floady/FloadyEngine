@@ -14,7 +14,7 @@ FGameCamera::~FGameCamera()
 
 void FGameCamera::Update(double aDeltaTime)
 {
-	float movSpeed = static_cast<float>(10 * aDeltaTime);
+	float movSpeed = static_cast<float>(100 * aDeltaTime);
 	if (myInputSystem->IsKeyDown(65))
 		Move(-movSpeed, 0, 0);
 	if (myInputSystem->IsKeyDown(68))
@@ -29,7 +29,7 @@ void FGameCamera::Update(double aDeltaTime)
 		
 	// don't time correct rotatio nsince the mousemove per frame is shorter when frames are shorter times
 	// should be direction normalized times frametime?
-	float rotSpeed = 0.01f;
+	float rotSpeed = 0.02f;
 	Yaw(deltaX * rotSpeed);
 	Pitch(deltaY * rotSpeed);
 

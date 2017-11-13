@@ -5,9 +5,10 @@
 #include "FD3d12Renderer.h"
 #include "FDebugDrawer.h"
 
-FPathfindComponent::FPathfindComponent(FGameEntity* aGameEntity)
+REGISTER_GAMEENTITYCOMPONENT2(FPathfindComponent);
+
+FPathfindComponent::FPathfindComponent()
 {
-	myGameEntity = aGameEntity;
 	mySpeed = 1.0f;
 	myCurTargetIdx = -1;
 }
@@ -37,13 +38,18 @@ FPathfindComponent::~FPathfindComponent()
 {
 }
 
+void FPathfindComponent::Init(const FJsonObject & anObj)
+{
+	
+}
+
 void FPathfindComponent::Update(double aDeltaTime)
 {
 	myCurPosOnPath += aDeltaTime * mySpeed;
 
 	if(myCurTargetIdx >= 0 && myCurTargetIdx < myPath.size())
 	{
-		if ((myGameEntity->GetPos() - myPath[myCurTargetIdx]).Length() < 1.0f)
+		if ((myOwner->GetPos() - myPath[myCurTargetIdx]).Length() < 1.0f)
 		{
 			myCurTargetIdx++;
 		}
@@ -60,6 +66,10 @@ void FPathfindComponent::Update(double aDeltaTime)
 			FD3d12Renderer::GetInstance()->GetDebugDrawer()->drawLine(from, to, FVector3(shade, shade, shade));
 		}
 	}
+}
+
+void FPathfindComponent::PostPhysicsUpdate()
+{
 }
 
 FVector3 FPathfindComponent::GetPosOnPath()
@@ -90,7 +100,7 @@ FVector3 FPathfindComponent::GetDirection()
 	if (myCurTargetIdx < 0 || myCurTargetIdx > myPath.size() - 1 )
 		return FVector3();
 
-	return (myPath[myCurTargetIdx] - myGameEntity->GetPos()).Normalized();
+	return (myPath[myCurTargetIdx] - myOwner->GetPos()).Normalized();
 
 	return FVector3();
 }

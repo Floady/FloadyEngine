@@ -21,6 +21,7 @@ public:
 	bool IsRoot() { return myParent == nullptr; }
 	void AddItem(std::string aKey, FAny& anItem) { myItems[aKey] = anItem; }
 	const FAny& GetItem(std::string aKey) const { return (myItems.find(aKey))->second; }
+	bool HasItem(std::string aKey) const { return (myItems.find(aKey) != myItems.end()); }
 	FJsonObject* AddChild(const std::string& aName) { myChildren.push_back(new FJsonObject(aName, this)); return myChildren[myChildren.size() - 1]; }
 	FJsonObject* GetParent() { return myParent; }
 	const FJsonObject* GetFirstChild() const { myCurrentChildId = 0;  return myChildren.size() ? myChildren[0] : nullptr; }

@@ -54,6 +54,19 @@ public:
 			uv.z = 0.0f;
 			uv.w = 0.0f;
 			matId = 0;
+			normalmatId = 0;
+		}
+
+		Vertex2(const Vertex& anOther)
+		{
+			position.x = anOther.position.x; position.y = anOther.position.y; position.z = anOther.position.z;
+			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = -1; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
+			position.w = 1.0f;
+			normal.w = 1.0f;
+			uv.z = 0.0f;
+			uv.w = 0.0f;
+			matId = 0;
+			normalmatId = 0;
 		}
 
 		Vertex2(float x, float y, float z, float nx, float ny, float nz, float u, float v)
@@ -65,6 +78,7 @@ public:
 			uv.z = 0.0f;
 			uv.w = 0.0f;
 			matId = 0;
+			normalmatId = 0;
 		}
 
 		bool operator==(const Vertex2& other) const {
@@ -75,13 +89,16 @@ public:
 				&& normal.y == other.normal.y
 				&& normal.z == other.normal.z
 				&& uv.x == other.uv.x
-				&& uv.y == other.uv.y;
+				&& uv.y == other.uv.y
+				&& matId == other.matId
+				&& normalmatId == other.normalmatId;
 		}
 
 		DirectX::XMFLOAT4 position;
 		DirectX::XMFLOAT4 normal;
 		DirectX::XMFLOAT4 uv;
 		unsigned int matId;
+		unsigned int normalmatId;
 	};
 
 public:

@@ -11,19 +11,18 @@ struct PSOutput
 
 struct MyData
 {
-	float4x4 g_viewProjMatrix;
-	float4x4 g_transform;
+	float4x4 myLightProjMatrix[16];
+	float4x4 myViewMatrixInstanced[16];
 };
 
 ConstantBuffer<MyData> myData : register(b0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 	result.position = position;
-	result.position = mul(result.position, myData.g_transform);
-	result.position = mul(result.position, myData.g_viewProjMatrix);
-		
+	result.position = mul(result.position, myData.myViewMatrixInstanced[InstanceId]);
+	result.position = mul(result.position, myData.myLightProjMatrix[0]); // todo: send light transform id 
 	return result;
 }
 

@@ -36,21 +36,21 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 		}
 		else
 		{
-			Sleep(2);
+			Sleep(0);
 		}
 	}
 
 	return 0;
 };
 
-static FJobSystem* ourInstance = nullptr;
-FJobSystem* FJobSystem::GetInstance()
-{
-	if (!ourInstance)
-		ourInstance = new FJobSystem();
-
-	return ourInstance;
-}
+//static FJobSystem* ourInstance = nullptr;
+//FJobSystem* FJobSystem::GetInstance()
+//{
+//	if (!ourInstance)
+//		ourInstance = new FJobSystem();
+//
+//	return ourInstance;
+//}
 
 FJobSystem::FJob * FJobSystem::GetNextJob()
 {
@@ -80,7 +80,7 @@ FJobSystem::FJob * FJobSystem::GetNextJob()
 	return nullptr;
 }
 
-bool FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate)
+bool FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong)
 {
 	LONG curFreeIdx = myFreeIndex;
 	
@@ -89,12 +89,15 @@ bool FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate)
 	{
 		LONG nextFreeIdx = curFreeIdx + 1;
 
+		Pause();
 		if (InterlockedCompareExchange(&myFreeIndex, nextFreeIdx, curFreeIdx) == curFreeIdx)
 		{
 			myQueue[curFreeIdx].myFunc = aDelegate;
 			InterlockedExchange(&myQueue[curFreeIdx].myFinished, 0);
+			UnPause();
 			return true;
 		}
+		UnPause();
 	}
 
 	return false;
@@ -121,7 +124,7 @@ void FJobSystem::WaitForAllJobs()
 	}
 }
 
-FJobSystem::FJobSystem()
+FJobSystem::FJobSystem(int aNrWorkerThreads)
 {
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
@@ -131,7 +134,7 @@ FJobSystem::FJobSystem()
 	myIsPaused = true;
 
 	// grow the pool to sensible size
-	myQueue.resize(1024 * 5);
+	myQueue.resize(4096 * 5);
 
 	myNextJobIndex = 0;
 	myFreeIndex = 0;
@@ -142,7 +145,8 @@ FJobSystem::FJobSystem()
 	// careful to not recycle jobs that are being depended on, e.g checked for finish (waited)
 
 	// probably want numCPU -1, and set affinities so we operate on all cores at full power (high prio), no moving threads on cores
-	myNrWorkerThreads = numCPU - 1;
+	//myNrWorkerThreads = numCPU - 1;
+	myNrWorkerThreads = aNrWorkerThreads;
 	for (int i = 0; i < myNrWorkerThreads; i++)
 	{
 		/*char buff[512];

@@ -1,3 +1,4 @@
+#include "FRenderableObject.h"
 #include "F3DPicker.h"
 #include "FCamera.h"
 #include "FRenderWindow.h"
@@ -39,7 +40,7 @@ FVector3 F3DPicker::UnProject(FVector3 aMousePos)
 	float winY = aMousePos.y;
 	float winZ = aMousePos.z;
 	
-	const const DirectX::XMFLOAT4X4& m = myCamera->GetInvViewProjMatrix();
+	const DirectX::XMFLOAT4X4& m = myCamera->GetInvViewProjMatrix();
 
 	// Need to invert Y since screen Y-origin point down,
 	// while 3D Y-origin points up (this is an OpenGL only requirement):
@@ -47,10 +48,10 @@ FVector3 F3DPicker::UnProject(FVector3 aMousePos)
 
 	// Transformation of normalized coordinates between -1 and 1:
 	FVector3 in;
-	float x = winX  * 2.0 - 1.0;
-	float y = winY * 2.0 - 1.0;
-	float z = 2.0 * winZ - 1.0;
-	float w = 1.0;
+	float x = winX  * 2.0f - 1.0f;
+	float y = winY * 2.0f - 1.0f;
+	float z = 2.0f * winZ - 1.0f;
+	float w = 1.0f;
 
 	// To world coordinates:
 	DirectX::XMVECTOR vec;
@@ -65,7 +66,7 @@ FVector3 F3DPicker::UnProject(FVector3 aMousePos)
 	}
 
 	FVector3 worldCoordinates;
-	result.m128_f32[3] = 1.0 / result.m128_f32[3];
+	result.m128_f32[3] = 1.0f / result.m128_f32[3];
 	worldCoordinates.x = result.m128_f32[0] * result.m128_f32[3];
 	worldCoordinates.y = result.m128_f32[1] * result.m128_f32[3];
 	worldCoordinates.z = result.m128_f32[2] * result.m128_f32[3];

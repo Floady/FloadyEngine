@@ -7,6 +7,7 @@
 #include <vector>
 #include "FD3d12Renderer.h"
 #include "FDebugDrawer.h"
+#include "FUtilities.h"
 
 FNavMeshManagerRecast* FNavMeshManagerRecast::ourInstance = nullptr;
 
@@ -17,6 +18,7 @@ FNavMeshManagerRecast::FNavMeshManagerRecast()
 	m_filterLedgeSpans = false;
 	m_filterWalkableLowHeightSpans = false;
 	myDebugFlags = 0;
+	m_navQuery = nullptr;
 }
 
 
@@ -290,10 +292,9 @@ void FNavMeshManagerRecast::DebugDraw()
 
 }
 
-#pragma optimize("", off)
 bool FNavMeshManagerRecast::GenerateNavMesh()
 {
-	float m_cellSize = 0.3;
+	float m_cellSize = 1.3;
 	float m_cellHeight = 0.5;
 	float m_agentHeight = 2.0f;
 	float m_agentRadius = 1.0f;
@@ -323,8 +324,8 @@ bool FNavMeshManagerRecast::GenerateNavMesh()
 	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
 	m_cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
 
-	float bmin[] = { 0, 0, 0 };
-	float bmax[] = { 400, 200, 400 };
+	float bmin[] = { -400, -10, -400 };
+	float bmax[] = { 400, 800, 400 };
 	rcVcopy(m_cfg.bmin, bmin);
 	rcVcopy(m_cfg.bmax, bmax);
 	rcCalcGridSize(m_cfg.bmin, m_cfg.bmax, m_cfg.cs, &m_cfg.width, &m_cfg.height);
@@ -332,7 +333,7 @@ bool FNavMeshManagerRecast::GenerateNavMesh()
 	// allocate poly soup
 	m_solid = rcAllocHeightfield();
 
-	m_ctx = new rcContext();
+	m_ctx = new FContext();
 	m_ctx->resetTimers();
 
 	if (!m_solid)
@@ -668,9 +669,7 @@ int intersect3D_RayTriangle(Ray R, Triangle T, FVector3& I)
 
 	return 1;                       // I is in T
 }
-#pragma optimize("", on)
 
-#pragma optimize("", off)
 FVector3 FNavMeshManagerRecast::RayCast(FVector3 aStart, FVector3 anEnd)
 {
 	// raycast against input mesh(es)
@@ -748,7 +747,6 @@ FVector3 FNavMeshManagerRecast::GetClosestPointOnNavMesh(FVector3 aPoint, FVecto
 
 	return FVector3(nearestPt[0], nearestPt[1], nearestPt[2]);
 }
-#pragma optimize("", on)
 
 std::vector<FVector3> FNavMeshManagerRecast::FindPath(FVector3 aStart, FVector3 anEnd)
 {
@@ -829,4 +827,9 @@ FNavMeshManagerRecast * FNavMeshManagerRecast::GetInstance()
 		ourInstance = new FNavMeshManagerRecast();
 
 	return ourInstance;
+}
+
+void FContext::doLog(const rcLogCategory, const char * aText, const int aLen)
+{
+	FUtilities::FLog("%s\n", aText);
 }

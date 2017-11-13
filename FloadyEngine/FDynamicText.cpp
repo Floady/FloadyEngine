@@ -283,8 +283,6 @@ void FDynamicText::PopulateCommandList()
 	m_commandList->RSSetViewports(1, &myManagerClass->GetViewPort());
 	m_commandList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
-	// Indicate that the back buffer will be used as a render target.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
 	if(myIsDeferred)
@@ -319,8 +317,6 @@ void FDynamicText::PopulateCommandList()
 		}
 	}
 
-	// Indicate that the back buffer will now be used to present.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	hr = m_commandList->Close();
 }
 
@@ -387,7 +383,8 @@ void FDynamicText::PopulateCommandListAsync()
 		else
 			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		if (!myIs2D)
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	}
 	// Set necessary state.
 	cmdList->SetGraphicsRootSignature(m_rootSignature);
@@ -407,8 +404,6 @@ void FDynamicText::PopulateCommandListAsync()
 	cmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
 	cmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
-	// Indicate that the back buffer will be used as a render target.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
 	if (myIsDeferred)
@@ -433,7 +428,9 @@ void FDynamicText::PopulateCommandListAsync()
 	cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	if (!myIs2D)
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
 	if (myIsDeferred)
 	{
 		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
@@ -441,9 +438,6 @@ void FDynamicText::PopulateCommandListAsync()
 			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 		}
 	}
-
-	// Indicate that the back buffer will now be used to present.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 }
 
 void FDynamicText::SetText(const char * aNewText)
@@ -466,7 +460,7 @@ void FDynamicText::SetText(const char * aNewText)
 		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz123456789.0");
 
 		float texWidth, texHeight;
-		FFontManager::FWordInfo wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
+		const FFontManager::FWordInfo& wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);
 		float scaleFactorWidth = finalWidth / (texWidth);
 		float scaleFactorHeight = finalHeight / (texHeight);
 

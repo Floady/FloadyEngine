@@ -6,6 +6,8 @@
 #include "FLightManager.h"
 #include "FNavMeshManagerRecast.h"
 #include "FProfiler.h"
+#include "FGameTerrain.h"
+#include "FRenderMeshComponent.h"
 
 FGameLevel::FGameLevel(const char * aLevelName)
 {
@@ -13,9 +15,24 @@ FGameLevel::FGameLevel(const char * aLevelName)
 	const FJsonObject* child = level->GetFirstChild();
 	while (child)
 	{
-		FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
-		newEntity->Init(*child);
-		myEntityContainer.push_back(newEntity);
+		int gridSize = 1;
+		float x = 0.0f;
+		float z = 0.0f;
+		for (int i = 0; i < gridSize; i++)
+		{
+			for (int j = 0; j < gridSize; j++)
+			{
+				FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
+				newEntity->Init(*child);
+				//newEntity->SetPos(FVector3(x, 0, z));
+				newEntity->GetRenderableObject()->SetPos(FVector3(x, 0, z));
+				myEntityContainer.push_back(newEntity);
+				x += 10;
+			}
+			x = 0.0f;
+			z += 10;
+		}
+
 		child = level->GetNextChild();
 	}
 
@@ -36,7 +53,7 @@ FGameLevel::FGameLevel(const char * aLevelName)
 
 void FGameLevel::Update(double aDeltaTime)
 {
-	FPROFILE_FUNCTION("FGameLevel Update");
+	//FPROFILE_FUNCTION("FGameLevel Update");
 
 	FLightManager::GetInstance()->SortLights();
 	FCamera* cam = FD3d12Renderer::GetInstance()->GetCamera();
@@ -45,7 +62,7 @@ void FGameLevel::Update(double aDeltaTime)
 	{
 		entity->Update(aDeltaTime);
 
-		if (cam->IsInFrustum(entity->GetRenderableObject()))
+	if (dynamic_cast<FGameTerrain*>(entity) == nullptr) //  && cam->IsInFrustum(entity->GetRenderableObject())
 			aabb.Grow(entity->GetRenderableObject()->GetAABB());
 	}
 }

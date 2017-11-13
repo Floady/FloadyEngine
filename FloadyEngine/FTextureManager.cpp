@@ -8,6 +8,10 @@
 #include <vector>
 #include <stdio.h>
 #include "FUtilities.h"
+#include "FreeImage.h"
+#include "FProfiler.h"
+
+static std::string ourFallbackTextureName = "reserved_fallback.reserved";
 
 namespace
 {
@@ -39,13 +43,58 @@ namespace
 	}
 
 }
+
+// Generate a simple black and white checkerboard texture.
+
+UINT8* FTextureManager::GenerateCheckerBoard()
+{
+	UINT TextureWidth = 256;
+	UINT TextureHeight = 256;
+	UINT TexturePixelSize = 4;
+
+	const UINT rowPitch = TextureWidth * TexturePixelSize;
+	const UINT cellPitch = rowPitch >> 3;		// The width of a cell in the checkboard texture.
+	const UINT cellHeight = TextureWidth >> 3;	// The height of a cell in the checkerboard texture.
+	const UINT textureSize = rowPitch * TextureHeight;
+
+	//data.resize(textureSize);
+	UINT8* pData = new UINT8[textureSize];
+
+	for (UINT n = 0; n < textureSize; n += TexturePixelSize)
+	{
+		UINT x = n % rowPitch;
+		UINT y = n / rowPitch;
+		UINT i = x / cellPitch;
+		UINT j = y / cellHeight;
+
+		if (i % 2 == j % 2)
+		{
+			pData[n] = 0xff;		// R
+			pData[n + 1] = 0x00;	// G
+			pData[n + 2] = 0x00;	// B
+			pData[n + 3] = 0xff;	// A
+		}
+		else
+		{
+			pData[n] = 0xff;		// R
+			pData[n + 1] = 0xff;	// G
+			pData[n + 2] = 0xff;	// B
+			pData[n + 3] = 0xff;	// A
+		}
+	}
+
+	return pData;
+}
+
 FTextureManager* FTextureManager::ourInstance = nullptr;
 
 int width, height;
+int fi_width, fi_height;
 png_byte color_type;
 png_byte bit_depth;
 png_bytep* row_pointers;
-UINT8* transformedBytes;
+UINT8* transformedBytes = nullptr;
+UINT8* transformedBytes2 = nullptr;
 void read_png_file(const char *filename) {
 	FILE *fp;
 	
@@ -123,15 +172,80 @@ void read_png_file(const char *filename) {
 	fclose(fp);
 }
 
+
+bool LoadTexture(const char* filename)
+{
+	//image format
+	FREE_IMAGE_FORMAT fif = FIF_UNKNOWN;
+	//pointer to the image, once loaded
+	FIBITMAP *dib(0);
+	//pointer to the image data
+	BYTE* bits = 0;
+
+	//image width and height
+	unsigned int width(0), height(0);
+
+	//check the file signature and deduce its format
+	fif = FreeImage_GetFileType(filename, 0);
+	//if still unknown, try to guess the file format from the file extension
+	if (fif == FIF_UNKNOWN)
+		fif = FreeImage_GetFIFFromFilename(filename);
+	//if still unkown, return failure
+	if (fif == FIF_UNKNOWN)
+		return false;
+
+	//check that the plugin has reading capabilities and load the file
+	if (FreeImage_FIFSupportsReading(fif))
+		dib = FreeImage_Load(fif, filename);
+	//if the image failed to load, return failure
+	if (!dib)
+		return false;
+
+	//retrieve the image data
+	bits = FreeImage_GetBits(dib);
+	//get the image width and height
+	width = FreeImage_GetWidth(dib);
+	height = FreeImage_GetHeight(dib);
+	//if this somehow one of these failed (they shouldn't), return failure
+	if ((bits == 0) || (width == 0) || (height == 0))
+		return false;
+
+	// make tex?
+	const int texpixelsize = 4;
+	int texsize = width * height * 4;
+	transformedBytes2 = (UINT8*)malloc(texsize);
+	fi_width = width;
+	fi_height = height;
+
+	for (size_t j = 0; j < height; j++)
+	{
+		for (size_t i = 0; i < width; i++)
+		{
+			tagRGBQUAD val;
+			FreeImage_GetPixelColor(dib, i, (height-j), &val);
+			transformedBytes2[(j * width + i)*texpixelsize] = val.rgbRed;
+			transformedBytes2[(j * width + i)*texpixelsize + 1] = val.rgbGreen;
+			transformedBytes2[(j * width + i)*texpixelsize + 2] = val.rgbBlue;
+			transformedBytes2[(j * width + i)*texpixelsize + 3] = 255;
+		}
+	}
+
+	//Free FreeImage's copy of the data
+	FreeImage_Unload(dib);
+
+	//return success
+	return true;
+}
+
 void FTextureManager::ReloadTextures()
 {
 	HANDLE hFind;
 	WIN32_FIND_DATA data;
 
-	myTextures.clear();
-
-	LPCWSTR folderFilters[] = { L"Textures//*.png" , L"Textures//sponza//*.png" };
-	LPCWSTR folderPrefix[] = { L"Textures//" , L"Textures//sponza//" };
+	//myTextures.clear();
+	
+	LPCWSTR folderFilters[] = { L"Textures//*.png" , L"Textures//sponza//*.png", L"Textures//sponza2//*.tga" };
+	LPCWSTR folderPrefix[] = { L"Textures//" , L"Textures//sponza//" , L"Textures//sponza2//" };
 
 	for (size_t i = 0; i < _countof(folderFilters); i++)
 	{
@@ -145,16 +259,57 @@ void FTextureManager::ReloadTextures()
 
 				std::string cStrFilename = ConvertFromUtf16ToUtf8(mywstring);
 				std::string cStrFilenameConcat = ConvertFromUtf16ToUtf8(concatted_stdstr);
-				read_png_file(cStrFilenameConcat.c_str());
-				myTextures[cStrFilename].myRawPixelData = transformedBytes;
-				myTextures[cStrFilename].myWidth = width;
-				myTextures[cStrFilename].myHeight = height;
+
+				if(true)
+				{
+					{
+					//	FPROFILE_FUNCTION("FAssetImg Load");
+
+						if (!LoadTexture(cStrFilenameConcat.c_str()))
+							FUtilities::FLog("Failed loading: %ws\n", data.cFileName);
+					}
+					myTextures[cStrFilename].myWidth = fi_width;
+					myTextures[cStrFilename].myHeight = fi_height;
+					myTextures[cStrFilename].myRawPixelData = transformedBytes2;
+					FUtilities::FLog("Taking load data from FreeImage for: %ws\n", data.cFileName);
+				}
+				else
+				{
+					read_png_file(cStrFilenameConcat.c_str());
+
+					myTextures[cStrFilename].myWidth = width;
+					myTextures[cStrFilename].myHeight = height;
+					myTextures[cStrFilename].myRawPixelData = transformedBytes;
+					FUtilities::FLog("Taking load data from libPNG straight for: %ws\n", data.cFileName);
+				}
+
 				myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
 																	// also disconnects from render device, so we can use texture + resource managing with other devices
 			} while (FindNextFileW(hFind, &data));
 			FindClose(hFind);
 		}
 	}
+}
+
+ID3D12Resource * FTextureManager::GetTextureD3D(const std::string& aTextureName) const
+{
+	assert(myInitializedD3D && "NOT INIT D3D");
+
+	if (myTextures.find(aTextureName) != myTextures.end())
+		return myTextures.find(aTextureName)->second.myD3DResource;
+
+	return nullptr;
+}
+
+ID3D12Resource * FTextureManager::GetTextureD3DFallback() const
+{
+	assert(myInitializedD3D && "NOT INIT D3D");
+	return myTextures.find(ourFallbackTextureName)->second.myD3DResource;
+}
+
+ID3D12Resource * FTextureManager::GetTextureD3D(const char * aTextureName) const
+{
+	return GetTextureD3D(std::string(aTextureName));
 }
 
 void write_png_file(char *filename) 
@@ -205,8 +360,15 @@ FTextureManager::FTextureManager()
 {
 //	HANDLE hFind;
 //	WIN32_FIND_DATA data;
+	void* tex = static_cast<void*>(FTextureManager::GenerateCheckerBoard());
+	
+	myTextures[ourFallbackTextureName].myRawPixelData = tex;
+	myTextures[ourFallbackTextureName].myWidth = 256;
+	myTextures[ourFallbackTextureName].myHeight = 256;
+	myTextures[ourFallbackTextureName].myD3DResource = nullptr;
+	
 	myInitializedD3D = false;
-	ReloadTextures();
+	FreeImage_Initialise();
 }
 
 void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsCommandList* aCommandList)
@@ -214,48 +376,51 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 	for (std::map<std::string, TextureInfo>::iterator it = myTextures.begin(); it != myTextures.end(); ++it)
 	{
 		TextureInfo& texture = it->second;
+		if (texture.myRawPixelData && !texture.myD3DResource)
+		{
+			FUtilities::FLog("init: %s\n", it->first.c_str());
+			// Describe and create a Texture2D.
+			D3D12_RESOURCE_DESC textureDesc = {};
+			textureDesc.MipLevels = 1;
+			textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			textureDesc.Width = texture.myWidth;
+			textureDesc.Height = texture.myHeight;
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			textureDesc.DepthOrArraySize = 1;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-		// Describe and create a Texture2D.
-		D3D12_RESOURCE_DESC textureDesc = {};
-		textureDesc.MipLevels = 1;
-		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureDesc.Width = texture.myWidth;
-		textureDesc.Height = texture.myHeight;
-		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-		textureDesc.DepthOrArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			aDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&textureDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(&texture.myD3DResource));
 
-		aDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&textureDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&texture.myD3DResource));
+			// Create the GPU upload buffer.
+			ID3D12Resource* textureUploadHeap;
+			const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.myD3DResource, 0, 1);
+			aDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&textureUploadHeap));
 
-		// Create the GPU upload buffer.
-		ID3D12Resource* textureUploadHeap;
-		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.myD3DResource, 0, 1);
-		aDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&textureUploadHeap));
+			// Copy data to the intermediate upload heap and then schedule a copy 
+			// from the upload heap to the Texture2D.
+			void* texturePixelData = texture.myRawPixelData;
+			D3D12_SUBRESOURCE_DATA textureData = {};
+			textureData.pData = texturePixelData;
+			textureData.RowPitch = texture.myWidth * 4;
+			textureData.SlicePitch = textureData.RowPitch * texture.myHeight;
 
-		// Copy data to the intermediate upload heap and then schedule a copy 
-		// from the upload heap to the Texture2D.
-		void* texturePixelData = texture.myRawPixelData;
-		D3D12_SUBRESOURCE_DATA textureData = {};
-		textureData.pData = texturePixelData;
-		textureData.RowPitch = texture.myWidth * 4;
-		textureData.SlicePitch = textureData.RowPitch * texture.myHeight;
-
-		UpdateSubresources(aCommandList, texture.myD3DResource, textureUploadHeap, 0, 0, 1, &textureData);
-		aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.myD3DResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			UpdateSubresources(aCommandList, texture.myD3DResource, textureUploadHeap, 0, 0, 1, &textureData);
+			aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.myD3DResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		}
 	}
 
 	myInitializedD3D = true;

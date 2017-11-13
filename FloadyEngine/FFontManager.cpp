@@ -222,8 +222,9 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 	myFonts.push_back(newFont);
 }
 
+static FFontManager::FWordInfo wordInfo;
 
-FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning)
+const FFontManager::FWordInfo& FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning)
 {
 	unsigned int TextureWidth = 0;
 	unsigned int TextureHeight = 0;
@@ -233,7 +234,8 @@ FFontManager::FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& a
 	int texHeight = 0;
 
 	// setup word+kerning buffers
-	FWordInfo wordInfo;
+	//static FWordInfo wordInfo;
+	wordInfo.clear();
 	wordInfo.myDimensions.resize(wordLength);
 	wordInfo.myUVTL.resize(wordLength+1);
 	wordInfo.myUVBR.resize(wordLength + 1);

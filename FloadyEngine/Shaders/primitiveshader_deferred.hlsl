@@ -17,28 +17,28 @@ struct PSOutput
 struct MyData
 {
 	float4x4 g_viewProjMatrix;
-	float4x4 g_transform;
+	float4x4 g_transform[64];
 };
 
 ConstantBuffer<MyData> myData : register(b0);
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 
 	result.position = float4(position.xyz, 1);
-	result.position = mul(result.position, myData.g_transform);
+	result.position = mul(result.position, myData.g_transform[InstanceId]);
 	result.position = mul(result.position, myData.g_viewProjMatrix);
 	result.depth    = (result.position.z);
 	
 	result.uv = uv;
 	result.normal = normal;
 	result.normal.w = 0.0f;
-	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform);
-	result.normal = normalize(result.normal);
+	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform[InstanceId]);
 	result.normal = (result.normal + float4(1, 1, 1,1))/2.0f;
+	
 	return result;
 }
 

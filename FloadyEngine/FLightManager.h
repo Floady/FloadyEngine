@@ -1,5 +1,4 @@
 #pragma once
-#include <DirectXMath.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include "d3dx12.h"
@@ -20,6 +19,7 @@ public:
 		float myAlpha;
 		unsigned int myId;
 		DirectX::XMFLOAT4X4 myViewProjMatrix;
+		bool myHasMoved;
 	};
 
 	struct SpotLight: public Light
@@ -67,6 +67,7 @@ public:
 	int GetActiveLight() { return myActiveLight == -1 ? 0 : myActiveLight + 1; }
 	void SetFreezeDebug(bool aShouldFreeze) { myFreezeDebugInfo = aShouldFreeze; }
 	void UpdateViewProjMatrices();
+	void ResetHasMoved();
 
 private:
 	FLightManager();

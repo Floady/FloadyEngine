@@ -19,17 +19,32 @@
     <Filter Include="Game">
       <UniqueIdentifier>{215780ee-8693-4e85-824a-3d19d9866edb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Game\Header Files">
-      <UniqueIdentifier>{bd1428b3-fb09-433b-8bee-bc8bde4b3b78}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Game\Source Files">
-      <UniqueIdentifier>{0f4756e3-29cf-448b-802d-18e9897c9ee8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Collision">
       <UniqueIdentifier>{ba019494-b22c-4123-90ee-0de5434034dc}</UniqueIdentifier>
     </Filter>
     <Filter Include="GUI">
       <UniqueIdentifier>{881d32c8-7c4f-4ad1-9e49-ab3f48efc576}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Entities">
+      <UniqueIdentifier>{5b14b650-7260-4a50-8107-50ffab2b801c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Entities\Header Files">
+      <UniqueIdentifier>{541bf39f-1572-433c-b92a-1c6becab0c8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Entities\Source Files">
+      <UniqueIdentifier>{3d6a7c3e-f71a-4729-b7ee-b42dd4013f43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Camera">
+      <UniqueIdentifier>{7c6774a7-c79f-4699-97a0-4a9e4d823eb9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Camera\Header Files">
+      <UniqueIdentifier>{b57c5edd-b5d6-452e-953f-766c24d74e47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Camera\Source Files">
+      <UniqueIdentifier>{247f8afc-4927-4842-b02f-54731dab9c43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\GameUI">
+      <UniqueIdentifier>{ded359e3-e754-41b6-a0bf-1eba989a0a8c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -84,12 +99,6 @@
     <ClCompile Include="FPrimitiveGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FGame.cpp">
-      <Filter>Game\Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameCamera.cpp">
-      <Filter>Game\Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FRenderWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -105,9 +114,6 @@
     <ClCompile Include="FBulletPhysics.cpp">
       <Filter>Collision</Filter>
     </ClCompile>
-    <ClCompile Include="FGameEntity.cpp">
-      <Filter>Game\Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FScreenQuad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -118,52 +124,10 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="FDebugDrawer.cpp" />
-    <ClCompile Include="F3DPicker.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FPhysicsDebugDrawer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FPathfindComponent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FNavMeshManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FGameAgent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameTerrain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameEntityFactory.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FPostProcessEffect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameHighlightManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FPlacingManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameBuilding.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameUIManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameBuildingManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameUIPanel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameUIPanelBuildings.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameLightEntity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FProfiler.cpp">
@@ -175,9 +139,6 @@
     <ClCompile Include="FUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FGameLevel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FVector3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -187,16 +148,91 @@
     <ClCompile Include="FObjLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FGameEntityObjModel.cpp">
+    <ClCompile Include="FPrimitiveBoxMultiTex.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameEntityComponent.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameEntityFactory.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameLightEntity.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameTerrain.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPathfindComponent.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPhysicsComponent.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FRenderMeshComponent.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameEntity.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGame.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameCamera.cpp">
+      <Filter>Game\Camera\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameUIManager.cpp">
+      <Filter>Game\GameUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameUIPanel.cpp">
+      <Filter>Game\GameUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameUIPanelBuildings.cpp">
+      <Filter>Game\GameUI</Filter>
     </ClCompile>
     <ClCompile Include="FGameUIPanelDebug.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Game\GameUI</Filter>
     </ClCompile>
     <ClCompile Include="FGUIButtonToggle.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FSkyBox.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FPlacingManager.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FPhysicsDebugDrawer.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameLevel.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameHighlightManager.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameEntityObjModel.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameBuildingManager.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameBuilding.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameAgent.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="F3DPicker.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="FMeshManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FPrimitiveBoxMultiTex.cpp">
+    <ClCompile Include="FPrimitiveBoxInstanced.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FMeshInstanceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -255,12 +291,6 @@
     <ClInclude Include="FPrimitiveGeometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FGame.h">
-      <Filter>Game\Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameCamera.h">
-      <Filter>Game\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FRenderWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -276,9 +306,6 @@
     <ClInclude Include="FBulletPhysics.h">
       <Filter>Collision</Filter>
     </ClInclude>
-    <ClInclude Include="FGameEntity.h">
-      <Filter>Game\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FScreenQuad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -289,52 +316,10 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="FDebugDrawer.h" />
-    <ClInclude Include="F3DPicker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPhysicsDebugDrawer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPathfindComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FNavMeshManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FGameAgent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameTerrain.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameEntityFactory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FPostProcessEffect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameHighlightManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPlacingManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameBuilding.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameUIManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameBuildingManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameUIPanel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameUIPanelBuildings.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FGameLightEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FProfiler.h">
@@ -346,25 +331,97 @@
     <ClInclude Include="FUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FGameLevel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FPrimitiveBoxColorOverride.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FObjLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FGameEntityObjModel.h">
+    <ClInclude Include="FPrimitiveBoxMultiTex.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameEntityComponent.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameEntityFactory.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameLightEntity.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameTerrain.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPathfindComponent.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPhysicsComponent.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FRenderMeshComponent.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameEntity.h">
+      <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGame.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameCamera.h">
+      <Filter>Game\Camera\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameUIManager.h">
+      <Filter>Game\GameUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameUIPanel.h">
+      <Filter>Game\GameUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameUIPanelBuildings.h">
+      <Filter>Game\GameUI</Filter>
     </ClInclude>
     <ClInclude Include="FGameUIPanelDebug.h">
-      <Filter>Header Files</Filter>
+      <Filter>Game\GameUI</Filter>
     </ClInclude>
     <ClInclude Include="FGUIButtonToggle.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FSkyBox.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameEntityObjModel.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameHighlightManager.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameLevel.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FPhysicsDebugDrawer.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FPlacingManager.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="F3DPicker.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameBuilding.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameBuildingManager.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameAgent.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="FMeshManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FPrimitiveBoxMultiTex.h">
+    <ClInclude Include="FPrimitiveBoxInstanced.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FMeshInstanceManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

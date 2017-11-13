@@ -84,12 +84,24 @@ void FPrimitiveBoxColorOverride::Init()
 
 	// create constant buffer for modelview
 	{
-		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
+		myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr, sizeof(float) * 32 * 16);
+			
+
 		myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr);
 		myManagerClass->CreateConstantBuffer(myConstBuffer, myConstantBufferPtr2);
 		m_ModelProjMatrix->SetName(L"PrimitiveBoxConst");
 		myHeapOffsetAll = myHeapOffsetCBV;
 		myHeapOffsetText = myManagerClass->GetNextOffset();
+		/*
+		for (size_t i = 0; i < 10; i++)
+		{
+			if(i == 0)
+				myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
+			else
+				myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr);
+		}
+		//*/
+	
 	}
 
 	// create SRV for texture

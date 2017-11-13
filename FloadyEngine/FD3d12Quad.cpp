@@ -220,7 +220,7 @@ void FD3d12Quad::Render()
 	XMFLOAT4X4 invProjMatrix2 = myManagerClass->GetCamera()->GetViewProjMatrixTransposed();
 		
 	static float shaderConstData2[20];
-	memset(&shaderConstData2, 0.0f, sizeof(float) * 20);
+	memset(&shaderConstData2, 0, sizeof(float) * 20);
 	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
 
 	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
@@ -235,7 +235,7 @@ void FD3d12Quad::Render()
 	// Set lights
 	const int maxLights = 32;
 	static float lightData[32* maxLights]; // 32 floats per light
-	memset(&lightData, 0.0f, sizeof(float) * 32 * maxLights);
+	memset(&lightData, 0, sizeof(float) * 32 * maxLights);
 	int idx = 0;
 
 	int lightIdx = 0;
@@ -339,8 +339,6 @@ void FD3d12Quad::Render()
 	m_commandList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 
-	// Indicate that the back buffer will be used as a render target.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Combined), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	m_commandList->OMSetRenderTargets(1, &myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_Combined), FALSE, nullptr);
@@ -353,25 +351,12 @@ void FD3d12Quad::Render()
 	m_commandList->DrawInstanced(6, 1, 0, 0);
 
 	// Indicate that the back buffer will now be used to present.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Combined), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 	hr = m_commandList->Close();
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	// wait for cmdlist to be done before returning
-	//ID3D12Fence* m_fence;
-	//HANDLE m_fenceEvent;
-	//m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	//int fenceToWaitFor = 1; // what value?
-	//HRESULT result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	//result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	//m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	//WaitForSingleObject(m_fenceEvent, INFINITE);
-	//m_fence->Release();
-	//CloseHandle(m_fenceEvent);
 }
 
 void FD3d12Quad::SetShader()
@@ -401,6 +386,7 @@ void FD3d12Quad::SetShader()
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	psoDesc.SampleDesc.Count = 1;
+	psoDesc.DepthStencilState.DepthEnable = FALSE;
 
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 

@@ -1,10 +1,12 @@
-#include "FBulletPhysics.h"
 
+#include "FGameEntity.h"
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
+#include "FPhysicsDebugDrawer.h"
 #include "FDebugDrawer.h"
 #include "FD3d12Renderer.h"
-#include "FGameEntity.h"
+#include "FBulletPhysics.h"
+
 
 FBulletPhysics::FBulletPhysics()
 {
@@ -211,6 +213,11 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 	//myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
 
 	return nullptr;
+}
+
+void FBulletPhysics::SetPaused(bool aPause)
+{
+	myEnabled = !aPause;
 }
 
 std::vector<FBulletPhysics::AABB> FBulletPhysics::GetAABBs()

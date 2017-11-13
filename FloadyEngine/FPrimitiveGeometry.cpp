@@ -126,14 +126,14 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 			std::vector<int>& indices = FPrimitiveGeometry::Box2::GetIndices();
 			{
 				float radius = 0.5f;
-				int sliceCount = 10;
-				int stackCount = 10;
+				int sliceCount = 20;
+				int stackCount = 20;
 
 				ret.push_back(Vertex(0, radius, 0, 0, 1, 0, 0, 0));
 				float phiStep = PI / stackCount;
 				float thetaStep = 2.0f* PI / sliceCount;
 
-				for (int i = 1; i <= stackCount - 1; i++) {
+				for (int i = 0; i <= stackCount; i++) {
 					float phi = i*phiStep;
 					for (int j = 0; j <= sliceCount; j++) {
 						float theta = j*thetaStep;
@@ -161,7 +161,7 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 				}
 				int baseIndex = 1;
 				int ringVertexCount = sliceCount + 1;
-				for (int i = 0; i < stackCount - 2; i++) {
+				for (int i = 0; i < stackCount; i++) {
 					for (int j = 0; j < sliceCount; j++) {
 						indices.push_back(baseIndex + i*ringVertexCount + j);
 						indices.push_back(baseIndex + i*ringVertexCount + j + 1);

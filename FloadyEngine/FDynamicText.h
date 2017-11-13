@@ -1,12 +1,11 @@
 #pragma once
 
+#include "FRenderableObject.h"
 #include <d3d12.h>
-#include <DirectXMath.h>
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 #include "FVector3.h"
 #include "FPrimitiveGeometry.h"
-#include "FRenderableObject.h"
 
 class FCamera;
 class FD3d12Renderer;

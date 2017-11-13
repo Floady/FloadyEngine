@@ -2,18 +2,24 @@
 #include "FGame.h"
 #include "FDynamicText.h"
 #include "windows.h"
+#include "FJobSystem.h"
 #define USE_PIX
 #include <pix3.h>
 
 FProfiler* FProfiler::ourInstance = nullptr;
 unsigned int FProfiler::ourHistoryBufferCount = 120;
-static const float textHeight = 0.04f;
-static const float textWidth = 0.5f;
+static const float textHeight = 0.03f;
+static const float textWidth = 0.6f;
 FProfiler * FProfiler::GetInstance()
 {
 	if (!ourInstance)
 		ourInstance = new FProfiler();
 
+	return ourInstance;
+}
+
+FProfiler * FProfiler::GetInstanceNoCreate()
+{
 	return ourInstance;
 }
 
@@ -40,7 +46,7 @@ void FProfiler::AddTiming(const char * aName, double aTime)
 {
 	if (myIsPaused)
 		return;
-
+	myIsPaused = true;
 	if (myTimings.find(aName) == myTimings.end())
 	{
 		DWORD dwWaitResult = WaitForSingleObject(
@@ -49,16 +55,19 @@ void FProfiler::AddTiming(const char * aName, double aTime)
 		
 		if (myTimings.find(aName) == myTimings.end())
 		{
-			myTimings[aName].resize(ourHistoryBufferCount);
+			myTimings[aName].myFrameTimings.resize(ourHistoryBufferCount);
 
 			// add a label for it
-			myLabels.push_back(new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(-1.0f, -1.0f, 0.0), "FPS Counter", textWidth, textHeight, true, true));
+			//myLabels.push_back(new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(-1.0f, -1.0f, 0.0), "FPS Counter", textWidth, textHeight, true, true));
 		}
 		ReleaseMutex(ghMutex);
 	}
 
-	myTimings[aName][myCurrentFrame % ourHistoryBufferCount].myTime += aTime;
-	myTimings[aName][myCurrentFrame % ourHistoryBufferCount].myOccurences++;
+	myTimings[aName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myTime += aTime;
+	myTimings[aName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myOccurences++;
+	myTimings[aName].myTotalTime.myTime += aTime;
+	myTimings[aName].myTotalTime.myOccurences++;
+	myIsPaused = false;
 }
 
 void FProfiler::StartFrame()
@@ -70,7 +79,7 @@ void FProfiler::StartFrame()
 
 	for (auto& item : myTimings)
 	{
-		item.second[myCurrentFrame % ourHistoryBufferCount].Reset();
+		item.second.myFrameTimings[myCurrentFrame % ourHistoryBufferCount].Reset();
 	}
 }
 
@@ -84,12 +93,19 @@ void FProfiler::Render()
 	char buff[128];
 
 	FVector3 pos = FVector3(-1, 0.8, 0);
-	for (auto item : myTimings)
+	for (const auto& item : myTimings)
 	{
-		if (labelIdx > myLabels.size())
-			break;
+		if (labelIdx >= myLabels.size())
+		{
+			myLabels.push_back(new FDynamicText(FGame::GetInstance()->GetRenderer(), FVector3(-1.0f, -1.0f, 0.0), "FPS Counter", textWidth, textHeight, true, true));
+		}
 
-		sprintf(buff, "%s : %f   %u ", item.first, item.second[myCurrentFrame % ourHistoryBufferCount].myTime, item.second[myCurrentFrame % ourHistoryBufferCount].myOccurences);
+		sprintf(buff, "%s : %4.2f   %u   total: %4.2f I %u", item.first,
+			item.second.myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myTime,
+			item.second.myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myOccurences,
+			item.second.myTotalTime.myTime,
+			item.second.myTotalTime.myOccurences
+		);
 		myLabels[labelIdx]->SetText(buff);
 		myLabels[labelIdx]->SetPos(pos);
 
@@ -119,15 +135,41 @@ void FProfiler::SetVisible(bool aVisible)
 	}
 }
 
-void scopedMarker::Start()
+void scopedMarker::Start(bool aIsGPU)
 {
-	PIXBeginEvent(FD3d12Renderer::GetInstance()->GetCommandQueue(), 0, myName);
+	if (!FD3d12Renderer::GetInstanceNoCreate())
+		return;
+/*
+	if (FD3d12Renderer::GetInstance()->GetCommandQueue())
+		PIXBeginEvent(FD3d12Renderer::GetInstance()->GetCommandQueue(), 0, myName);
+*/
+	myIsGPU = aIsGPU;
+	if(myIsGPU)
+	{
+		if(ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx))
+			PIXBeginEvent(cmdList, 0, myName);
+	}
+
 	myTimer.Restart();
 }
 
 scopedMarker::~scopedMarker()
 {
+	if (!FD3d12Renderer::GetInstanceNoCreate())
+		return;
+
+	//if (FD3d12Renderer::GetInstance()->GetCommandQueue())
+	//	PIXEndEvent(FD3d12Renderer::GetInstance()->GetCommandQueue());
+
+	if (myIsGPU)
+	{
+		if (ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx))
+			PIXEndEvent(cmdList);
+	}
+
+	if (!FProfiler::GetInstanceNoCreate())
+		return;
+
 	double time = myTimer.GetTimeMS();
 	FProfiler::GetInstance()->AddTiming(myName, time);
-	PIXEndEvent(FD3d12Renderer::GetInstance()->GetCommandQueue());
 }

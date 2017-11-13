@@ -1,17 +1,40 @@
 {	
 	"FGameEntity" : 
 	{
-		"posX" : 2.0,
-		"posY" : 12.0,
-		"posZ" : 2.0,
-		"scaleX" : 0.5,
-		"scaleY" : 0.5,
-		"scaleZ" : 0.5,
-		"mass" : 0.0,
-		"isNavBlocker" : true,
-		"canMove" : true,
-		"type" : 1,
-		"tex" : "wood.png"
+		"Components" : 
+		{
+			"FRenderMeshComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 1.0,
+			"scaleY" : 1.0,
+			"scaleZ" : 1.0,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 2,
+			"tex" : "marble.png",
+			"model" : "buddha.obj"
+			},
+			"FPhysicsComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 1.0,
+			"scaleY" : 1.0,
+			"scaleZ" : 1.0,
+			"mass" : 10.0,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 1
+			}
+		},		
+		"posX" : 20.0,
+		"posY" : 5.0,
+		"posZ" : 40.0,
+		"canMove" : true
 	},
 	
 	"MenuItems" :
@@ -32,7 +55,7 @@
 					"isNavBlocker" : false,
 					"canMove" : true,
 					"type" : 0,
-					"tex" : "wood.png"
+					"tex" : "sky.png"
 				}
 			},
 			"buildTime" : 2.0,
@@ -55,7 +78,7 @@
 					"isNavBlocker" : false,
 					"canMove" : true,
 					"type" : 0,
-					"tex" : "wood.png"
+					"tex" : "sky.png"
 				}
 			},
 			"buildTime" : 10.0,

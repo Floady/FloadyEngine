@@ -8,6 +8,11 @@
 #include <vector>
 #include "FVector3.h"
 
+class FContext : public rcContext
+{
+	virtual void doLog(const rcLogCategory /*category*/, const char* /*msg*/, const int /*len*/) override;
+};
+
 class FNavMeshManagerRecast
 {
 public:

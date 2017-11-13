@@ -8,6 +8,7 @@
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FGameEntity.h"
 #include "FPathfindComponent.h"
+#include "..\FJson\FJsonObject.h"
 
 REGISTER_GAMEENTITY2(FGameLightEntity);
 
@@ -80,7 +81,7 @@ void FGameLightEntity::Update(double aDeltaTime)
 	FGameEntity::Update(aDeltaTime);
 }
 
-void FGameLightEntity::SetPos(FVector3 aPos)
+void FGameLightEntity::SetPos(const FVector3& aPos)
 {
 	FGameEntity::SetPos(aPos);
 	FLightManager::GetInstance()->SetLightPos(myLightId, aPos + myOffset);

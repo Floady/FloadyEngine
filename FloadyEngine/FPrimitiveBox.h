@@ -1,12 +1,14 @@
 #pragma once
 
+#include "FRenderableObject.h"
 #include <d3d12.h>
-#include <DirectXMath.h>
 #include <dxgi1_4.h>
 #include "d3dx12.h"
 #include "FVector3.h"
-#include "FRenderableObject.h"
+#include "FMeshManager.h"
 #include <string>
+
+#include <DirectXMath.h>
 
 
 class FCamera;
@@ -31,13 +33,15 @@ public:
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
 	void SetShader();
-	virtual void RecalcModelMatrix() override;
+	void RecalcModelMatrix() override;
 	void SetRotMatrix(float* m) override;
+
+	void UpdateConstBuffers() override;
 
 	void SetTexture(const char* aFilename) override;
 	const char* GetTexture() override { return myTexName.c_str(); };
 	void SetShader(const char* aFilename) override;
-	virtual void SetPos(FVector3 aPos) override;
+	virtual void SetPos(const FVector3& aPos) override;
 
 	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return m_vertexBufferView; }
 	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
@@ -45,13 +49,13 @@ public:
 	bool IsInitialized() { return myIsInitialized; }
 
 	ID3D12RootSignature* m_rootSignature;
+	FMeshManager::FMeshObject* myMesh;
 protected:
 	ID3D12RootSignature* m_rootSignatureShadows;
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12PipelineState* m_pipelineStateShadows;
 	ID3D12GraphicsCommandList* m_commandList;
 	
-	float myRotMatrix[16];
 	DirectX::XMFLOAT4X4 myModelMatrix;
 
 	UINT8* myConstantBufferPtr;

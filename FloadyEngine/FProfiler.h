@@ -10,6 +10,7 @@ class FProfiler
 public:
 	static unsigned int ourHistoryBufferCount;
 	static FProfiler* GetInstance();
+	static FProfiler* GetInstanceNoCreate();
 	~FProfiler();
 	void AddTiming(const char* aName, double aTime);
 	void StartFrame();
@@ -29,8 +30,14 @@ private:
 		unsigned int myOccurences;
 	};
 
+	struct TimerInfo
+	{
+		std::vector<FrameTimer> myFrameTimings;
+		FrameTimer myTotalTime;
+	};
+
 	FProfiler();
-	std::map<const char*, std::vector<FrameTimer>> myTimings;
+	std::map<const char*, TimerInfo> myTimings;
 	std::vector<FDynamicText*> myLabels;
 	unsigned int myCurrentFrame;
 	bool myIsPaused;
@@ -45,17 +52,20 @@ struct scopedMarker
 	{
 		myName = aName;
 		myTimer.Restart();
+		myIsGPU = false;
 	}
 
-	void Start();
+	void Start(bool aIsGPU = false);
 
 	~scopedMarker();
 
+	bool myIsGPU;
 	FTimer myTimer;
 	const char* myName;
 };
 
 #define FPROFILE_FUNCTION(aName) scopedMarker __someMarker = scopedMarker(aName); __someMarker.Start();
+#define FPROFILE_FUNCTION_GPU(aName) scopedMarker __someMarker = scopedMarker(aName); __someMarker.Start(true);
 //#define FPROFILE_FUNCTION(aName) void();
 
 

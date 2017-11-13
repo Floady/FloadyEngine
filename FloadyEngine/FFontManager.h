@@ -31,6 +31,13 @@ public:
 
 	struct FWordInfo
 	{
+		void clear()
+		{
+			myDimensions.clear();
+			myKerningOffset.clear();
+			myUVBR.clear();
+			myUVTL.clear();
+		}
 		std::vector<DirectX::XMFLOAT2> myUVTL;
 		std::vector<DirectX::XMFLOAT2> myUVBR;
 		std::vector<DirectX::XMFLOAT2> myDimensions;
@@ -43,7 +50,7 @@ public:
 	static FFontManager* GetInstance();
 	const FFont& GetFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars);
 	void InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char* aSupportedChars, FD3d12Renderer* aManager, ID3D12GraphicsCommandList* aCommandList);
-	FWordInfo FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning);
+	const FWordInfo& FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning);
 
 private:
 	std::vector<UINT8> GenerateTextureData(const FT_Face& aFace, const char* aText, int TextureWidth, int TextureHeight, int wordLength, UINT largestBearing);

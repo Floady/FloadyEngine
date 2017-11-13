@@ -46,6 +46,7 @@ public:
 	void SetShader();
 	void WriteConstBuffer(int i, float* aData, int aSize);
 
+	const char* myDebugName;
 protected:
 	ID3D12RootSignature* myRootSignature;
 	ID3D12PipelineState* myPipelineState;
@@ -59,7 +60,6 @@ protected:
 	int myHeapOffsetAll;
 	BindBufferMask myBindMask;
 	const char* myShaderName;
-	const char* myDebugName;
 
 	bool myUseResource;
 	struct BindResource

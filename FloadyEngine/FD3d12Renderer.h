@@ -4,13 +4,28 @@
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 
+#define THE_NEW_WAY 1
+
 class FCamera;
 class FDebugDrawer;
 class FPostProcessEffect;
+class FJobSystem;
 
 class FD3d12Renderer
 {
 public:
+	struct FMutex
+	{
+		FMutex();
+		~FMutex();
+		void Init();
+		void Lock();
+		void Unlock();
+		void WaitFor();
+	private:
+		volatile LONG myValue;
+	};
+
 	struct GPUMutex
 	{
 		GPUMutex();
@@ -43,7 +58,10 @@ public:
 	~FD3d12Renderer();
 
 	static FD3d12Renderer* GetInstance();
-	int CreateConstantBuffer(ID3D12Resource*& aResource, UINT8*& aMapToPtr); // returns heapoffset
+	static FD3d12Renderer* GetInstanceNoCreate();
+	int CreateConstantBuffer(ID3D12Resource*& aResource, UINT8*& aMapToPtr, unsigned int aSize = 256); // returns heapoffset
+	int BindTexture(const std::string& aTexName);
+	void UpdatePendingTextures();
 	void CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DESCRIPTOR_HANDLE& aHandle);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE CreateHeapDescriptorHandleSRV(ID3D12Resource* aResource, DXGI_FORMAT aFormat);
 	ID3D12PipelineState* GetPsoObject(int aNrOfRenderTargets, DXGI_FORMAT* aFormats, const char* aShader, ID3D12RootSignature* aRootSignature, bool aDepthEnabled);
@@ -57,7 +75,8 @@ public:
 	void RegisterPostEffect(FPostProcessEffect* aPostEffect) { myPostEffects.push_back(aPostEffect); }
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV+SRV heap
 	int GetCurHeapOffset() { return myCurrentHeapOffset; }
-	
+	bool RenderPostEffects();
+
 	// Render tasks
 	void DoClearBuffers();
 	void DoRenderToGBuffer();
@@ -94,6 +113,7 @@ public:
 	FSceneGraph& GetSceneGraph() { return mySceneGraph; }
 
 private:
+	FJobSystem* myRenderJobSys;
 	static FD3d12Renderer* ourInstance;
 	FDebugDrawer* myDebugDrawer;
 	D3D12_CPU_DESCRIPTOR_HANDLE myRenderTargetViewHandle;
@@ -145,6 +165,7 @@ private:
 	FSceneGraph mySceneGraph;
 
 	std::vector<FPostProcessEffect*> myPostEffects;
+	std::map<std::string, std::vector<int> > myPendingLoadTextures;
 
 	GPUMutex myRenderPassGputMtx;
 	GPUMutex myPostProcessGpuMtx;

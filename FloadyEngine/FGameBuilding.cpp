@@ -7,6 +7,12 @@
 #include "FPlacingManager.h"
 #include "FUtilities.h"
 #include "FGameLevel.h"
+#include "FGameEntityComponent.h"
+#include <DirectXMath.h>
+#include "FD3d12Renderer.h"
+#include "FRenderMeshComponent.h"
+
+using namespace DirectX;
 
 REGISTER_GAMEENTITY2(FGameBuilding);
 
@@ -55,7 +61,8 @@ void FGameBuildingBlueprint::ExecuteMenuItem(int aIdx) const
 
 FGameBuilding * FGameBuildingBlueprint::CreateBuilding()
 {
-	return new FGameBuilding(this);
+	FGameBuilding* building = new FGameBuilding(this);
+	return building;
 }
 
 const FJsonObject * FGameBuildingBlueprint::GetBuildingRepresentation() const
@@ -87,6 +94,32 @@ void FGameBuilding::Init(const FJsonObject & anObj)
 void FGameBuilding::Update(double aDeltaTime)
 {
 	FGameEntity::Update(aDeltaTime);
+	myRepresentation->Update(aDeltaTime);
+}
+
+void FGameBuilding::PostPhysicsUpdate()
+{
+	myRepresentation->PostPhysicsUpdate();
+
+	// test code for checking if shadow and highlight works with rotations
+	/*
+	static float yaw = 1.0f;
+	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, yaw, 0);
+	DirectX::XMFLOAT4X4 rot;
+	XMStoreFloat4x4(&rot, (mtxRot));
+
+	float m[16];
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			m[i * 4 + j] = rot.m[i][j];
+		}
+	}
+
+	myRepresentation->GetRenderableObject()->SetRotMatrix(m);
+	myRepresentation->GetRenderableObject()->RecalcModelMatrix();
+	*/
 }
 
 void FGameBuildingBlueprint::CreateAgentMenuItem::Execute()

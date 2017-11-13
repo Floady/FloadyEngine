@@ -22,13 +22,14 @@ public:
 	void SetRallyPointPosWorld(FVector3 aPos) { myRallyPointPos = aPos - myPos; }
 	const FGameBuildingBlueprint* GetBluePrint() const { return myBluePrint; }
 	FGameEntity* GetRepresentation() const { return myRepresentation; }
-	FRenderableObject* GetRenderableObject() override { return myRepresentation ? myRepresentation->GetRenderableObject() : myGraphicsObject; }
-	void SetPos(FVector3 aPos) override { FGameEntity::SetPos(aPos); myRepresentation->SetPos(aPos); }
-
+	FRenderMeshComponent* GetRenderableObject() override { return myRepresentation ? myRepresentation->GetRenderableObject() : GetRenderableObject(); }
+	void SetPos(const FVector3& aPos) override { FGameEntity::SetPos(aPos); myRepresentation->SetPos(aPos); }
+	void PostPhysicsUpdate() override;
+	
+	FGameEntity* myRepresentation;
 private:
 	FGameBuildingBlueprint* myBluePrint;
 	FVector3 myRallyPointPos;
-	FGameEntity* myRepresentation;
 };
 
 

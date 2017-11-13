@@ -64,11 +64,17 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	//output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);	
 	//return output;
 	
-	//output.color = g_shadowTexture.Sample(g_sampler, input.uv) * 150.1;
-	//return output;
+	//output.color = g_shadowTexture.Sample(g_sampler, input.uv) * 150;
+//	return output;
 	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
 	float4 normals = g_normaltexture.Sample(g_sampler, input.uv);
+	bool receiveShadows = true;
+	if(normals.w == 1.0f) // w float in normals is used to indicate if this pixel should be shadowculled
+	{
+		normals.w = 0;
+		receiveShadows = false;
+	}
 	normals = normals * 2.0f;
 	normals = normals - float4(1,1,1,1);
 	
@@ -89,59 +95,64 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		bool isLightMatrixValid = isLightMatrixValid = (myLights.myLights[qh].myLightViewProjMatrix._m03 + myLights.myLights[qh].myLightViewProjMatrix._m13 + myLights.myLights[qh].myLightViewProjMatrix._m23 + myLights.myLights[qh].myLightViewProjMatrix._m33) != 0;
 			
 		if(isLightMatrixValid)
-		{			
-			float4 projShadowMapPos = mul(worldPos, myLights.myLights[qh].myLightViewProjMatrix);			
-			projShadowMapPos.x = projShadowMapPos.x / projShadowMapPos.w;
-			projShadowMapPos.y = projShadowMapPos.y / projShadowMapPos.w;
-			projShadowMapPos.x = (projShadowMapPos.x + 1.0f) / 2;
-			projShadowMapPos.y = 1.0f - ((projShadowMapPos.y + 1.0f)/ 2);
-			
-			float projShadowDepth = projShadowMapPos.z / projShadowMapPos.w;
-			
-			// todo: make this into array based
+		{		
 			float shadowDepth = 0.0f;
-			if(qh == 0)
-				shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 1)
-				shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 2)
-				shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 3)
-				shadowDepth = g_shadowTexture3.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 4)
-				shadowDepth = g_shadowTexture4.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 5)
-				shadowDepth = g_shadowTexture5.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 6)
-				shadowDepth = g_shadowTexture6.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 7)
-				shadowDepth = g_shadowTexture7.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 8)
-				shadowDepth = g_shadowTexture8.Sample(g_sampler, projShadowMapPos.xy);
-			if(qh == 9)
-				shadowDepth = g_shadowTexture9.Sample(g_sampler, projShadowMapPos.xy);
-													
-			// get neighbor avg
-			if(false)
-			{
-				shadowDepth = 0.0f;
-				float2 shadowuvstep = float2(1.0f, 1.0f) / float2(1600.0f, 900.0f); // todo fixed resolution here
-				int nrOfPixelsOut = 2;
-				[loop]
-				for( int i = -nrOfPixelsOut; i <= nrOfPixelsOut; i++ )
-				{
-					[loop]
-					for( int j = -nrOfPixelsOut; j <= nrOfPixelsOut; j++ )
-					{
-					
-					if(qh == 1)
-						shadowDepth += g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
-					else
-						shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
-					}
-				}
+			float projShadowDepth = 0.0f;
+			if(receiveShadows)
+			{	
+				float4 projShadowMapPos = mul(worldPos, myLights.myLights[qh].myLightViewProjMatrix);			
+				projShadowMapPos.x = projShadowMapPos.x / projShadowMapPos.w;
+				projShadowMapPos.y = projShadowMapPos.y / projShadowMapPos.w;
+				projShadowMapPos.x = (projShadowMapPos.x + 1.0f) / 2;
+				projShadowMapPos.y = 1.0f - ((projShadowMapPos.y + 1.0f)/ 2);
 				
-				shadowDepth /= ((2*nrOfPixelsOut+1)*(2*nrOfPixelsOut+1));
+				projShadowDepth = projShadowMapPos.z / projShadowMapPos.w;
+				
+				// todo: make this into array based
+			
+				if(qh == 0)
+					shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 1)
+					shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 2)
+					shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 3)
+					shadowDepth = g_shadowTexture3.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 4)
+					shadowDepth = g_shadowTexture4.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 5)
+					shadowDepth = g_shadowTexture5.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 6)
+					shadowDepth = g_shadowTexture6.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 7)
+					shadowDepth = g_shadowTexture7.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 8)
+					shadowDepth = g_shadowTexture8.Sample(g_sampler, projShadowMapPos.xy);
+				if(qh == 9)
+					shadowDepth = g_shadowTexture9.Sample(g_sampler, projShadowMapPos.xy);
+														
+				// get neighbor avg
+				if(false)
+				{
+					shadowDepth = 0.0f;
+					float2 shadowuvstep = float2(1.0f, 1.0f) / float2(1600.0f, 900.0f); // todo fixed resolution here
+					int nrOfPixelsOut = 2;
+					[loop]
+					for( int i = -nrOfPixelsOut; i <= nrOfPixelsOut; i++ )
+					{
+						[loop]
+						for( int j = -nrOfPixelsOut; j <= nrOfPixelsOut; j++ )
+						{
+						
+						if(qh == 1)
+							shadowDepth += g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+						else
+							shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+						}
+					}
+					
+					shadowDepth /= ((2*nrOfPixelsOut+1)*(2*nrOfPixelsOut+1));
+				}
 			}
 			
 			// From the web: blinn-phong
@@ -219,20 +230,13 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					isOutOfLightZone = true;
 			}
 			
-		//	output.color = float4(shadowDepth, shadowDepth, shadowDepth, 1) * 50.1;
-		//	return output;
-			
 			// check for shadow culled
-			if(!isOutOfLightZone && shadowDepth != 0 && (projShadowDepth < shadowDepth - shadowBias))
-				isOutOfLightZone = true;
-				
-			if(shadowDepth != 0)
-			{			
-			//	output.color = float4(1,0,1, 1);
-			//	return output;
+			if(receiveShadows)
+			{
+				if(!isOutOfLightZone && shadowDepth != 0 && (projShadowDepth < shadowDepth - shadowBias))
+					isOutOfLightZone = true;
 			}
-				
-				
+			
 			if(!isOutOfLightZone)
 			{
 				float alpha = 1.0f;

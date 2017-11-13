@@ -19,6 +19,11 @@ FAABB FRenderableObject::GetLocalAABB() const
 
 FRenderableObject::FRenderableObject()
 {
+	myIsVisible = true;
+	myCastsShadows = true;
+	myRenderCCW = false;
+	myScale = FVector3(1,1,1);
+	myPos = FVector3(0,0,0);
 }
 
 

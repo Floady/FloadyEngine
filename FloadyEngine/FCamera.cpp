@@ -3,6 +3,7 @@
 #include "FProfiler.h"
 #include "FDebugDrawer.h"
 #include "FD3d12Renderer.h"
+#include <DirectXMath.h>
 #include "FUtilities.h"
 
 using namespace DirectX;
@@ -80,7 +81,9 @@ const DirectX::XMFLOAT4X4 & FCamera::GetViewProjMatrix()
 XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose)
 {
 	if(myOverrideWithLight)
+	{
 		return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
+	}
 
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
@@ -151,7 +154,6 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(const XMMATRIX& anObjectMatrix)
 	return ret;
 }
 
-#pragma optimize("", off)
 FVector3 shortenLength(FVector3 A, float reductionLength)
 {
 	FVector3 B = A;
@@ -407,7 +409,7 @@ bool FCamera::IsEncapsulatingFrustum(const FVector3 & aPoint, const FVector3 & a
 			if (myDoDebugDraw)
 			{
 				debugDrawer->drawLine(aPoint, aPoint2, FVector3(1, 0, 0.5));
-				debugDrawer->drawLine(mappedPos1 + FVector3(0.01, 0.01, 0.01), mappedPos2 + FVector3(0.01, 0.01, 0.01), FVector3(1, 1, 1));
+				debugDrawer->drawLine(mappedPos1 + FVector3(0.01f, 0.01f, 0.01f), mappedPos2 + FVector3(0.01f, 0.01f, 0.01f), FVector3(1, 1, 1));
 				debugDrawer->DrawPoint(mappedPos1, 1.0f, FVector3(1, 0, 0.5));
 				debugDrawer->DrawPoint(mappedPos2, 1.0f, FVector3(1, 0, 0.5));
 			}
@@ -480,7 +482,7 @@ bool FCamera::IsInFrustum(float x, float y, float z) const
 	return true;
 }
 
-const float const NOHIT = 999999.0f;
+const float NOHIT = 999999.0f;
 float rayBoxIntersect(const FVector3& rpos, const FVector3& rdir, const FVector3& vmin, const FVector3& vmax)
 {
 	float t[10];

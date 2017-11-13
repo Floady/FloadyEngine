@@ -1,17 +1,40 @@
 {
 	"FGameEntity" : 
 	{
-		"posX" : 2.0,
-		"posY" : 12.0,
-		"posZ" : 2.0,
-		"scaleX" : 0.5,
-		"scaleY" : 4.0,
-		"scaleZ" : 0.5,
-		"mass" : 0.0,
-		"isNavBlocker" : true,
-		"canMove" : true,
-		"type" : 1,
-		"tex" : "wood.png"
+		"Components" : 
+		{
+			"FRenderMeshComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 0.002,
+			"scaleY" : 0.002,
+			"scaleZ" : 0.002,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 2,
+			"tex" : "marble.png",
+			"model" : "sponza.obj"
+			},
+			"FPhysicsComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 7.0,
+			"scaleY" : 2.0,
+			"scaleZ" : 5.0,
+			"mass" : 10.0,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 0
+			}
+		},		
+		"posX" : 20.0,
+		"posY" : 5.0,
+		"posZ" : 40.0,
+		"canMove" :true
 	},
 	
 	"MenuItems" :
@@ -21,18 +44,45 @@
 			"agent" :
 			{
 				"FGameAgent" : 
-				{
-					"posX" : 2.0,
-					"posY" : 12.0,
-					"posZ" : 2.0,
-					"scaleX" : 1.5,
-					"scaleY" : 1.5,
-					"scaleZ" : 1.5,
-					"mass" : 10.0,
-					"isNavBlocker" : false,
-					"canMove" : true,
-					"type" : 0,
-					"tex" : "wood.png"
+				{					
+					"Components" : 
+					{
+						"FRenderMeshComponent" : 
+						{
+						"posX" : 24.0,
+						"posY" : 0.0,
+						"posZ" : 40.0,
+						"scaleX" : 1.0,
+						"scaleY" : 1.0,
+						"scaleZ" : 1.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 0,
+						"tex" : "marble.png",
+						"instanced" : true,
+						"model" : "sponza.obj"
+						},
+						"FPhysicsComponent" : 
+						{
+						"posX" : 25.0,
+						"posY" : 5.0,
+						"posZ" : 40.0,
+						"scaleX" : 1.0,
+						"scaleY" : 1.0,
+						"scaleZ" : 1.0,
+						"mass" : 10.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 1
+						},						
+						"FPathfindComponent" : 
+						{
+						}
+					},		
+					"posX" : 20.0,
+					"posY" : 5.0,
+					"posZ" : 40.0,
+					"canMove" :true
 				}
 			},
 			"buildTime" : 2.0,
@@ -44,18 +94,44 @@
 			"agent" :
 			{
 				"FGameAgent" : 
-				{
-					"posX" : 2.0,
-					"posY" : 12.0,
-					"posZ" : 2.0,
-					"scaleX" : 1.0,
-					"scaleY" : 1.0,
-					"scaleZ" : 1.0,
-					"mass" : 10.0,
-					"isNavBlocker" : false,
-					"canMove" : true,
-					"type" : 0,
-					"tex" : "wood.png"
+				{					
+					"Components" : 
+					{
+						"FRenderMeshComponent" : 
+						{
+						"posX" : 25.0,
+						"posY" : 5.0,
+						"posZ" : 40.0,
+						"scaleX" : 3.0,
+						"scaleY" : 3.0,
+						"scaleZ" : 3.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"instanced" : true,
+						"type" : 0,
+						"tex" : "marble.png"
+						},
+						"FPhysicsComponent" : 
+						{
+						"posX" : 25.0,
+						"posY" : 5.0,
+						"posZ" : 40.0,
+						"scaleX" : 3.0,
+						"scaleY" : 3.0,
+						"scaleZ" : 3.0,
+						"mass" : 10.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 1
+						},						
+						"FPathfindComponent" : 
+						{
+						}
+					},		
+					"posX" : 20.0,
+					"posY" : 5.0,
+					"posZ" : 40.0,
+					"canMove" :true
 				}
 			},
 			"buildTime" : 10.0,

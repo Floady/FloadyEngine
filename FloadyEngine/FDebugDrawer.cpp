@@ -14,7 +14,6 @@ using namespace DirectX;
 
 FDebugDrawer::FDebugDrawer(FD3d12Renderer* aManager) : FRenderableObject()
 {
-	m_commandList = nullptr;
 	myManagerClass = aManager;
 	myVertexBufferViewLines = new D3D12_VERTEX_BUFFER_VIEW();
 	myVertexBufferViewTriangles = new D3D12_VERTEX_BUFFER_VIEW();
@@ -107,7 +106,7 @@ void FDebugDrawer::drawAABB(const FAABB & anAABB, const FVector3 & color)
 
 void FDebugDrawer::DrawTriangle(const FVector3 & aV1, const FVector3 & aV2, const FVector3 & aV3, const FVector3& aColor)
 {
-	FPROFILE_FUNCTION("DebugDrawer Tri");
+	//FPROFILE_FUNCTION("DebugDrawer Tri");
 	Triangle t;
 	t.myVtx1 = aV1;
 	t.myVtx2 = aV2;
@@ -247,11 +246,7 @@ void FDebugDrawer::Init()
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&myPsoTriangles));
-
-	// command list
-	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), myPsoLines, IID_PPV_ARGS(&m_commandList));
-	m_commandList->Close();
-
+	
 	// VB lines
 	CD3DX12_RANGE readRange(0, 0);
 	hr = myManagerClass->GetDevice()->CreateCommittedResource(
@@ -301,7 +296,9 @@ void FDebugDrawer::Init()
 }
 void FDebugDrawer::Render()
 {
-	if (!m_commandList)
+	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
+
+	if (!cmdList)
 		return;
 
 	if (skipNextRender)
@@ -310,22 +307,11 @@ void FDebugDrawer::Render()
 		return;
 	}
 
-	m_commandList->Reset(myManagerClass->GetCommandAllocator(), nullptr);
-	PopulateCommandListInternal(m_commandList);
-	m_commandList->Close();
-	ID3D12CommandList* ppCommandLists[] = { m_commandList };
+	cmdList->Reset(myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx), nullptr);
+	PopulateCommandListInternal(cmdList);
+	cmdList->Close();
+	ID3D12CommandList* ppCommandLists[] = { cmdList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
 }
 
 void FDebugDrawer::PopulateCommandListAsync()
@@ -424,7 +410,6 @@ void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdLi
 	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
 	// Indicate that the back buffer will be used as a render target.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
@@ -445,9 +430,6 @@ void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdLi
 		aCmdList->IASetVertexBuffers(0, 1, myVertexBufferViewTriangles);
 		aCmdList->DrawInstanced(verticesTriangles.size() / 2, 1, 0, 0);
 	}
-
-	// Indicate that the back buffer will now be used to present.
-	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
+	
 	aCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 }

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "FRenderableObject.h"
 #include <vector>
 #include "btBulletDynamicsCommon.h"
-#include "FRenderableObject.h"
 
 class FD3d12Renderer;
 struct ID3D12Resource;
@@ -55,8 +55,7 @@ private:
 
 	FD3d12Renderer* myManagerClass;
 	ID3D12RootSignature* m_rootSignature;
-	ID3D12GraphicsCommandList* m_commandList;
-
+	
 	std::vector<Line> myLines;
 	ID3D12PipelineState* myPsoLines;
 	D3D12_VERTEX_BUFFER_VIEW* myVertexBufferViewLines;

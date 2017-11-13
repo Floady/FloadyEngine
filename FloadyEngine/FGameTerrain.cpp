@@ -1,5 +1,5 @@
-#include "FGameTerrain.h"
 #include "FRenderableObject.h"
+#include "FGameTerrain.h"
 #include "FBulletPhysics.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "btBulletDynamicsCommon.h"
@@ -10,6 +10,8 @@
 #include "FCamera.h"
 #include "FLightManager.h"
 #include "FUtilities.h"
+#include "FRenderMeshComponent.h"
+#include "FProfiler.h"
 
 using namespace DirectX;
 
@@ -19,15 +21,21 @@ FGameTerrain::FGameTerrain() : FGameEntity()
 {
 	m_vertexBuffer = nullptr;
 	m_indexBuffer = nullptr;
+	myPhysicsObject = nullptr;
 }
 
 void FGameTerrain::Init(const FJsonObject & anObj)
 {
 	FGameEntity::Init(anObj);
 
+	FRenderMeshComponent* comp = static_cast<FRenderMeshComponent*>(CreateComponent("FRenderMeshComponent"));
+	comp->Init(anObj);
+
 	myTerrainSizeX = anObj.GetItem("terrainSizeX").GetAs<int>();
 	myTerrainSizeZ = anObj.GetItem("terrainSizeZ").GetAs<int>();
 	myTileSize = anObj.GetItem("tileSize").GetAs<double>();
+
+	myGraphicsObject = comp->GetGraphicsObject();
 
 	// generate a grid for the terrain terrain
 	UINT8* pVertexDataBegin;
@@ -149,20 +157,12 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 		triangleMeshTerrain->addTriangle(posA, posB, posC);
 	}
 
-	// @todo - hack: remove original phys obj
-	if (myPhysicsObject)
-	{
-		FGame::GetInstance()->GetPhysics()->RemoveObject(myPhysicsObject);
-		myPhysicsObject = nullptr;
-	}
-
 	// add terrain collision mesh
 	btCollisionShape* myColShape = new btBvhTriangleMeshShape(triangleMeshTerrain, true);
 	btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 	btRigidBody::btRigidBodyConstructionInfo rigidBodyConstructionInfo(0.0f, motionState, myColShape, btVector3(0, 0, 0));
 	myPhysicsObject = new btRigidBody(rigidBodyConstructionInfo);
 	FGame::GetInstance()->GetPhysics()->AddTerrain(myPhysicsObject, myColShape, this);
-
 
 	// send mesh to Recast	
 	FNavMeshManagerRecast::FInputMesh mesh;
@@ -191,6 +191,7 @@ FGameTerrain::~FGameTerrain()
 
 void FGameTerrain::Update(double aDeltaTime)
 {
+	//FPROFILE_FUNCTION("FGameTerrain Update");
 	FGameEntity::Update(aDeltaTime);
 
 	// update light AABB
@@ -199,9 +200,10 @@ void FGameTerrain::Update(double aDeltaTime)
 
 	for (int i = 0; i < vertices.size(); i++)
 	{
-		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z))
+		DirectX::XMFLOAT4& vtx = vertices[i].position;
+		if (cam->IsInFrustum(vtx.x, vtx.y, vtx.z))
 		{
-			aabb.Grow(FVector3(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z));
+			aabb.Grow(vtx.x, vtx.y, vtx.z);
 		}
 	}
 

@@ -9,7 +9,6 @@
 #include "FGameCamera.h"
 #include "FPrimitiveBox.h"
 #include "FDynamicText.h"
-#include "FBulletPhysics.h"
 #include "FGameEntity.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "..\FJson\FJson.h"
@@ -35,10 +34,18 @@
 #include "FGameEntityObjModel.h"
 #include <cmath>
 #include <cstdlib>
+#include "FBulletPhysics.h"
+#include "FPathfindComponent.h"
+#include "FJobSystem.h"
+#include "FRenderMeshComponent.h"
+
 FGame* FGame::ourInstance = nullptr;
+
+FD3d12Renderer::FMutex myMutex;
 
 void * operator new(std::size_t n) throw(std::bad_alloc)
 {
+	//FPROFILE_FUNCTION("Alloc");
 	//...
 	void* p = malloc(n);
 	return p;
@@ -77,6 +84,7 @@ void FGame::ConstructBuilding(const char * aBuildingName)
 	delete entity;
 }
 
+extern bool ourShouldRecalc;
 FGame::FGame()
 {
 	// create the basics (renderer, input, camera) - and make the window message handler talk to our input system
@@ -98,6 +106,8 @@ FGame::FGame()
 	myLevel = nullptr;
 	mySSAO = nullptr;
 	myAA = nullptr;
+
+	myRenderJobSys = new FJobSystem(1);
 }
 
 FGame::~FGame()
@@ -119,6 +129,8 @@ FGame::~FGame()
 
 void FGame::Init()
 {
+	//FPROFILE_FUNCTION("FGame Init");
+
 	bool result = myRenderWindow->Initialize();
 	
 	if (!result)
@@ -147,7 +159,7 @@ void FGame::Init()
 	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
 
 	// Load level and add a sunlight
-	myLevel = new FGameLevel("Configs//level2.txt");
+	myLevel = new FGameLevel("Configs//level3.txt");
 	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25, 0.15, 0.05), 0.0f);
 
 	// init navmesh	- old 2d navmesh
@@ -168,7 +180,7 @@ void FGame::Init()
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(myBlur);
 	// this registers a post effect, we want it at the end cause SSAO + SSAOBlur needs to be first (it doesnt correctly propagate previous results)
 	myHighlightManager = new FGameHighlightManager();
-	FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
+	//FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
 
 	// set UI to in game for now
 	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
@@ -176,20 +188,34 @@ void FGame::Init()
 
 bool FGame::Update(double aDeltaTime)
 {
-	FProfiler::GetInstance()->StartFrame();
-
-	FD3d12Renderer::GetInstance()->DoClearBuffers();
-	FD3d12Renderer::GetInstance()->SetRenderPassDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
-
-	FLightManager::GetInstance()->ResetVisibleAABB();
 	{
-		FPROFILE_FUNCTION("FGame Update");
-
 		// update FPS
 		char buff[128];
 		sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f / static_cast<float>(aDeltaTime));
 		myFpsCounter->SetText(buff);
-	
+
+		{
+			//FPROFILE_FUNCTION("WaitForRender");
+			myRenderJobSys->WaitForAllJobs();
+		}
+
+		FPROFILE_FUNCTION("FGame Update");
+
+		/*
+		// this should have dependencies - but works because 1 workerthread
+		myRenderJobSys->Pause();
+		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::UpdateViewProjMatrices));
+		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetVisibleAABB));
+		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetHasMoved));
+		myRenderJobSys->QueueJob(FDelegate2<void()>(FD3d12Renderer::GetInstance(), &FD3d12Renderer::DoClearBuffers));
+		myRenderJobSys->UnPause();
+		/*/
+		FLightManager::GetInstance()->UpdateViewProjMatrices();
+		FLightManager::GetInstance()->ResetVisibleAABB();
+		FLightManager::GetInstance()->ResetHasMoved();
+		FD3d12Renderer::GetInstance()->DoClearBuffers();
+		//*/
+		
 		// quit on escape
 		if (myInput->IsKeyDown(VK_ESCAPE))
 			return false;
@@ -216,14 +242,17 @@ bool FGame::Update(double aDeltaTime)
 			FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 		}
 
-		myGameUIManager->Update();
-
 		if (myInput->IsKeyDown(VK_F4))
+		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
+			ourShouldRecalc = false;
+		}
 
 		if (myInput->IsKeyDown(VK_F5))
+		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::Debug);
-
+			ourShouldRecalc = true;
+		}
 		static FVector3 vNavEnd;
 		static FVector3 vNavStart;
 		// Control captures mouse and moves camera, otherwise update UI
@@ -310,10 +339,15 @@ bool FGame::Update(double aDeltaTime)
 
 		myWasLeftMouseDown = myInput->IsMouseButtonDown(true);
 		myWasRightMouseDown = myInput->IsMouseButtonDown(true);
-	
-		// Update world
-		myLevel->Update(aDeltaTime);
 
+
+		myMutex.WaitFor();
+
+		// Update world
+		{
+		//FPROFILE_FUNCTION("Level update");
+		myLevel->Update(aDeltaTime);
+		}
 		// Step physics
 		if (myInput->IsKeyDown(VK_SPACE))
 		{
@@ -334,6 +368,8 @@ bool FGame::Update(double aDeltaTime)
 		FNavMeshManagerRecast::GetInstance()->DebugDraw();
 
 		myLevel->PostPhysicsUpdate();
+
+		myGameUIManager->Update();
 	}
 
 	// Render world
@@ -361,14 +397,37 @@ bool FGame::Update(double aDeltaTime)
 
 		mySSAO->WriteConstBuffer(0, &constData[0], 80 * sizeof(float));
 
-		FLightManager::GetInstance()->UpdateViewProjMatrices();
 		myRenderWindow->CheckForQuit();
 		myHighlightManager->Render();
-		myRenderer->Render();
 	}
 
+	myRenderJobSys->WaitForAllJobs();
 	FProfiler::GetInstance()->Render();
+	FProfiler::GetInstance()->StartFrame();
+
+	myMutex.Lock();
+
+	/*
+	myRenderJobSys->ResetQueue();
+	myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
+	myRenderJobSys->UnPause(); 
+	/*/
+	RenderAsync();
+	//*/
 
 	return true;
 
+}
+
+void FGame::RenderAsync()
+{
+	//FPROFILE_FUNCTION("Clear buffers");
+	myRenderer->Render();
+	myMutex.Unlock();
+	myRenderer->RenderPostEffects();
+
+	{
+		//FD3d12Renderer::GetInstance()->DoClearBuffers();
+		FD3d12Renderer::GetInstance()->SetRenderPassDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
+	}
 }

@@ -11,7 +11,7 @@ public:
 
 	virtual void Init(const FJsonObject& anObj) override;
 	virtual void Update(double aDeltaTime) override;
-	void SetPos(FVector3 aPos) override;
+	void SetPos(const FVector3& aPos) override;
 private:
 	unsigned int myLightId;
 	FVector3 myOffset;

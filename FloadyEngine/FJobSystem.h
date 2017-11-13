@@ -29,19 +29,20 @@ public:
 
 	static thread_local int ourThreadIdx;
 
-	FJobSystem();
+	FJobSystem(int aNrWorkerThreads);
 	~FJobSystem();
 	static FJobSystem* GetInstance();
 	FJob* GetNextJob();
-	bool QueueJob(const FDelegate2<void()>& aDelegate);
+	bool QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false);
 	void ResetQueue();
 	void WaitForAllJobs();
 	void UnPause() { myIsPaused = false; }
 	void Pause() { myIsPaused = true; }
 	bool IsPaused() { return myIsPaused; }
-	int GetNrWorkerThreads() { return myNrWorkerThreads; }
+	int GetNrWorkerThreads() { return 10; } // myNrWorkerThreads; }
 private:
 	std::vector<FJob> myQueue;
+	std::vector<FJob> myQueueLong;
 
 	volatile LONG myNextJobIndex;
 	volatile LONG myFreeIndex;

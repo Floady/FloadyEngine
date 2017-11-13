@@ -23,12 +23,14 @@ class FGameHighlightManager;
 class FGameBuildingManager;
 class FGameUIManager;
 class FPostProcessEffect;
+class FJobSystem;
 
 class FGame
 {
 public:
 	void Init();
 	bool Update(double aDeltaTime);
+	void RenderAsync();
 	static FGame* GetInstance() { return ourInstance; }
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
@@ -71,5 +73,6 @@ private:
 	FPostProcessEffect* myAA;
 	FPostProcessEffect* mySSAO;
 	FPostProcessEffect* myBlur;
+	FJobSystem* myRenderJobSys;
 };
 

@@ -4,6 +4,7 @@
 #include "FPrimitiveGeometry.h"
 #include "FJobSystem.h"
 #include "FUtilities.h"
+#include "FProfiler.h"
 #include "comdef.h"
 
 FPostProcessEffect::FPostProcessEffect(BindBufferMask aBindMask, const char* aShaderName, const char* aDebugName)
@@ -271,12 +272,6 @@ void FPostProcessEffect::Render()
 	myCommandList->RSSetViewports(1, &FD3d12Renderer::GetInstance()->GetViewPort());
 	myCommandList->RSSetScissorRects(1, &FD3d12Renderer::GetInstance()->GetScissorRect());
 
-
-	for (int i = 0; i < myResources.size(); i++)
-	{
-		//myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myResources[i].myResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	}
-
 	// Indicate that the back buffer will be used as a render target.
 	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	myCommandList->OMSetRenderTargets(1, &FD3d12Renderer::GetInstance()->GetPostProcessScratchBufferHandle(), FALSE, nullptr);
@@ -288,11 +283,6 @@ void FPostProcessEffect::Render()
 
 	// Indicate that the back buffer will now be used to present.
 	myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetPostProcessBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-	for (int i = 0; i < myResources.size(); i++)
-	{
-		//myCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myResources[i].myResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	}
 
 	hr = myCommandList->Close();
 
@@ -319,6 +309,9 @@ void FPostProcessEffect::RenderAsync()
 		skipNextRender = false;
 		return;
 	}
+
+	//FPROFILE_FUNCTION(myDebugName);
+
 	ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 
 	// Set necessary state.

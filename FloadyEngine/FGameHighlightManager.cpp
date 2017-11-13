@@ -7,6 +7,7 @@
 #include "FPrimitiveGeometry.h"
 #include "FPostProcessEffect.h"
 #include "FPrimitiveBox.h"
+#include "FRenderMeshComponent.h"
 
 using namespace DirectX;
 
@@ -100,7 +101,7 @@ void FGameHighlightManager::Render()
 	//	return;
 
 	// test with 1 obj
-	FRenderableObject* entity = nullptr; 
+	FRenderMeshComponent* entity = nullptr;
 
 	HRESULT hr = myCommandList->Reset(FD3d12Renderer::GetInstance()->GetCommandAllocator(), myPSO);
 	myCommandList->SetPipelineState(myPSO);
@@ -111,12 +112,13 @@ void FGameHighlightManager::Render()
 	if (myObjects.size() == 1)
 	{
 		entity = myObjects[0]->GetRenderableObject();
-		pos = entity->GetPos();
+		pos = myObjects[0]->GetPos();
 		vecScale = entity->GetScale();
 	}
 
 	// copy modelviewproj data to gpu
-	XMMATRIX mtxRot = XMMatrixIdentity(); //myRotMatrix;
+	XMFLOAT4X4 m = entity ? XMFLOAT4X4(entity->GetRotMatrix()) : XMFLOAT4X4();
+	XMMATRIX mtxRot = XMLoadFloat4x4(&m);
 
 	XMMATRIX scale = XMMatrixScaling(vecScale.x, vecScale.y, vecScale.z); //XMMatrixScaling(myScale.x, myScale.y, myScale.z);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos.x, pos.y, pos.z, 1));

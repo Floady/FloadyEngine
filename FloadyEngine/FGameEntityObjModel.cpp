@@ -1,7 +1,5 @@
 #include "FGameEntityObjModel.h"
 #include "FRenderableObject.h"
-#include "FBulletPhysics.h"
-#include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
 #include "FGame.h"
@@ -15,6 +13,9 @@
 #include "FPrimitiveBox.h"
 #include "FTextureManager.h"
 #include "FPrimitiveBoxMultiTex.h"
+#include "FBulletPhysics.h"
+#include "FRenderMeshComponent.h"
+#include "BulletDynamics\Dynamics\btRigidBody.h"
 
 using namespace DirectX;
 
@@ -23,6 +24,7 @@ REGISTER_GAMEENTITY2(FGameEntityObjModel);
 
 FGameEntityObjModel::FGameEntityObjModel()
 {
+	myGraphicsObject = nullptr;
 	m_vertexBuffer = nullptr;
 	m_indexBuffer = nullptr;
 }
@@ -61,6 +63,8 @@ namespace std {
 void FGameEntityObjModel::Init(const FJsonObject & anObj)
 {
 	FGameEntity::Init(anObj);
+		
+	myGraphicsObject = GetComponentInSlot<FRenderMeshComponent>(0)->GetGraphicsObject();
 
 	//*
 	FGame::GetInstance()->GetRenderer()->GetSceneGraph().RemoveObject(myGraphicsObject);
@@ -111,12 +115,6 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 			}
 			idx2++;
 
-			if (matId == 12)
-			{
-
-				FUtilities::FLog("Index %i has mat3", counter);
-			}
-
 			FPrimitiveGeometry::Vertex2 vertex;
 
 			vertex.position.x = m.myAttributes.vertices[3 * index.vertex_index + 0];
@@ -135,8 +133,9 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 				vertex.uv.x = m.myAttributes.texcoords[2 * index.texcoord_index + 0];
 				vertex.uv.y = 1.0f - m.myAttributes.texcoords[2 * index.texcoord_index + 1];
 			}
-			
+
 			vertex.matId = matId;
+			vertex.normalmatId = m.myMaterials[matId].bump_texname.empty() ? 99 : matId;
 
 			//*
 			if (uniqueVertices.count(vertex) == 0) {
@@ -145,8 +144,9 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 			}
 
 			indices.push_back(uniqueVertices[vertex]);
+			
+			//vertices.push_back(vertex);
 			/*/
-			vertices.push_back(vertex);
 			indices.push_back(indices.size());
 			//*/
 		}
@@ -210,6 +210,28 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 		myGraphicsObject->myAABB.myMin.x = min(myGraphicsObject->myAABB.myMin.x, vert.position.x * myGraphicsObject->GetScale().x);
 		myGraphicsObject->myAABB.myMin.y = min(myGraphicsObject->myAABB.myMin.y, vert.position.y * myGraphicsObject->GetScale().y);
 		myGraphicsObject->myAABB.myMin.z = min(myGraphicsObject->myAABB.myMin.z, vert.position.z * myGraphicsObject->GetScale().z);
+	}
+
+
+	// send mesh to Recast	
+	{
+		const FVector3& scale = myGraphicsObject->GetScale();
+		FNavMeshManagerRecast::FInputMesh mesh;
+		for (auto& item : vertices)
+		{
+			const FPrimitiveGeometry::Vertex2& vtx = item;
+			mesh.myVertices.push_back(vtx.position.x * scale.x);
+			mesh.myVertices.push_back(vtx.position.y * scale.y);
+			mesh.myVertices.push_back(vtx.position.z * scale.z);
+		}
+
+		for (int idx : indices)
+		{
+			mesh.myTriangles.push_back(idx);
+		}
+
+		FNavMeshManagerRecast::GetInstance()->SetInputMesh(mesh);
+		FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 	}
 
 	string tex = anObj.GetItem("tex").GetAs<string>();

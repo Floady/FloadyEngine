@@ -2177,7 +2177,7 @@ FNavMeshManager::~FNavMeshManager()
 
 void FNavMeshManager::DebugDraw(FDebugDrawer * aDebugDrawer)
 {
-	FPROFILE_FUNCTION("NavMeshDebugDraw");
+	//FPROFILE_FUNCTION("NavMeshDebugDraw");
 
 	for (int i = 0; i < pts.size(); i++)
 	{

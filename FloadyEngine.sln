@@ -13,10 +13,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FJson", "FJson\FJson.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecastDetour", "RecastDetour\RecastDetour.vcxproj", "{4D44D91C-BD20-4CCA-A3A9-CAE3E6A0FE41}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FPhysics", "FPhysics\FPhysics.vcxproj", "{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FGame", "FGame\FGame.vcxproj", "{85EC9DDA-4E06-4560-9260-338A7D4C41B2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FAssetLib", "FAssetLib\FAssetLib.vcxproj", "{A58A3C8F-1891-4566-8F0C-54B398938A44}"
+EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug DLL|x64 = Debug DLL|x64
 		Debug DLL|x86 = Debug DLL|x86
@@ -62,6 +65,42 @@ Global
 		{4D44D91C-BD20-4CCA-A3A9-CAE3E6A0FE41}.Release|x64.Build.0 = Release|x64
 		{4D44D91C-BD20-4CCA-A3A9-CAE3E6A0FE41}.Release|x86.ActiveCfg = Release|Win32
 		{4D44D91C-BD20-4CCA-A3A9-CAE3E6A0FE41}.Release|x86.Build.0 = Release|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug DLL|x64.ActiveCfg = Debug|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug DLL|x64.Build.0 = Debug|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug DLL|x86.ActiveCfg = Debug|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug DLL|x86.Build.0 = Debug|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug|x64.ActiveCfg = Debug|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug|x64.Build.0 = Debug|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug|x86.ActiveCfg = Debug|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Debug|x86.Build.0 = Debug|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Release|x64.ActiveCfg = Release|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Release|x64.Build.0 = Release|x64
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Release|x86.ActiveCfg = Release|Win32
+		{C5A2AEC6-CF04-4E9C-98FE-70A5691F6258}.Release|x86.Build.0 = Release|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug DLL|x64.ActiveCfg = Debug|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug DLL|x64.Build.0 = Debug|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug DLL|x86.ActiveCfg = Debug|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug DLL|x86.Build.0 = Debug|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug|x64.ActiveCfg = Debug|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug|x64.Build.0 = Debug|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug|x86.ActiveCfg = Debug|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Debug|x86.Build.0 = Debug|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Release|x64.ActiveCfg = Release|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Release|x64.Build.0 = Release|x64
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Release|x86.ActiveCfg = Release|Win32
+		{85EC9DDA-4E06-4560-9260-338A7D4C41B2}.Release|x86.Build.0 = Release|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug DLL|x64.ActiveCfg = Debug|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug DLL|x64.Build.0 = Debug|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug DLL|x86.ActiveCfg = Debug|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug DLL|x86.Build.0 = Debug|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug|x64.ActiveCfg = Debug|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug|x64.Build.0 = Debug|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug|x86.ActiveCfg = Debug|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Debug|x86.Build.0 = Debug|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Release|x64.ActiveCfg = Release|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Release|x64.Build.0 = Release|x64
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Release|x86.ActiveCfg = Release|Win32
+		{A58A3C8F-1891-4566-8F0C-54B398938A44}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

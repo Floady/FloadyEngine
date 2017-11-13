@@ -1,8 +1,7 @@
 #pragma once
-#include "FVector3.h"
 #include "LinearMath/btAlignedObjectArray.h"
-#include "FPhysicsDebugDrawer.h"
 #include <vector>
+#include "FVector3.h"
 
 class btDiscreteDynamicsWorld;
 class btBroadphaseInterface;
@@ -14,6 +13,7 @@ class btRigidBody;
 class FDebugDrawer;
 class FD3d12Renderer;
 class FGameEntity;
+class FPhysicsDebugDrawer;
 
 class FBulletPhysics
 {
@@ -43,7 +43,7 @@ public:
 	void RemoveObject(btRigidBody* aBody);
 	FPhysicsDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
 	FGameEntity* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);
-	void SetPaused(bool aPause) { myEnabled = !aPause; }
+	void SetPaused(bool aPause);
 	void TogglePaused() { myEnabled = !myEnabled; }
 
 	std::vector<FBulletPhysics::AABB> GetAABBs();
