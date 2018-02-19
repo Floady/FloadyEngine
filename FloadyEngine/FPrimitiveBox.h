@@ -30,8 +30,8 @@ public:
 	void RenderShadows() override;
 	void PopulateCommandListAsync() override;
 	void PopulateCommandListAsyncShadows() override;
-	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
-	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList);
+	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) override;
+	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) override;
 	void SetShader();
 	void RecalcModelMatrix() override;
 	void SetRotMatrix(float* m) override;

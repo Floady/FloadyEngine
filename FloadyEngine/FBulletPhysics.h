@@ -19,6 +19,12 @@ class FBulletPhysics
 {
 public:
 
+	struct RayCastHit
+	{
+		FVector3 myPos;
+		FVector3 myNormal;
+	};
+
 	struct AABB
 	{
 		FVector3 myMin;
@@ -45,6 +51,7 @@ public:
 	FGameEntity* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);
 	void SetPaused(bool aPause);
 	void TogglePaused() { myEnabled = !myEnabled; }
+	bool RayCast(FVector3 aStart, FVector3 anEnd, RayCastHit& outHitResult);
 
 	std::vector<FBulletPhysics::AABB> GetAABBs();
 private:

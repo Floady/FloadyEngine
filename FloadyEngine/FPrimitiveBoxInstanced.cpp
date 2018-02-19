@@ -23,11 +23,16 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 {
 	myUsedIndex = 0;
 	assert(aNrOfInstances > 0);
-//	assert(aNrOfInstances <= 16); // @todo: limited to 16 instances for now (shader dependency)
+	//	assert(aNrOfInstances <= 16); // @todo: limited to 16 instances for now (shader dependency)
 
 	myNrOfInstances = aNrOfInstances;
 	myModelMatrix = new PerInstanceData[myNrOfInstances];
-
+	myPerDrawCallData = new PerDrawCallData[16]; // TODO nrOfLights (nrOfDrawCalls)
+	for (size_t i = 0; i < 16; i++)
+	{
+		myPerDrawCallData[i].myLightIndex = i;
+	}
+	myModelMatrix[0].myIsVisible = true;
 #if DEFERRED
 	shaderfilename = "primitiveshader_deferred.hlsl";
 #else
@@ -53,7 +58,9 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 	m_pipelineState = nullptr;
 	m_pipelineStateShadows = nullptr;
 	m_commandList = nullptr;
-	
+
+	myShadowPerInstanceData = nullptr;
+	myShadowPerInstanceDataPtr = nullptr;
 	myConstantBufferPtr = nullptr;
 
 	myMesh = nullptr;
@@ -101,7 +108,7 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 
 	// setup AABB
 	std::vector<FPrimitiveGeometry::Vertex>& verts = FPrimitiveGeometry::Box2::GetVertices();
-	for (FPrimitiveGeometry::Vertex& vert  : verts)
+	for (FPrimitiveGeometry::Vertex& vert : verts)
 	{
 		myAABB.myMax.x = max(myAABB.myMax.x, vert.position.x * GetScale().x);
 		myAABB.myMax.y = max(myAABB.myMax.y, vert.position.y * GetScale().y);
@@ -111,6 +118,8 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 		myAABB.myMin.y = min(myAABB.myMin.y, vert.position.y * GetScale().y);
 		myAABB.myMin.z = min(myAABB.myMin.z, vert.position.z * GetScale().z);
 	}
+
+	myMutex.Init(aManager->GetDevice(), "FPrimitiveBoxInstanced");
 }
 
 FPrimitiveBoxInstanced::~FPrimitiveBoxInstanced()
@@ -167,9 +176,10 @@ void FPrimitiveBoxInstanced::Init()
 		CD3DX12_DESCRIPTOR_RANGE1 rangesShadows[1];
 		rangesShadows[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-		CD3DX12_ROOT_PARAMETER1 rootParametersShadow[1];
+		CD3DX12_ROOT_PARAMETER1 rootParametersShadow[2];
 		rootParametersShadow[0].InitAsDescriptorTable(1, &rangesShadows[0], D3D12_SHADER_VISIBILITY_ALL);
-		
+		rootParametersShadow[1].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDescShadows;
 		rootSignatureDescShadows.Init_1_1(_countof(rootParametersShadow), rootParametersShadow, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -189,19 +199,22 @@ void FPrimitiveBoxInstanced::Init()
 
 	const int buff_size = sizeof(float) * (myNrOfInstances + 1) * 16;
 	myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr, sizeof(float) * 32 * 16);
+	myManagerClass->CreateConstantBuffer(myShadowPerInstanceData, myShadowPerInstanceDataPtr, sizeof(PerDrawCallData) * 16); // nrOfDrawcalls or nrOfLights TODO
 	myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr, buff_size);
 	m_ModelProjMatrix->SetName(L"PrimitiveBoxInstancedConst");
 	m_ModelProjMatrixShadow->SetName(L"PrimitiveBoxInstancedConstShadows");
+	myShadowPerInstanceData->SetName(L"PrimitiveBoxInstancedConstShadowsInstanceData");
 	myHeapOffsetAll = myHeapOffsetCBV;
 	myHeapOffsetText = myHeapOffsetAll;
 
 	memset(myConstantBufferShadowsPtr, 0, sizeof(float) * 32 * 16);
+	memset(myShadowPerInstanceDataPtr, 0, sizeof(PerDrawCallData) * 16);
 
 	// create SRV for texture
-	{		
+	{
 		myManagerClass->BindTexture(myTexName);
 	}
-	
+
 	skipNextRender = false;
 	myIsInitialized = true;
 
@@ -225,15 +238,8 @@ void FPrimitiveBoxInstanced::Render()
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
 }
 
 void FPrimitiveBoxInstanced::RenderShadows()
@@ -252,28 +258,19 @@ void FPrimitiveBoxInstanced::RenderShadows()
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
 }
 
 void FPrimitiveBoxInstanced::PopulateCommandListAsync()
 {
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
-	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	PopulateCommandListInternal(cmdList);
 }
 
 void FPrimitiveBoxInstanced::PopulateCommandListAsyncShadows()
 {
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
-	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	PopulateCommandListInternalShadows(cmdList);
 }
 
@@ -330,6 +327,8 @@ void FPrimitiveBoxInstanced::PopulateCommandListInternal(ID3D12GraphicsCommandLi
 void FPrimitiveBoxInstanced::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
 	//FPROFILE_FUNCTION("Box Shadow");
+	if (!m_pipelineStateShadows)
+		return;
 
 	// set pipeline  to shadow shaders
 	aCmdList->SetPipelineState(m_pipelineStateShadows);
@@ -354,24 +353,40 @@ void FPrimitiveBoxInstanced::PopulateCommandListInternalShadows(ID3D12GraphicsCo
 	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
 	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 #endif
+	// TODO shadows can need rendering even if not visible - the myUsedIndex does not work when things are removed (such as building placement)
+	//if (myMesh)
+	//{
+	//	aCmdList->IASetVertexBuffers(0, 1, &myMesh->myVertexBufferView);
+	//	aCmdList->IASetIndexBuffer(&myMesh->myIndexBufferView);
+	//	aCmdList->DrawIndexedInstanced(myMesh->myIndicesCount, myUsedIndex + 1, 0, 0, 0);
+	//}
+	//else
+	//{
+	//	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	//	aCmdList->IASetIndexBuffer(&m_indexBufferView);
+	//	aCmdList->DrawIndexedInstanced(myIndicesCount, myUsedIndex + 1, 0, 0, 0);
+	//}
+
+	if(myShadowPerInstanceData)
+		aCmdList->SetGraphicsRootConstantBufferView(1, myShadowPerInstanceData->GetGPUVirtualAddress() + sizeof(PerDrawCallData) * FLightManager::GetInstance()->GetActiveLight());
 
 	if (myMesh)
 	{
 		aCmdList->IASetVertexBuffers(0, 1, &myMesh->myVertexBufferView);
 		aCmdList->IASetIndexBuffer(&myMesh->myIndexBufferView);
-		aCmdList->DrawIndexedInstanced(myMesh->myIndicesCount, myUsedIndex+1, 0, 0, 0);
+		aCmdList->DrawIndexedInstanced(myMesh->myIndicesCount, myNrOfVisibleInstances, 0, 0, 0);
 	}
 	else
 	{
 		aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		aCmdList->IASetIndexBuffer(&m_indexBufferView);
-		aCmdList->DrawIndexedInstanced(myIndicesCount, myUsedIndex+1, 0, 0, 0);
+		aCmdList->DrawIndexedInstanced(myIndicesCount, myNrOfVisibleInstances, 0, 0, 0);
 	}
 }
 
 #define DEPTH_BIAS_D32_FLOAT(d) (d/(1/pow(2,23)))
 void FPrimitiveBoxInstanced::SetShader()
-{	
+{
 	skipNextRender = true;
 
 	// get shader ptr + layouts
@@ -400,7 +415,7 @@ void FPrimitiveBoxInstanced::SetShader()
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	if(myRenderCCW)
+	if (myRenderCCW)
 		psoDesc.DepthStencilState.DepthEnable = FALSE;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -438,7 +453,7 @@ void FPrimitiveBoxInstanced::SetShader()
 
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 	hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDescShadows, IID_PPV_ARGS(&m_pipelineStateShadows));
-	
+
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
 	m_commandList->Close();
 	m_commandList->SetName(L"PrimitiveBox");
@@ -465,29 +480,19 @@ void FPrimitiveBoxInstanced::RecalcModelMatrix()
 
 void FPrimitiveBoxInstanced::UpdateConstBuffers()
 {
-	{
-	/*DirectX::XMFLOAT4X4& data = FMeshInstanceManager::GetInstance()->GetInstanceData("sphere", myMeshInstanceId);
-
-	const FVector3& pos = GetPos();
-	const FVector3& scale2 = GetScale();
-	XMFLOAT4X4 m = XMFLOAT4X4();
-	XMMATRIX mtxRot = XMLoadFloat4x4(&m);
-	XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos.x, pos.y, pos.z, 1));
-	offset = scale * offset;
-
-	offset = XMMatrixTranspose(offset);
-	XMStoreFloat4x4(&data, offset);*/
-
 	if (!myConstantBufferPtr)
 		return;
-	}
 
-	// copy modelviewproj data to gpu
-	// set on gpu
+	//
+	if(myShadowPerInstanceDataPtr)
+	{
+	memcpy(myShadowPerInstanceDataPtr, myPerDrawCallData, sizeof(PerDrawCallData) * 16);
+	}
+	//
+
 	const int buff_size = sizeof(float) * (myNrOfInstances + 1) * 16;
 	//myIsGPUConstantDataDirty = true;
-	
+
 	myNrOfVisibleInstances = 0;
 
 	if (myIsGPUConstantDataDirty || ourShouldRecalc)
@@ -497,7 +502,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 		unsigned int offset = 16;
 		for (size_t i = 0; i < myNrOfInstances; i++)
 		{
-			if(myModelMatrix[i].myIsVisible)
+			if (myModelMatrix[i].myIsVisible)
 			{
 				memcpy(&constData[offset], myModelMatrix[i].myModelMatrix.m, sizeof(XMFLOAT4X4));
 				myNrOfVisibleInstances++;
@@ -513,12 +518,13 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 16);
 	}
 
+	// shadow data
 	float constData[32 * 16];
 	int offsetInConstData = 0;
 	const std::vector<FLightManager::DirectionalLight>& dirLights = FLightManager::GetInstance()->GetDirectionalLights();
 	for (size_t i = 0; i < dirLights.size(); i++)
 	{
-		const XMFLOAT4X4& m = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(i);
+		const XMFLOAT4X4& m = dirLights[i].myViewProjMatrix;
 		memcpy(&constData[offsetInConstData], m.m, sizeof(XMFLOAT4X4));
 		offsetInConstData += 16;
 	}
@@ -526,38 +532,24 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	const std::vector<FLightManager::SpotLight>& spotlights = FLightManager::GetInstance()->GetSpotlights();
 	for (size_t i = 0; i < spotlights.size(); i++)
 	{
-		const XMFLOAT4X4& m = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(i);
+		const XMFLOAT4X4& m = spotlights[i].myViewProjMatrix;
 		memcpy(&constData[offsetInConstData], m.m, sizeof(XMFLOAT4X4));
 		offsetInConstData += 16;
 	}
 
-	offsetInConstData = 16 * 16; // jump to light matrix offsets
+	offsetInConstData = 16 * 16; // jump to end of light matrix offsets
 
 	if (myIsGPUConstantDataDirty || ourShouldRecalc)
 	{
-		// copy modelviewproj data to gpu
-		//XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(0, myYaw, 0);
-		//XMFLOAT4X4 m = XMFLOAT4X4(myRotMatrix);
-		//XMMATRIX mtxRot = XMLoadFloat4x4(&m);
-		//XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
-		//XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-		//offset = scale * mtxRot * offset;
-
-		//XMFLOAT4X4 ret;
-		//offset = XMMatrixTranspose(offset);
-		//XMStoreFloat4x4(&ret, offset);
-
-		//memcpy(&constData[offsetInConstData], ret.m, sizeof(XMFLOAT4X4));
-
-		for (size_t i = 1; i <= myNrOfInstances; i++)
+		for (size_t i = 0; i < myNrOfInstances; i++)
 		{
-			memcpy(&constData[offsetInConstData], myModelMatrix[i - 1].myModelMatrix.m, sizeof(XMFLOAT4X4));
-			offsetInConstData += 16;
+			if (myModelMatrix[i].myIsVisible)
+			{
+				memcpy(&constData[offsetInConstData], myModelMatrix[i].myModelMatrix.m, sizeof(XMFLOAT4X4));
+				offsetInConstData += 16;
+			}
 		}
 	}
-
-	//memcpy(&constData[16], FLightManager::GetInstance()->GetCurrentActiveLightViewProjMatrix().m, sizeof(XMFLOAT4X4));
-	//memcpy(&constData[16], myModelMatrix.m, sizeof(XMFLOAT4X4)); // we need rotation too..
 
 	if (myIsGPUConstantDataDirty || ourShouldRecalc)
 		memcpy(myConstantBufferShadowsPtr, &constData[0], sizeof(float) * (offsetInConstData));

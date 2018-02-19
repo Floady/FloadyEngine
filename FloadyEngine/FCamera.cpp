@@ -82,7 +82,8 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 {
 	if(myOverrideWithLight)
 	{
-		return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
+		return FLightManager::GetInstance()->GetSpotlightViewProjMatrix(0);
+		//return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
 	}
 
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
@@ -269,7 +270,7 @@ void FCamera::UpdateViewProj()
 	FVector3 Cfar = P + v * fDis;
 	FVector3 w = v.Cross(up2);
 	float size = 0.6f;
-	FVector3 color = FVector3(1, 1, 0.2);
+	FVector3 color = FVector3(1, 1, 0.2f);
 
 	myFrustumCorners[0] = Cnear + (up2 * (Hnear / 2)) - (w * (Wnear / 2));
 	myFrustumCorners[1] = Cnear + (up2 * (Hnear / 2)) + (w * (Wnear / 2));
@@ -319,8 +320,8 @@ void FCamera::UpdateViewProj()
 				const FPlane& frustum = myDebugFrustum[i];
 				FVector3 planeCenter = (-frustum.myNormal * frustum.myDistance);
 				debugDrawer->drawLine(myDebugPos, planeCenter, FVector3(1, 0, 0));
-				FUtilities::FLog("dist: %f \n", frustum.myDistance);
-				FUtilities::FLog("normal: %f %f %f ^\n", frustum.myNormal.x, frustum.myNormal.y, frustum.myNormal.z);
+				FLOG("dist: %f", frustum.myDistance);
+				FLOG("normal: %f %f %f", frustum.myNormal.x, frustum.myNormal.y, frustum.myNormal.z);
 				FVector3 biNormal = frustum.myNormal;
 				FVector3 up(0, 1, 0);
 				up = biNormal.Cross(up);

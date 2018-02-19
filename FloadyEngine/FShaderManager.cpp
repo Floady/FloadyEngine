@@ -85,7 +85,7 @@ void FShaderManager::ReloadShaders()
 				desc.SemanticIndex = lParamDesc.SemanticIndex;
 				desc.InputSlot = lParamDesc.SystemValueType == D3D_NAME_INSTANCE_ID ? 1 : 0;
 				desc.AlignedByteOffset = i == 0 ? 0 : D3D12_APPEND_ALIGNED_ELEMENT;
-				desc.InstanceDataStepRate = 0;
+				desc.InstanceDataStepRate = lParamDesc.SystemValueType == D3D_NAME_INSTANCE_ID ? 1 : 0;;
 				desc.InputSlotClass = lParamDesc.SystemValueType == D3D_NAME_INSTANCE_ID ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 
 				if (lParamDesc.Mask == 1)

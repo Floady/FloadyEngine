@@ -10,7 +10,8 @@ public:
 	{
 		MainScreen = 0,
 		InGame,
-		Debug
+		Debug,
+		No_UI
 	};
 
 	FGameUIManager();

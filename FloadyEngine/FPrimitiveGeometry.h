@@ -113,11 +113,11 @@ public:
 		static ID3D12Resource* m_indexBuffer;
 
 	public:
-		static std::vector<Vertex>& const GetVertices() {	return vertices; }
-		static ID3D12Resource*& const GetIndicesBuffer() {	return m_indexBuffer;	}
-		static ID3D12Resource*& const GetVerticesBuffer() { return m_vertexBuffer; }
+		static std::vector<Vertex>& GetVertices() {	return vertices; }
+		static ID3D12Resource*& GetIndicesBuffer() {	return m_indexBuffer;	}
+		static ID3D12Resource*& GetVerticesBuffer() { return m_vertexBuffer; }
 		static int const GetVerticesBufferStride() { return sizeof(Vertex); }
-		static std::vector<int>& const GetIndices() { return indices; }
+		static std::vector<int>& GetIndices() { return indices; }
 		static const int GetIndicesBufferSize();
 		static const int GetVertexBufferSize();
 	};
@@ -131,11 +131,11 @@ public:
 		static ID3D12Resource* m_indexBuffer;
 
 	public:
-		static std::vector<Vertex>& const GetVertices() { return vertices; }
-		static ID3D12Resource*& const GetIndicesBuffer() { return m_indexBuffer; }
-		static ID3D12Resource*& const GetVerticesBuffer() { return m_vertexBuffer; }
+		static std::vector<Vertex>& GetVertices() { return vertices; }
+		static ID3D12Resource*& GetIndicesBuffer() { return m_indexBuffer; }
+		static ID3D12Resource*& GetVerticesBuffer() { return m_vertexBuffer; }
 		static int const GetVerticesBufferStride() { return sizeof(Vertex); }
-		static std::vector<int>& const GetIndices() { return indices; }
+		static std::vector<int>& GetIndices() { return indices; }
 		static const int GetIndicesBufferSize();
 		static const int GetVertexBufferSize();
 	};

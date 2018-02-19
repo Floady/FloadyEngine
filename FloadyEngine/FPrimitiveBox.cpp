@@ -254,14 +254,12 @@ void FPrimitiveBox::RenderShadows()
 void FPrimitiveBox::PopulateCommandListAsync()
 {
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
-	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	PopulateCommandListInternal(cmdList);
 }
 
 void FPrimitiveBox::PopulateCommandListAsyncShadows()
 {
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
-	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	PopulateCommandListInternalShadows(cmdList);
 }
 
@@ -317,6 +315,8 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList)
 {
 	//FPROFILE_FUNCTION("Box Shadow");
+	if (!m_pipelineStateShadows)
+		return;
 
 	// set pipeline  to shadow shaders
 	aCmdList->SetPipelineState(m_pipelineStateShadows);

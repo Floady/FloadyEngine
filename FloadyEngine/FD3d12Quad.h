@@ -30,8 +30,6 @@ private:
 	
 	ID3D12Device* m_device;
 	ID3D12Resource* m_renderTargets;
-	ID3D12CommandAllocator* m_commandAllocator;
-	ID3D12CommandQueue* m_commandQueue;
 	ID3D12RootSignature* m_rootSignature;
 	ID3D12DescriptorHeap* m_rtvHeap;
 	ID3D12DescriptorHeap* m_srvHeap;
@@ -56,6 +54,6 @@ private:
 	ID3D12Resource* m_texture;
 
 	float m_aspectRatio;
-
+//	FD3d12Renderer::GPUMutex myMutex;
 };
 

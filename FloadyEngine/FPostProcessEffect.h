@@ -41,7 +41,7 @@ public:
 	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, int aNrOfCBV = 0, const char* aDebugName = nullptr);
 	~FPostProcessEffect();
 	void Render();
-	void RenderAsync();
+	void RenderAsync(ID3D12GraphicsCommandList* aCmdList);
 	void Init(int aPostEffectBufferIdx);
 	void SetShader();
 	void WriteConstBuffer(int i, float* aData, int aSize);

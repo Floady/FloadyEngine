@@ -41,7 +41,7 @@ unsigned int FLightManager::AddDirectionalLight(FVector3 aPos, FVector3 aDir, FV
 
 unsigned int FLightManager::AddLight(FVector3 aPos, float aRadius)
 {
-	return AddSpotlight(aPos, FVector3(0, -1, 0.1), aRadius);
+	return AddSpotlight(aPos, FVector3(0, -1, 0.1f), aRadius);
 }
 
 void FLightManager::SetLightColor(unsigned int aLightId, FVector3 aColor)
@@ -127,6 +127,8 @@ FLightManager::Light* FLightManager::GetLight(unsigned int aLightId)
 			return &light;
 		}
 	}
+
+	return nullptr;
 }
 
 const XMFLOAT4X4& FLightManager::GetSpotlightViewProjMatrix(int i) const
@@ -134,13 +136,14 @@ const XMFLOAT4X4& FLightManager::GetSpotlightViewProjMatrix(int i) const
 	return mySpotlights[i].GetViewProjMatrix();
 }
 
+static DirectX::XMFLOAT4X4 ourIdentityMatrix = DirectX::XMFLOAT4X4();
 const DirectX::XMFLOAT4X4& FLightManager::GetCurrentActiveLightViewProjMatrix() const
 {
 	if(myActiveLight == -1)
 		return GetDirectionalLightViewProjMatrix(0); // todo: fix
 
 	if(myActiveLight >= mySpotlights.size())
-		return DirectX::XMFLOAT4X4();
+		return ourIdentityMatrix;
 	
 	return GetSpotlightViewProjMatrix(myActiveLight);
 }
@@ -206,7 +209,7 @@ void FLightManager::UpdateViewProjMatrices()
 			{
 				float fovAngleY = mySpotlights[i].myAngle * 2;
 
-				XMMATRIX myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 40.0f, 0.01f);
+				XMMATRIX projMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 40.0f, 0.01f);
 
 				// calc viewproj from lightpos
 				FXMVECTOR eye = XMVectorSet(mySpotlights[i].myPos.x, mySpotlights[i].myPos.y, mySpotlights[i].myPos.z, 1);
@@ -216,8 +219,10 @@ void FLightManager::UpdateViewProjMatrices()
 
 				XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 
-				XMMATRIX  _viewProjMatrix = XMMatrixTranspose(_viewMatrix * myProjMatrix);
+				XMMATRIX  _viewProjMatrix = XMMatrixTranspose(_viewMatrix * projMatrix);
+				XMMATRIX  _transposedProjMatrix = XMMatrixTranspose(projMatrix);
 				XMStoreFloat4x4(&mySpotlights[i].myViewProjMatrix, _viewProjMatrix);
+				XMStoreFloat4x4(&mySpotlights[i].myProjMatrix, _transposedProjMatrix);
 			}
 
 			if (myDoDebugDraw)
@@ -318,8 +323,8 @@ void FLightManager::UpdateViewProjMatrices()
 			FVector3 pos = myAABBVisibleFromCam.myMin + (myAABBVisibleFromCam.myMax - myAABBVisibleFromCam.myMin) / 2;
 			pos += FVector3(0, dimensions.y, -dimensions.z) / 2.0f;
 
-			dimensions.z = (myAABBVisibleFromCam.myMax - myAABBVisibleFromCam.myMin).Length() * 1.1; //@todo: make sure we can cover the entire AABB (this should be able to be calculated from pos - max?
-			FXMVECTOR at = XMVectorSet(0, 0, 1, 0);
+			dimensions.z = (myAABBVisibleFromCam.myMax - myAABBVisibleFromCam.myMin).Length() * 1.1f; //@todo: make sure we can cover the entire AABB (this should be able to be calculated from pos - max?
+			FXMVECTOR at = XMVectorSet(0, 0, 1, 1);
 			FXMVECTOR up = XMVectorSet(0, 1, 0, 1);
 
 			XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(PI / 4, 0, 0);
@@ -367,7 +372,10 @@ void FLightManager::UpdateViewProjMatrices()
 			}
 
 			if (!myFreezeDebugInfo)
+			{
 				XMStoreFloat4x4(&myDirectionalLights[i].myViewProjMatrix, _viewProjMatrix);
+				XMStoreFloat4x4(&myDirectionalLights[i].myProjMatrix, XMMatrixTranspose(myProjMatrix));
+			}
 		}
 	}
 }
@@ -426,7 +434,7 @@ FAABB FLightManager::SpotLight::GetAABB()
 
 	// debug draw light AABB
 	FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
-	//debugDrawer->drawAABB(myPos + aabb.myMin, myPos + aabb.myMax, FVector3(1, 0, 1));
+	debugDrawer->drawAABB(myPos + aabb.myMin, myPos + aabb.myMax, FVector3(1, 0, 1));
 
 	aabb.myMin += myPos;
 	aabb.myMax += myPos;

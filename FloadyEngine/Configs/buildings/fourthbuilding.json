@@ -1,56 +1,41 @@
-{		
-	"FGameLightEntity" : 
+{
+	"FGameEntity" : 
 	{
-		"type" : 1.0,
-		"radius" : 16.1,
-		"r" : 1.0,
-		"g" : 0.0,
-		"b" : 1.0,
-		"dirX" : 1.0,
-		"dirY" : 0.05,
-		"dirZ" : 0.0,
-		"offsetX" : 0.0,
-		"offsetY" : 1.5,
-		"offsetZ" : 0.0,
-		"canMove" :false,
-		
-		"FGameEntity" : 
+		"Components" : 
 		{
-			"Components" : 
+			"FRenderMeshComponent" : 
 			{
-				"FRenderMeshComponent" : 
-				{
-				"posX" : 25.0,
-				"posY" : 5.0,
-				"posZ" : 40.0,
-				"scaleX" : 1.0,
-				"scaleY" : 1.0,
-				"scaleZ" : 1.0,
-				"isNavBlocker" : false,
-				"canMove" :false,
-				"type" : 1,
-				"tex" : "marble.png",
-				"model" : "f16.obj"
-				},
-				"FPhysicsComponent" : 
-				{
-				"posX" : 25.0,
-				"posY" : 5.0,
-				"posZ" : 40.0,
-				"scaleX" : 1.0,
-				"scaleY" : 1.0,
-				"scaleZ" : 1.0,
-				"mass" : 10.0,
-				"isNavBlocker" : false,
-				"canMove" :false,
-				"type" : 0
-				}
-			},		
-			"posX" : 20.0,
+			"posX" : 25.0,
 			"posY" : 5.0,
 			"posZ" : 40.0,
-			"canMove" :false
-		}
+			"scaleX" : 0.2,
+			"scaleY" : 0.2,
+			"scaleZ" : 0.2,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 2,
+			"tex" : "marble.png",
+			"instanced" : true,
+			"model" : "sponza.obj"
+			},
+			"FPhysicsComponent" : 
+			{
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 7.0,
+			"scaleY" : 2.0,
+			"scaleZ" : 5.0,
+			"mass" : 10.0,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 0
+			}
+		},		
+		"posX" : 20.0,
+		"posY" : 5.0,
+		"posZ" : 40.0,
+		"canMove" :true
 	},
 	
 	"MenuItems" :
@@ -73,10 +58,10 @@
 						"scaleZ" : 1.0,
 						"isNavBlocker" : false,
 						"canMove" :false,
-						"type" : 2,
+						"type" : 0,
 						"tex" : "marble.png",
 						"instanced" : true,
-						"model" : "f16.obj"
+						"model" : "sponza.obj"
 						},
 						"FPhysicsComponent" : 
 						{
@@ -102,7 +87,7 @@
 				}
 			},
 			"buildTime" : 2.0,
-			"icon" : "John.png"
+			"icon" : "recruit.png"
 		},
 		
 		"Item2" :
@@ -123,10 +108,9 @@
 						"scaleZ" : 3.0,
 						"isNavBlocker" : false,
 						"canMove" :false,
-						"type" : 2,
-						"tex" : "marble.png",
 						"instanced" : true,
-						"model" : "f16.obj"
+						"type" : 0,
+						"tex" : "marble.png"
 						},
 						"FPhysicsComponent" : 
 						{
@@ -152,7 +136,7 @@
 				}
 			},
 			"buildTime" : 10.0,
-			"icon" : "Jack.png"
+			"icon" : "paladin.png"
 		}
 	}
 }

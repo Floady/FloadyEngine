@@ -30,13 +30,14 @@ public:
 	void RenderShadows() override {};
 	void PopulateCommandListAsync() override;
 	void PopulateCommandListAsyncShadows() override {};
+	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) override {};
 
 	void SetTexture(const char* aFilename) override {}
 	virtual const char* GetTexture() override { return nullptr; }
 	void SetShader(const char* aFilename) override {}
+	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) override;
 
 private:
-	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList);
 
 	struct Line
 	{

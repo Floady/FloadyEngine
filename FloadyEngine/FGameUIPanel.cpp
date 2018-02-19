@@ -1,5 +1,6 @@
 #include "FGameUIPanel.h"
 #include "GUI\FGUIManager.h"
+#include "FUtilities.h"
 
 
 FGameUIPanel::FGameUIPanel()
@@ -45,6 +46,7 @@ FGameUIPanel::~FGameUIPanel()
 
 void FGameUIPanel::DestroyAllItems()
 {
+	FLOG("DestroyAllItems called");
 	for (FGUIObject* obj : myObjects)
 	{
 		obj->Hide();

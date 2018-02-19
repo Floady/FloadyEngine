@@ -92,7 +92,7 @@ void FProfiler::Render()
 
 	char buff[128];
 
-	FVector3 pos = FVector3(-1, 0.8, 0);
+	FVector3 pos = FVector3(-1, 0.8f, 0);
 	for (const auto& item : myTimings)
 	{
 		if (labelIdx >= myLabels.size())
@@ -110,7 +110,7 @@ void FProfiler::Render()
 		myLabels[labelIdx]->SetPos(pos);
 
 		pos.y -= textHeight;
-		pos.y -= 0.01; // custom spacing
+		pos.y -= 0.01f; // custom spacing
 
 		if (pos.y < -1)
 		{

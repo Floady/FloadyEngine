@@ -41,5 +41,6 @@ protected:
 	ID3D12Resource* m_indexBuffer;
 	//std::vector<FPrimitiveGeometry::Vertex> vertices;
 	std::vector<int> indices;
+	string myModelInstanceName;
 };
 

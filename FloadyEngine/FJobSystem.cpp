@@ -1,12 +1,12 @@
 #include "FJobSystem.h"
 
-static int ourWorkerThreadCounter = 0;
+static int ourWorkerThreadCounter = 1;
 thread_local int FJobSystem::ourThreadIdx = 0;
 DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 {
 	/*char buff[512];
 	sprintf_s(buff, "FWorkerThread kicked off \n");
-	FUtilities::FLog(buff);	*/
+	FLOG(buff);	*/
 
 	FJobSystem* jobSystem = (FJobSystem*)aJobSystem;
 
@@ -27,7 +27,7 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 /*
 				char buff[512];
 				sprintf_s(buff, "Job done: %p finished: %d(%p) \n", job, job->myFinished, &job->myFinished);
-				FUtilities::FLog(buff);*/
+				FLOG(buff);*/
 			}
 			else
 			{
@@ -64,7 +64,7 @@ FJobSystem::FJob * FJobSystem::GetNextJob()
 		{
 			/*char buff[512];
 			sprintf_s(buff, "Get Job: %d %p\n", curJobIdx, &myQueue[curJobIdx]);
-			FUtilities::FLog(buff);*/
+			FLOG(buff);*/
 
 			return &myQueue[curJobIdx];
 		}
@@ -72,7 +72,7 @@ FJobSystem::FJob * FJobSystem::GetNextJob()
 		{
 			/*char buff[512];
 			sprintf_s(buff, "Failed to get job: %d\n", curJobIdx);
-			FUtilities::FLog(buff);*/
+			FLOG(buff);*/
 		}
 	}
 
@@ -151,7 +151,7 @@ FJobSystem::FJobSystem(int aNrWorkerThreads)
 	{
 		/*char buff[512];
 		sprintf_s(buff, "WORKERTHREAD\n");
-		FUtilities::FLog(buff);*/
+		FLOG(buff);*/
 
 		CreateThread(0, 0, &FWorkerThread, this, 0, NULL);
 	}

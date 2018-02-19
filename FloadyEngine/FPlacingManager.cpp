@@ -9,6 +9,7 @@
 #include "FPrimitiveBoxColorOverride.h"
 #include "FNavMeshManagerRecast.h"
 #include "FUtilities.h"
+#include "FSceneGraph.h"
 
 using namespace DirectX;
 

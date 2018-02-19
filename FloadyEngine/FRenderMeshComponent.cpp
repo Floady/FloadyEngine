@@ -62,6 +62,12 @@ FRenderMeshComponent::~FRenderMeshComponent()
 		delete myGraphicsObject;
 		myGraphicsObject = nullptr;
 	}
+
+	if (myIsInstanced)
+	{
+		FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+		data.myIsVisible = false;
+	}
 }
 
 void FRenderMeshComponent::Init(const FJsonObject & anObj)
@@ -83,6 +89,8 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	scale.y = anObj.GetItem("scaleY").GetAs<double>();
 	scale.z = anObj.GetItem("scaleZ").GetAs<double>();
 
+	myModelInstanceName = "";
+
 	myIsInstanced = false;
 	if (anObj.HasItem("instanced"))
 		myIsInstanced = anObj.GetItem("instanced").GetAs<bool>();
@@ -92,6 +100,8 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	{
 	case RenderMeshType::Sphere:
 	{
+		myModelInstanceName = "sphere";
+
 		if(myIsInstanced)
 			myMeshInstanceId = FMeshInstanceManager::GetInstance()->GetMeshInstanceId("sphere");
 		else
@@ -100,52 +110,54 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	break;
 	case RenderMeshType::Box:
 	{
-		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), pos, scale, FPrimitiveBox::PrimitiveType::Box);
+		myModelInstanceName = "box";
+
+		if (myIsInstanced)
+			myMeshInstanceId = FMeshInstanceManager::GetInstance()->GetMeshInstanceId("box");
+		else
+			myGraphicsObject = new FPrimitiveBoxInstanced(FGame::GetInstance()->GetRenderer(), pos, scale, FPrimitiveBoxInstanced::PrimitiveType::Box);
 	}
 	break;
 	case RenderMeshType::Obj:
 	{
-		/*
-		myGraphicsObject = new FPrimitiveBox(FGame::GetInstance()->GetRenderer(), pos, scale, FPrimitiveBox::PrimitiveType::Sphere);
-		/*/
-		myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBox::PrimitiveType::Sphere);
+		myModelInstanceName = anObj.GetItem("model").GetAs<string>();
 
-		FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
-		FObjLoader objLoader;
-		string model = anObj.GetItem("model").GetAs<string>();
-		string path = "models/";
-		path.append(model);
-
-		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path);
-		m = mesh->myMeshData;
-
-		dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myMesh = mesh;
-
-		myGraphicsObject->myIndicesCount = mesh->myIndicesCount;
-		myGraphicsObject->m_vertexBufferView.BufferLocation = mesh->myVertexBuffer->GetGPUVirtualAddress();
-		myGraphicsObject->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
-		myGraphicsObject->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVertices.size();
-
-		myGraphicsObject->m_indexBufferView.BufferLocation = mesh->myIndexBuffer->GetGPUVirtualAddress();
-		myGraphicsObject->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
-		myGraphicsObject->m_indexBufferView.SizeInBytes = sizeof(int) * mesh->myIndicesCount;
-
-		// setup AABB
-		for (FPrimitiveGeometry::Vertex2& vert : mesh->myVertices)
+		if(myIsInstanced)
+			myMeshInstanceId = FMeshInstanceManager::GetInstance()->GetMeshInstanceId(myModelInstanceName);
+		else
 		{
-		myGraphicsObject->myAABB.myMax.x = max(myGraphicsObject->myAABB.myMax.x, vert.position.x * myGraphicsObject->GetScale().x);
-		myGraphicsObject->myAABB.myMax.y = max(myGraphicsObject->myAABB.myMax.y, vert.position.y * myGraphicsObject->GetScale().y);
-		myGraphicsObject->myAABB.myMax.z = max(myGraphicsObject->myAABB.myMax.z, vert.position.z * myGraphicsObject->GetScale().z);
+			myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBoxInstanced::PrimitiveType::Sphere, 1);
+			FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
+			FObjLoader objLoader;
+			string path = "models/";
+			path.append(myModelInstanceName);
 
-		myGraphicsObject->myAABB. myMin.x = min(myGraphicsObject->myAABB.myMin.x, vert.position.x * myGraphicsObject->GetScale().x);
-		myGraphicsObject->myAABB.myMin.y = min(myGraphicsObject->myAABB.myMin.y, vert.position.y * myGraphicsObject->GetScale().y);
-		myGraphicsObject->myAABB.myMin.z = min(myGraphicsObject->myAABB.myMin.z, vert.position.z * myGraphicsObject->GetScale().z);
+			FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FObjLoader::FObjMesh&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)));
+			m = mesh->myMeshData;
+
+			dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myMesh = mesh;
+
+			myGraphicsObject->myIndicesCount = mesh->myIndicesCount;
+			myGraphicsObject->m_vertexBufferView.BufferLocation = mesh->myVertexBuffer->GetGPUVirtualAddress();
+			myGraphicsObject->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
+			myGraphicsObject->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVertices.size();
+
+			myGraphicsObject->m_indexBufferView.BufferLocation = mesh->myIndexBuffer->GetGPUVirtualAddress();
+			myGraphicsObject->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+			myGraphicsObject->m_indexBufferView.SizeInBytes = sizeof(int) * mesh->myIndicesCount;
+
+			// setup AABB
+			for (FPrimitiveGeometry::Vertex2& vert : mesh->myVertices)
+			{
+				myGraphicsObject->myAABB.myMax.x = max(myGraphicsObject->myAABB.myMax.x, vert.position.x * myGraphicsObject->GetScale().x);
+				myGraphicsObject->myAABB.myMax.y = max(myGraphicsObject->myAABB.myMax.y, vert.position.y * myGraphicsObject->GetScale().y);
+				myGraphicsObject->myAABB.myMax.z = max(myGraphicsObject->myAABB.myMax.z, vert.position.z * myGraphicsObject->GetScale().z);
+
+				myGraphicsObject->myAABB.myMin.x = min(myGraphicsObject->myAABB.myMin.x, vert.position.x * myGraphicsObject->GetScale().x);
+				myGraphicsObject->myAABB.myMin.y = min(myGraphicsObject->myAABB.myMin.y, vert.position.y * myGraphicsObject->GetScale().y);
+				myGraphicsObject->myAABB.myMin.z = min(myGraphicsObject->myAABB.myMin.z, vert.position.z * myGraphicsObject->GetScale().z);
+			}
 		}
-
-		//FUtilities::FLog("Obj model #vtx: %i\n", mesh->myVertices.size());
-		//FUtilities::FLog("Obj model #idx: %i\n", indices.size());
-		//*/
-
 	}
 	}
 
@@ -158,19 +170,33 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	}
 	else
 	{
+		XMMATRIX mtxRot3 = XMMatrixIdentity();
+		XMFLOAT4X4 m2;
+		XMStoreFloat4x4(&m2, mtxRot3);
+
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				myInstanceData.myRotMatrix[i * 4 + j] = m2.m[i][j];
+			}
+		}
+
+
 		string tex = anObj.GetItem("tex").GetAs<string>();
 
-		FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->SetTexture(tex.c_str()); ;
+		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->SetTexture(tex.c_str()); ;
 		//FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->SetScale(scale);
 		myInstanceData.myScale = scale;
 
-		myInstanceData.myAABB = FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->GetLocalAABB();
+		myInstanceData.myAABB = FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetLocalAABB();
 
-		FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData("sphere", myMeshInstanceId);
+		FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 
 		data.myIsVisible = true;
-		const FVector3& pos = myInstanceData.myPos;
-		const FVector3& scale2 = GetScale();
+		//const FVector3& pos = myInstanceData.myPos;
+		myInstanceData.myPos = pos;
+		const FVector3& scale2 = scale;// GetScale();
 		XMFLOAT4X4 m = XMFLOAT4X4();
 		XMMATRIX mtxRot = XMLoadFloat4x4(&m);
 		XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
@@ -206,16 +232,16 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 			//	debugDrawer->drawAABB(aabb.myMin, aabb.myMax, FVector3(0.2, 0.2, 1));
 			//}
 
-			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData("sphere", myMeshInstanceId);
+			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 			
 			data.myIsVisible = true;
 
-			const FVector3& pos = myInstanceData.myPos;
+			const FVector3& pos2 = myInstanceData.myPos;
 			const FVector3& scale2 = GetScale();
 			XMFLOAT4X4 m = XMFLOAT4X4(myInstanceData.myRotMatrix);
 			XMMATRIX mtxRot = XMLoadFloat4x4(&m);
 			XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
-			XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos.x, pos.y, pos.z, 1));
+			XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos2.x, pos2.y, pos2.z, 1));
 			offset = scale * mtxRot * offset;
 
 			offset = XMMatrixTranspose(offset);
@@ -229,7 +255,7 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 			//	debugDrawer->drawAABB(aabb.myMin, aabb.myMax, FVector3(1, 0.2, 0.2));
 			//}
 
-			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData("sphere", myMeshInstanceId);
+			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 			data.myIsVisible = false;
 		}
 	}
@@ -242,7 +268,7 @@ void FRenderMeshComponent::SetPos(const FVector3 & aPos)
 	else
 	{
 		myInstanceData.myPos = aPos;
-		FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->RecalcModelMatrix();
+		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->RecalcModelMatrix();
 	}
 }
 
@@ -259,7 +285,7 @@ const char * FRenderMeshComponent::GetTexture()
 	if (myGraphicsObject)
 		return myGraphicsObject->GetTexture();
 	else
-		return FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->GetTexture();
+		return FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetTexture();
 }
 
 float * FRenderMeshComponent::GetRotMatrix()

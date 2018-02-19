@@ -6,6 +6,7 @@
 #include "FProfiler.h"
 #include <unordered_map>
 #include "FJobSystem.h"
+#include "FUtilities.h"
 
 void hash_combine23(size_t &seed, size_t hash)
 {
@@ -61,7 +62,6 @@ void FMeshManager::InitLoadedMeshesD3D()
 		}
 		else if (item.second.myLoadState == FMeshLoadObject::LoadState::Finished)
 		{
-			nrDone++;
 			const std::string& aPath = item.first;
 			FMeshLoadObject& loadMeshObj = myPendingLoadMeshes[aPath];
 			FMeshObject* obj = loadMeshObj.myObject;
@@ -74,6 +74,11 @@ void FMeshManager::InitLoadedMeshesD3D()
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(&obj->myVertexBuffer));
+
+			if (FAILED(hr))
+			{
+				FLOG("KAPUT %x", hr);
+			}
 
 			// Map the buffer
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
@@ -92,14 +97,25 @@ void FMeshManager::InitLoadedMeshesD3D()
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&obj->myIndexBuffer));
+				
+				if (FAILED(hr))
+				{
+					FLOG("KAPUT %x", hr);
+				}
 
 				// Map the buffer
 				CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 				hr = obj->myIndexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&obj->myIndexDataBegin));
+
+				if (FAILED(hr))
+				{
+					FLOG("KAPUT %x", hr);
+				}
+
 				const UINT indexBufferSize = sizeof(int) * nrOfIndices;
 				memcpy(obj->myIndexDataBegin, &item.second.myIndices[0], indexBufferSize);
 			}
-
+		
 			FMeshObject* obj2 = myMeshes[aPath];
 			obj2->myVertexBufferView.BufferLocation = obj->myVertexBuffer->GetGPUVirtualAddress();
 			obj2->myVertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
@@ -110,7 +126,18 @@ void FMeshManager::InitLoadedMeshesD3D()
 			obj2->myIndexBufferView.SizeInBytes = sizeof(int) * nrOfIndices;
 
 			obj2->myIndicesCount = nrOfIndices;
+
+			if(loadMeshObj.myCallBack)
+				loadMeshObj.myCallBack(loadMeshObj.myObject->myMeshData);
+
+			FLOG("Mesh Done %s", aPath.c_str());
+			item.second.myLoadState = FMeshLoadObject::LoadState::Done;
 		 }
+		
+		if (item.second.myLoadState == FMeshLoadObject::LoadState::Done)
+		{
+			nrDone++;
+		}
 	}
 
 	if(nrDone && nrDone == myPendingLoadMeshes.size())
@@ -169,8 +196,8 @@ void FMeshManager::LoadMeshObj(const std::string & aPath)
 				vertex.uv.y = 1.0f - m.myAttributes.texcoords[2 * index.texcoord_index + 1];
 			}
 
-			vertex.matId = matId;
-			if (vertex.matId >= 0 && vertex.matId < m.myMaterials.size())
+			vertex.matId = matId == -1 ? 0 : matId;
+			if (matId >= 0 && matId < m.myMaterials.size())
 				vertex.normalmatId = m.myMaterials[matId].bump_texname.empty() ? 99 : matId;
 
 			if (uniqueVertices.count(vertex) == 0) {
@@ -198,7 +225,7 @@ FMeshManager* FMeshManager::GetInstance()
 	return ourInstance;
 }
 
-FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath)
+FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDelegate2<void(const FObjLoader::FObjMesh&)> aCB)
 {
 	//FPROFILE_FUNCTION("Load mesh");
 
@@ -207,6 +234,7 @@ FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath)
 
 	myPendingLoadMeshes[aPath] = FMeshLoadObject();
 	myPendingLoadMeshes[aPath].myObject = new FMeshManager::FMeshObject();
+	myPendingLoadMeshes[aPath].myCallBack = aCB;
 
 	// set object to cube until its loaded
 	FMeshManager::FMeshObject* obj = myPendingLoadMeshes[aPath].myObject;
@@ -222,7 +250,6 @@ FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath)
 	obj->myIndexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetIndicesBuffer()->GetGPUVirtualAddress();
 	obj->myIndexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
 	obj->myIndexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
-
 
 	return obj;
 }

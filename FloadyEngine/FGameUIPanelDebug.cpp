@@ -6,12 +6,13 @@
 #include "FGame.h"
 #include "FD3d12Renderer.h"
 #include "FProfiler.h"
+#include "FSceneGraph.h"
 
 FGameUIPanelDebug::FGameUIPanelDebug()
 {
 	FVector3 pos(0,0,0);
-	FVector3 size(0.1, 0.05, 0);
-	FVector3 offset(0, 0.05, 0);
+	FVector3 size(0.1f, 0.05f, 0);
+	FVector3 offset(0, 0.05f, 0);
 
 	FGUIButtonToggle* button = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FLightManager, &FLightManager::SetDebugDrawEnabled>(FLightManager::GetInstance()));
 	button->SetDynamicText("Light debug");

@@ -93,6 +93,8 @@ FGameHighlightManager::FGameHighlightManager()
 	std::vector<FPostProcessEffect::BindInfo> resources;
 	resources.push_back(FPostProcessEffect::BindInfo(myScratchBuffer, DXGI_FORMAT_R8G8B8A8_UNORM));
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(new FPostProcessEffect(resources, "highlightShaderPost.hlsl", 0, "HighlightPost"));
+	
+	myMutex.Init(FD3d12Renderer::GetInstance()->GetDevice(), "GameHighlightManager");
 }
 
 void FGameHighlightManager::Render()
@@ -185,6 +187,9 @@ void FGameHighlightManager::Render()
 	ID3D12CommandList* ppCommandLists[] = { myCommandList };
 	FD3d12Renderer::GetInstance()->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	FD3d12Renderer::GetInstance()->SetPostProcessDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
+
+	myMutex.Signal(FD3d12Renderer::GetInstance()->GetCommandQueue());
+	myMutex.WaitFor();
 }
 
 void FGameHighlightManager::AddSelectableObject(FGameEntity * anObject)

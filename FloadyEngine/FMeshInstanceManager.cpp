@@ -3,9 +3,10 @@
 #include "FD3d12Renderer.h"
 #include "FGame.h"
 #include "FUtilities.h"
+#include "FPrimitiveBoxMultiTex.h"
 
 static FMeshInstanceManager* ourInstance = nullptr;
-unsigned int FMeshInstanceManager::myNrOfInstancesPerPool = 4;
+unsigned int FMeshInstanceManager::myNrOfInstancesPerPool = 16;
 
 FMeshInstanceManager * FMeshInstanceManager::GetInstance()
 {
@@ -45,7 +46,7 @@ FPrimitiveBoxInstanced* FMeshInstanceManager::GetInstance(const std::string& aMe
 {
 	if (myMeshInstances.find(aMeshName) == myMeshInstances.end())
 	{
-		FUtilities::FLog("Not found!");
+		FLOG("Not found!");
 		return nullptr;
 	}
 
@@ -65,7 +66,47 @@ FMeshInstanceManager::~FMeshInstanceManager()
 FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 {
 	myInstanceCounter = 0;
-	myPool = new FPrimitiveBoxInstanced(FGame::GetInstance()->GetRenderer(), FVector3(10,0,10), FVector3(1,1,1), FPrimitiveBoxInstanced::PrimitiveType::Sphere, myNrOfInstancesPerPool);
+	if(aMeshName == "sphere")
+		myPool = new FPrimitiveBoxInstanced(FGame::GetInstance()->GetRenderer(), FVector3(10,0,10), FVector3(1,1,1), FPrimitiveBoxInstanced::PrimitiveType::Sphere, myNrOfInstancesPerPool);
+	else if (aMeshName == "box")
+		myPool = new FPrimitiveBoxInstanced(FGame::GetInstance()->GetRenderer(), FVector3(10, 0, 10), FVector3(1, 1, 1), FPrimitiveBoxInstanced::PrimitiveType::Box, myNrOfInstancesPerPool);
+	else
+	{
+		// assume its a model
+		myPool = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), FVector3(10, 0, 10), FVector3(1, 1, 1), FPrimitiveBoxInstanced::PrimitiveType::Sphere, myNrOfInstancesPerPool);
+		FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myObjMesh;
+		FObjLoader objLoader;
+		std::string path = "models/";
+		path.append(aMeshName);
+
+		// todo change this to a mesh load object so its clear when tis alive and dead
+		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FObjLoader::FObjMesh&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)));
+		m = mesh->myMeshData;
+
+		dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myMesh = mesh;
+
+		myPool->myIndicesCount = mesh->myIndicesCount;
+		myPool->m_vertexBufferView.BufferLocation = mesh->myVertexBuffer->GetGPUVirtualAddress();
+		myPool->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
+		myPool->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVertices.size();
+		
+		myPool->m_indexBufferView.BufferLocation = mesh->myIndexBuffer->GetGPUVirtualAddress();
+		myPool->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
+		myPool->m_indexBufferView.SizeInBytes = sizeof(int) * mesh->myIndicesCount;
+
+		// setup AABB
+		for (FPrimitiveGeometry::Vertex2& vert : mesh->myVertices)
+		{
+			myPool->myAABB.myMax.x = max(myPool->myAABB.myMax.x, vert.position.x * myPool->GetScale().x);
+			myPool->myAABB.myMax.y = max(myPool->myAABB.myMax.y, vert.position.y * myPool->GetScale().y);
+			myPool->myAABB.myMax.z = max(myPool->myAABB.myMax.z, vert.position.z * myPool->GetScale().z);
+										 
+			myPool->myAABB.myMin.x = min(myPool->myAABB.myMin.x, vert.position.x * myPool->GetScale().x);
+			myPool->myAABB.myMin.y = min(myPool->myAABB.myMin.y, vert.position.y * myPool->GetScale().y);
+			myPool->myAABB.myMin.z = min(myPool->myAABB.myMin.z, vert.position.z * myPool->GetScale().z);
+		}
+	}
+
 	FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myPool, false);
 }
 

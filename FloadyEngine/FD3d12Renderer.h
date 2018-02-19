@@ -61,6 +61,7 @@ public:
 	static FD3d12Renderer* GetInstanceNoCreate();
 	int CreateConstantBuffer(ID3D12Resource*& aResource, UINT8*& aMapToPtr, unsigned int aSize = 256); // returns heapoffset
 	int BindTexture(const std::string& aTexName);
+	void BindTextureToSlot(const std::string& aTexName, int aTextureSlot);
 	void UpdatePendingTextures();
 	void CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DESCRIPTOR_HANDLE& aHandle);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE CreateHeapDescriptorHandleSRV(ID3D12Resource* aResource, DXGI_FORMAT aFormat);
@@ -80,11 +81,16 @@ public:
 	// Render tasks
 	void DoClearBuffers();
 	void DoRenderToGBuffer();
+	void RecordRenderToGBuffer();
+	void RecordDebugDrawer();
+	void RecordShadowPass();
+	void RecordPostProcesss();
+	void WaitForRender();
 	void SetRenderPassDependency(ID3D12CommandQueue* aQueue);
 	void SetPostProcessDependency(ID3D12CommandQueue* aQueue);
 
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
-	ID3D12CommandAllocator* GetCommandAllocator() { return m_commandAllocator; }
+	ID3D12CommandAllocator* GetCommandAllocator();
 	ID3D12DescriptorHeap* GetSRVHeap() { return m_srvHeap; }
 	ID3D12DescriptorHeap* GetRTVHeap() { return m_renderTargetViewHeap; }
 	D3D12_VIEWPORT& GetViewPort() { return m_viewport; }
@@ -131,10 +137,13 @@ private:
 	ID3D12DescriptorHeap* m_renderTargetViewHeap;
 	ID3D12Resource* m_backBufferRenderTarget[2];
 	unsigned int m_bufferIndex;
-	ID3D12CommandAllocator* m_commandAllocator;
 	ID3D12CommandAllocator** m_workerThreadCmdAllocators;
 	ID3D12GraphicsCommandList** m_workerThreadCmdLists;
+	ID3D12GraphicsCommandList* myRenderToGBufferCmdList;
+	ID3D12GraphicsCommandList* myPostProcessCmdList;
+	ID3D12GraphicsCommandList* myDebugDrawerCmdList;
 	ID3D12GraphicsCommandList* m_commandList;
+	ID3D12GraphicsCommandList* myShadowPassCommandLists[16];
 	ID3D12PipelineState* m_pipelineState;
 	ID3D12Fence* m_fence;
 	HANDLE m_fenceEvent;
@@ -147,6 +156,10 @@ private:
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
 	ID3D12Resource* myShadowMap[10];
+
+	ID3D12Resource* myShadowScratchBuff; // to bind as RenderTarget (no need to clear)
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffView;
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffSRV;
 
 	ID3D12Resource* m_gbuffer[Gbuffer_count];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViews[Gbuffer_count];
@@ -170,5 +183,6 @@ private:
 	GPUMutex myRenderPassGputMtx;
 	GPUMutex myPostProcessGpuMtx;
 	GPUMutex myTestMutex;
+	GPUMutex mySpecialMutex;
 };
 

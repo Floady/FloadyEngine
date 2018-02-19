@@ -196,10 +196,10 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 
 	btCollisionWorld::ClosestRayResultCallback cb(start, end);
 	m_dynamicsWorld->rayTest(start, end, cb);
-	if (cb.hasHit()) 
+	if (cb.hasHit())
 	{
 		for (int i = 0; i < myRigidBodies.size(); i++)
-		{				
+		{
 			if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObject->getCollisionShape())
 				return myRigidBodies[i].myGameEntity->GetOwnerEntity();
 		}
@@ -213,6 +213,32 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 	//myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
 
 	return nullptr;
+}
+
+bool FBulletPhysics::RayCast(FVector3 aStart, FVector3 anEnd, FBulletPhysics::RayCastHit& outHitResult)
+{
+	btVector3 start = btVector3(aStart.x, aStart.y, aStart.z);
+	btVector3 end = btVector3(anEnd.x, anEnd.y, anEnd.z);
+	
+	btCollisionWorld::ClosestRayResultCallback cb(start, end);
+	m_dynamicsWorld->rayTest(start, end, cb);
+	if (cb.hasHit())
+	{
+		outHitResult.myPos = FVector3(cb.m_hitPointWorld.getX(), cb.m_hitPointWorld.getY(), cb.m_hitPointWorld.getZ());
+		outHitResult.myNormal = FVector3(cb.m_hitNormalWorld.getX(), cb.m_hitNormalWorld.getY(), cb.m_hitNormalWorld.getZ());
+
+		myDebugDrawer->drawLine(start, end, btVector3(1, 1, 1));
+		float size = 0.1f;
+		aStart = aStart + (anEnd - aStart).Normalized() * 3.0f;
+		myDebugDrawer->DrawTriangle(aStart + FVector3(-size, 0, -size), aStart + FVector3(-size, 0, size), aStart + FVector3(size, 0, size), FVector3(1, 0, 0));
+		size = 0.5f;
+		myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
+		myDebugDrawer->DrawTriangle(outHitResult.myPos + FVector3(-size, 0, -size), outHitResult.myPos + FVector3(-size, 0, size), outHitResult.myPos + FVector3(size, 0, size), FVector3(0, 0, 1));
+
+		return true;
+	}
+
+	return false;
 }
 
 void FBulletPhysics::SetPaused(bool aPause)

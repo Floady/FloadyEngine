@@ -22,6 +22,9 @@ FDebugDrawer::FDebugDrawer(FD3d12Renderer* aManager) : FRenderableObject()
 	line.myColor = FVector3(1, 1, 1);
 	line.myStart = FVector3(0, 0, 0);
 	line.myStart = FVector3(0, 8, 0);
+
+	myPsoLines = nullptr;
+	myPsoTriangles = nullptr;
 }
 
 
@@ -321,6 +324,9 @@ void FDebugDrawer::PopulateCommandListAsync()
 
 void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList)
 {
+	if (!myPsoLines || !myPsoTriangles)
+		return;
+
 	if (myLines.size() == 0 && myTriangles.size() == 0)
 		return;
 

@@ -8,13 +8,14 @@
 			"posX" : 25.0,
 			"posY" : 5.0,
 			"posZ" : 40.0,
-			"scaleX" : 1.0,
-			"scaleY" : 1.0,
-			"scaleZ" : 1.0,
+			"scaleX" : 10.0,
+			"scaleY" : 10.0,
+			"scaleZ" : 10.0,
 			"isNavBlocker" : false,
 			"canMove" :false,
 			"type" : 2,
 			"tex" : "marble.png",
+			"instanced" : true,
 			"model" : "buddha.obj"
 			},
 			"FPhysicsComponent" : 
@@ -22,9 +23,9 @@
 			"posX" : 25.0,
 			"posY" : 5.0,
 			"posZ" : 40.0,
-			"scaleX" : 1.0,
-			"scaleY" : 1.0,
-			"scaleZ" : 1.0,
+			"scaleX" : 10.0,
+			"scaleY" : 10.0,
+			"scaleZ" : 10.0,
 			"mass" : 10.0,
 			"isNavBlocker" : false,
 			"canMove" :false,
@@ -44,18 +45,45 @@
 			"agent" :
 			{
 				"FGameAgent" : 
-				{
-					"posX" : 2.0,
-					"posY" : 12.0,
-					"posZ" : 2.0,
-					"scaleX" : 1.0,
-					"scaleY" : 1.0,
-					"scaleZ" : 1.0,
-					"mass" : 10.0,
-					"isNavBlocker" : false,
-					"canMove" : true,
-					"type" : 0,
-					"tex" : "sky.png"
+				{					
+					"Components" : 
+					{
+						"FRenderMeshComponent" : 
+						{
+						"posX" : 24.0,
+						"posY" : 0.0,
+						"posZ" : 40.0,
+						"scaleX" : 1.0,
+						"scaleY" : 1.0,
+						"scaleZ" : 1.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 2,
+						"tex" : "marble.png",
+						"instanced" : true,
+						"model" : "f16.obj"
+						},
+						"FPhysicsComponent" : 
+						{
+						"posX" : 25.0,
+						"posY" : 5.0,
+						"posZ" : 40.0,
+						"scaleX" : 1.0,
+						"scaleY" : 1.0,
+						"scaleZ" : 1.0,
+						"mass" : 10.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 1
+						},						
+						"FPathfindComponent" : 
+						{
+						}
+					},		
+					"posX" : 20.0,
+					"posY" : 5.0,
+					"posZ" : 40.0,
+					"canMove" :true
 				}
 			},
 			"buildTime" : 2.0,
@@ -67,18 +95,45 @@
 			"agent" :
 			{
 				"FGameAgent" : 
-				{
-					"posX" : 2.0,
-					"posY" : 12.0,
-					"posZ" : 2.0,
-					"scaleX" : 1.0,
-					"scaleY" : 1.0,
-					"scaleZ" : 1.0,
-					"mass" : 10.0,
-					"isNavBlocker" : false,
-					"canMove" : true,
-					"type" : 0,
-					"tex" : "sky.png"
+				{					
+					"Components" : 
+					{
+						"FRenderMeshComponent" : 
+						{
+						"posX" : 24.0,
+						"posY" : 0.0,
+						"posZ" : 40.0,
+						"scaleX" : 0.5,
+						"scaleY" : 0.5,
+						"scaleZ" : 0.5,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 2,
+						"tex" : "marble.png",
+						"instanced" : true,
+						"model" : "f16.obj"
+						},
+						"FPhysicsComponent" : 
+						{
+						"posX" : 25.0,
+						"posY" : 5.0,
+						"posZ" : 40.0,
+						"scaleX" : 0.5,
+						"scaleY" : 0.5,
+						"scaleZ" : 0.5,
+						"mass" : 10.0,
+						"isNavBlocker" : false,
+						"canMove" :false,
+						"type" : 1
+						},						
+						"FPathfindComponent" : 
+						{
+						}
+					},		
+					"posX" : 20.0,
+					"posY" : 5.0,
+					"posZ" : 40.0,
+					"canMove" :true
 				}
 			},
 			"buildTime" : 10.0,

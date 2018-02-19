@@ -15,14 +15,20 @@ struct MyData
 	float4x4 myViewMatrixInstanced[16];
 };
 
+struct InstanceData
+{
+	uint myLightId;
+};
+
 ConstantBuffer<MyData> myData : register(b0);
+ConstantBuffer<InstanceData> myInstanceData : register(b1);
 
 PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 	result.position = position;
 	result.position = mul(result.position, myData.myViewMatrixInstanced[InstanceId]);
-	result.position = mul(result.position, myData.myLightProjMatrix[0]); // todo: send light transform id 
+	result.position = mul(result.position, myData.myLightProjMatrix[myInstanceData.myLightId]); // todo: send light transform id 
 	return result;
 }
 

@@ -46,6 +46,9 @@
     <Filter Include="Game\GameUI">
       <UniqueIdentifier>{ded359e3-e754-41b6-a0bf-1eba989a0a8c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Game\ThrowableBallistics">
+      <UniqueIdentifier>{9b4d991b-c708-4d43-af7c-5cbd0acfe6ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -235,6 +238,9 @@
     <ClCompile Include="FMeshInstanceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FThrowableTrajectory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
@@ -422,6 +428,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FMeshInstanceManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FThrowableTrajectory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

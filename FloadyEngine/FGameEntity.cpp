@@ -45,7 +45,7 @@ void FGameEntity::Init(const FJsonObject & anObj)
 			FGameEntityComponent* comp = CreateComponent(child->GetName());
 			comp->SetOwner(this);
 			comp->Init(*child);
-			FUtilities::FLog("component name: %s\n", child->GetName().c_str());
+			FLOG("component name: %s", child->GetName().c_str());
 			child = components->GetNextChild();
 		}
 	}

@@ -17,7 +17,7 @@ struct PSOutput
 struct MyData
 {
 	float4x4 g_viewProjMatrix;
-	float4x4 g_transform[64];
+	float4x4 g_transform[16];
 };
 
 ConstantBuffer<MyData> myData : register(b0);

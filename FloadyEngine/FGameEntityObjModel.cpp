@@ -71,7 +71,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 	FVector3 pos = myGraphicsObject->GetPos();
 	FVector3 scale = myGraphicsObject->GetScale();
 	delete myGraphicsObject;
-	myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBox::PrimitiveType::Box);
+	myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBoxInstanced::PrimitiveType::Box, 1);
 	FGame::GetInstance()->GetRenderer()->GetSceneGraph().AddObject(myGraphicsObject, false);
 	FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
 	/*/
@@ -164,6 +164,11 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 		nullptr,
 		IID_PPV_ARGS(&m_vertexBuffer));
 
+	if (FAILED(hr))
+	{
+		FLOG("CreateCommittedResource failed %l", hr);
+	}
+
 	// Map the buffer
 	CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 	hr = m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
@@ -237,9 +242,9 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 	string tex = anObj.GetItem("tex").GetAs<string>();
 	myGraphicsObject->SetTexture(tex.c_str());
 
-	FUtilities::FLog("Obj model #vtx: %i\n", vertices.size());
-	FUtilities::FLog("Obj model #idx: %i\n", indices.size());
-	FUtilities::FLog("Obj model #unique idx: %i\n", uniqueVertices.size());
+	FLOG("Obj model #vtx: %i", vertices.size());
+	FLOG("Obj model #idx: %i", indices.size());
+	FLOG("Obj model #unique idx: %i", uniqueVertices.size());
 }
 
 void FGameEntityObjModel::Update(double aDeltaTime)

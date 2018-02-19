@@ -11,11 +11,15 @@ void FUtilities::FLog(const char * fmt, ...)
 		return;
 	}
 
+	//char buff2[1024 * 16];
+	//sprintf(buff2, "%s(%d): %s\n", __FILE__, __LINE__, fmt);
+
 	char buff[1024 * 16];
 	va_list args;
 	va_start(args, fmt);
 	vsprintf(buff, fmt, args);
 	va_end(args);
+	
 	OutputDebugStringA(buff);
 }
 
@@ -59,7 +63,7 @@ void FUtilities::OutputShaderErrorMessage(ID3D10Blob * errorMessage)
 
 	// Get the length of the message.
 	bufferSize = errorMessage->GetBufferSize();
-	FUtilities::FLog("Shader Error: %s", compileErrors);
+	FLOG("Shader Error: %s", compileErrors);
 
 	// Release the error message.
 	errorMessage->Release();

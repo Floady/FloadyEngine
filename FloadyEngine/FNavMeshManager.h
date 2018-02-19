@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <set>
-#include "FVector3.h";
+#include "FVector3.h"
 
 
 /* copyright 2016 Dr David Sinclair

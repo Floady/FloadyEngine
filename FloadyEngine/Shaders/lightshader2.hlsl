@@ -86,7 +86,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		currentPixLuma = weights.x*colorM.x + weights.y*colorM.y + weights.z*colorM.z;
 		float contrast = max(maxLuma, currentPixLuma) - min(minLuma, currentPixLuma);
 		float minThreshold = 0.05f;
-		float threshold = 0.8f;
+		float threshold = 0.5f;
 		
 		// this is the early out test - if pixel should get blurred or not, if so - calculate the direction and do a blur pass
 		if(contrast > max(minThreshold, maxLuma * threshold))
@@ -114,8 +114,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		int extendsX = min(maxBlurDist, abs(normalizedDir.x) * scale);
 		int extendsY = min(maxBlurDist, abs(normalizedDir.y) * scale);
 		int counter = 0;
-		//extendsX = 0;
-		//extendsY = 8;
+		//extendsX = 8;
+		//extendsY = 0;
 		
 		[loop]
 		for( int i = -extendsX; i <= extendsX; i++ )

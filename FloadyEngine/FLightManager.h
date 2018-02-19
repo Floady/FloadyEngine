@@ -19,6 +19,7 @@ public:
 		float myAlpha;
 		unsigned int myId;
 		DirectX::XMFLOAT4X4 myViewProjMatrix;
+		DirectX::XMFLOAT4X4 myProjMatrix;
 		bool myHasMoved;
 	};
 

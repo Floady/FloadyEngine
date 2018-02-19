@@ -35,7 +35,7 @@ FGameBuildingBlueprint::FGameBuildingBlueprint(const char* aSetup)
 	{
 		const FJsonObject* agentNode = menuItemObj->GetChildByName("agent");
 		CreateAgentMenuItem* menuItem = new CreateAgentMenuItem(agentNode->GetName(), menuItemObj->GetItem("icon").GetAs<string>());
-		menuItem->myBuildTime = menuItemObj->GetItem("buildTime").GetAs<double>();
+		menuItem->myBuildTime = static_cast<float>(menuItemObj->GetItem("buildTime").GetAs<double>());
 		menuItem->mySetup = agentNode->GetFirstChild();
 		myMenuItems.push_back(menuItem);
 
@@ -55,7 +55,7 @@ FGameBuildingBlueprint::~FGameBuildingBlueprint()
 
 void FGameBuildingBlueprint::ExecuteMenuItem(int aIdx) const
 {
-	FUtilities::FLog("Menu item: %i \n", aIdx);
+	FLOG("Menu item: %i", aIdx);
 	myMenuItems[aIdx]->Execute();
 }
 
@@ -141,5 +141,5 @@ void FGameBuildingBlueprint::SetRallyPointMenuItem::Execute()
 		return;
 
 	FGame::GetInstance()->GetPlacingManager()->ClearPlacable();
-	FGame::GetInstance()->GetPlacingManager()->SetPlacable(true, FVector3(0.1, 0.1, 0.1), FDelegate2<void(FVector3)>::from<FGameBuilding, &FGameBuilding::SetRallyPointPosWorld>(selectedEntity));
+	FGame::GetInstance()->GetPlacingManager()->SetPlacable(true, FVector3(0.1f, 0.1f, 0.1f), FDelegate2<void(FVector3)>::from<FGameBuilding, &FGameBuilding::SetRallyPointPosWorld>(selectedEntity));
 }

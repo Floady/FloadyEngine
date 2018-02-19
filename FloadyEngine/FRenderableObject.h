@@ -67,6 +67,8 @@ public:
 	virtual void RenderShadows() = 0;
 	virtual void PopulateCommandListAsync() = 0;
 	virtual void PopulateCommandListAsyncShadows() = 0;
+	virtual void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) = 0;
+	virtual void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) = 0;
 	bool CastsShadows() { return myCastsShadows; }
 	void SetCastsShadows(bool aShouldCastShadows) { myCastsShadows = aShouldCastShadows; }
 

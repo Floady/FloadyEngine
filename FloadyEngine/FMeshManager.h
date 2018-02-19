@@ -39,6 +39,7 @@ public:
 			None,
 			Loading,
 			Finished,
+			Done,
 		};
 		FMeshLoadObject() { myLoadState = None; myObject = nullptr; }
 		void Load();
@@ -46,9 +47,10 @@ public:
 		std::vector<int> myIndices;
 		std::string myFileName;
 		LoadState myLoadState;
+		FDelegate2<void(const FObjLoader::FObjMesh&)> myCallBack;
 	};
 
-	FMeshObject* GetMesh(const std::string& aPath);
+	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FObjLoader::FObjMesh&)> aCB = FDelegate2<void(const FObjLoader::FObjMesh&)>::FDelegate2());
 
 private:
 	std::map<std::string, FMeshObject*> myMeshes;

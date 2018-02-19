@@ -78,9 +78,24 @@ void FGameUIManager::SetState(GuiState aState)
 				}
 			}
 
+			for (size_t i = 0; i < ourBuildings.size(); i++)
+			{
+				ourBuildings[i]->Show();
+			}
+
 			myBuildingPanel->Show();
 			
 			break;
+		}
+		case No_UI:
+		{
+			myBuildingPanel->Hide();
+			myDebugPanel->Hide();
+
+			for (size_t i = 0; i < ourBuildings.size(); i++)
+			{
+				ourBuildings[i]->Hide();
+			}
 		}
 	}
 }

@@ -22,6 +22,8 @@ public:
 	void PopulateCommandList();
 	void PopulateCommandListAsync() override;
 	void PopulateCommandListAsyncShadows() override {}
+	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) override {}
+	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) override {}
 	void SetText(const char* aNewText);
 	void SetShader();
 
@@ -62,5 +64,7 @@ private:
 
 	float myWidth;
 	float myHeight;
+	
+	FD3d12Renderer::GPUMutex myMutex;
 };
 

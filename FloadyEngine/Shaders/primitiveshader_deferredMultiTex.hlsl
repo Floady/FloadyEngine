@@ -19,7 +19,7 @@ struct PSOutput
 struct MyData
 {
 	float4x4 g_viewProjMatrix;
-	float4x4 g_transform;
+	float4x4 g_transform[64];
 };
 
 ConstantBuffer<MyData> myData : register(b0);
@@ -90,19 +90,19 @@ Texture2D g_texture62 : register(t62);
 Texture2D g_texture63 : register(t63);
 
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 
 	result.position = float4(position.xyz, 1);
-	result.position = mul(result.position, myData.g_transform);
+	result.position = mul(result.position, myData.g_transform[InstanceId]);
 	result.position = mul(result.position, myData.g_viewProjMatrix);
 	result.depth    = (result.position.z);
 	
 	result.uv = uv;
 	result.normal = normal;
 	result.normal.w = 0.0f;
-	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform);
+	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform[InstanceId]);
 	result.normal = normalize(result.normal);
 	//result.normal = (result.normal + float4(1, 1, 1,1))/2.0f;
 	result.matId = matId.x;
@@ -113,7 +113,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : T
 PSOutput PSMain(PSInput input) : SV_TARGET
 {
 	PSOutput output;
-	output.color = float4(0,0,0,0);
+	output.color = float4(1.0f,0,0,0);
 	//output.color = input.normal; // debug normal draw
 	output.normal = input.normal;
 	output.depth	 = input.depth;
@@ -121,7 +121,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	int matId = input.matId;
 	
-	matId = input.matId + 1;
+	matId = input.matId;
 	if(matId == 0)
 		output.color = g_texture0.Sample(g_sampler, input.uv);
 	else if(matId == 1)

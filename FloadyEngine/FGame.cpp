@@ -38,6 +38,7 @@
 #include "FPathfindComponent.h"
 #include "FJobSystem.h"
 #include "FRenderMeshComponent.h"
+#include "FThrowableTrajectory.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -63,7 +64,7 @@ void FGame::ConstructBuilding(FVector3 aPos)
 
 	myPlacingManager->ClearPlacable();
 
-	FUtilities::FLog("ConstructBuilding: %s\n", myBuildingName);
+	FLOG("ConstructBuilding: %s", myBuildingName);
 
 	FGameBuilding* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
 	entity->SetPos(aPos);
@@ -74,9 +75,11 @@ void FGame::ConstructBuilding(FVector3 aPos)
 	myBuildingName = nullptr;
 }
 
+FThrowableTrajectory myThrowableTrajectory;
+
 void FGame::ConstructBuilding(const char * aBuildingName)
 {
-	FUtilities::FLog("ConstructBuilding: %s\n", aBuildingName);
+	FLOG("ConstructBuilding: %s", aBuildingName);
 	
 	myBuildingName = aBuildingName;
 	FGameBuilding* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
@@ -106,6 +109,7 @@ FGame::FGame()
 	myLevel = nullptr;
 	mySSAO = nullptr;
 	myAA = nullptr;
+	myFpsCounter = nullptr;
 
 	myRenderJobSys = new FJobSystem(1);
 }
@@ -125,6 +129,9 @@ FGame::~FGame()
 
 	delete myCamera;
 	myCamera = nullptr;
+
+	delete myFpsCounter;
+	myFpsCounter = nullptr;
 }
 
 void FGame::Init()
@@ -135,14 +142,14 @@ void FGame::Init()
 	
 	if (!result)
 	{
-		FUtilities::FLog("Failed to init Render window\n");
+		FLOG("Failed to init Render window");
 		return;
 	}
 
 	// Set up engine basics
 	if (!myRenderer->Initialize(myRenderWindow->GetWindowHeight(), myRenderWindow->GetWindowWidth(), myRenderWindow->GetHWND(), false, false))// vsync + fullscreen here
 	{
-		FUtilities::FLog("Failed to init Renderer\n");
+		FLOG("Failed to init Renderer");
 		return;
 	}
 	myRenderer->SetCamera(myCamera);
@@ -155,12 +162,15 @@ void FGame::Init()
 	myPlacingManager = new FPlacingManager();
 
 	// fps counter for performance
-	myFpsCounter = new FDynamicText(myRenderer, FVector3(-1.0f, -1.0f, 0.0),"FPS Counter", 0.3f, 0.05f , true, true);
+	if(true)
+	{
+	myFpsCounter = new FDynamicText(myRenderer, FVector3(-1.0f, -1.0f, 0.0f),"FPS Counter", 0.3f, 0.05f , true, true);
 	myRenderer->GetSceneGraph().AddObject(myFpsCounter, true); // transparant == nondeferred for now..
+	}
 
 	// Load level and add a sunlight
 	myLevel = new FGameLevel("Configs//level3.txt");
-	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25, 0.15, 0.05), 0.0f);
+	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25f, 0.15f, 0.05f), 0.0f);
 
 	// init navmesh	- old 2d navmesh
 //	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
@@ -180,7 +190,7 @@ void FGame::Init()
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(myBlur);
 	// this registers a post effect, we want it at the end cause SSAO + SSAOBlur needs to be first (it doesnt correctly propagate previous results)
 	myHighlightManager = new FGameHighlightManager();
-	//FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
+	FD3d12Renderer::GetInstance()->RegisterPostEffect(myAA);
 
 	// set UI to in game for now
 	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
@@ -188,15 +198,34 @@ void FGame::Init()
 
 bool FGame::Update(double aDeltaTime)
 {
+	FThrowableTrajectory::TrajectoryPath path;
+	FVector3 startPos = FVector3(0, 5, 0);
+	FVector3 dir = FVector3(0.6, 1, 1); dir.Normalize();
+	FVector3 lastPos = startPos;
+	static float trajectoryVelocity = 10.0f;
+	//myThrowableTrajectory.Simulate(startPos, FVector3(0.6, 1, 1), trajectoryVelocity, path, 1000.0f);
+	//
+	//for (FThrowableTrajectory::TrajectoryPathSegment& segment : path.mySegments)
+	//{
+	//	FD3d12Renderer::GetInstance()->GetDebugDrawer()->drawLine(lastPos, segment.myPosition, FVector3(1.0f, 1.0f, 1.0f));
+	//	lastPos = segment.myPosition;
+	//}
+
 	{
 		// update FPS
-		char buff[128];
-		sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f / static_cast<float>(aDeltaTime));
-		myFpsCounter->SetText(buff);
+		if(myFpsCounter)
+		{
+			char buff[128];
+			sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f / static_cast<float>(aDeltaTime));
+			myFpsCounter->SetText(buff);
+		}
 
 		{
-			//FPROFILE_FUNCTION("WaitForRender");
+			FPROFILE_FUNCTION("WaitForRender");
 			myRenderJobSys->WaitForAllJobs();
+			myRenderJobSys->ResetQueue();
+			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
+			myRenderJobSys->UnPause();
 		}
 
 		FPROFILE_FUNCTION("FGame Update");
@@ -213,7 +242,6 @@ bool FGame::Update(double aDeltaTime)
 		FLightManager::GetInstance()->UpdateViewProjMatrices();
 		FLightManager::GetInstance()->ResetVisibleAABB();
 		FLightManager::GetInstance()->ResetHasMoved();
-		FD3d12Renderer::GetInstance()->DoClearBuffers();
 		//*/
 		
 		// quit on escape
@@ -252,6 +280,10 @@ bool FGame::Update(double aDeltaTime)
 		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::Debug);
 			ourShouldRecalc = true;
+		}
+		if (myInput->IsKeyDown(VK_F6))
+		{
+			myGameUIManager->SetState(FGameUIManager::GuiState::No_UI);
 		}
 		static FVector3 vNavEnd;
 		static FVector3 vNavStart;
@@ -342,6 +374,7 @@ bool FGame::Update(double aDeltaTime)
 
 
 		myMutex.WaitFor();
+		//FD3d12Renderer::GetInstance()->DoClearBuffers();
 
 		// Update world
 		{
@@ -376,6 +409,15 @@ bool FGame::Update(double aDeltaTime)
 	{
 		FPROFILE_FUNCTION("FGame Render");
 
+		{
+			FPROFILE_FUNCTION("RenderWorldAsync");
+			myRenderJobSys->WaitForAllJobs();
+			myRenderJobSys->ResetQueue();
+			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderWorldAsync)));
+			myRenderJobSys->UnPause();
+		}
+
+		// update SSAO buffers
 		float constData[80];
 		memcpy(&constData[0], myCamera->GetInvViewProjMatrix().m, 16 * sizeof(float));
 
@@ -407,7 +449,7 @@ bool FGame::Update(double aDeltaTime)
 
 	myMutex.Lock();
 
-	/*
+	//*
 	myRenderJobSys->ResetQueue();
 	myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
 	myRenderJobSys->UnPause(); 
@@ -428,6 +470,23 @@ void FGame::RenderAsync()
 
 	{
 		//FD3d12Renderer::GetInstance()->DoClearBuffers();
-		FD3d12Renderer::GetInstance()->SetRenderPassDependency(FD3d12Renderer::GetInstance()->GetCommandQueue());
+		FD3d12Renderer::GetInstance()->WaitForRender();
 	}
+}
+
+void FGame::ClearBuffersAsync()
+{
+	FPROFILE_FUNCTION("Clear buffers");
+	FD3d12Renderer::GetInstance()->DoClearBuffers();
+	FD3d12Renderer::GetInstance()->WaitForRender();
+}
+
+void FGame::RenderWorldAsync()
+{
+	FPROFILE_FUNCTION("RenderWorldAsync");
+	FD3d12Renderer::GetInstance()->RecordRenderToGBuffer();
+	FD3d12Renderer::GetInstance()->RecordShadowPass();
+	FD3d12Renderer::GetInstance()->RecordPostProcesss();
+	FD3d12Renderer::GetInstance()->RecordDebugDrawer();
+	FD3d12Renderer::GetInstance()->WaitForRender();
 }

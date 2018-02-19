@@ -6,6 +6,12 @@
 
 struct ID3D10Blob;
 
+#define FLOG(x, ...) { \
+char buff2[1024 * 16]; \
+sprintf(buff2, "%s(%d): %s\n", __FILE__, __LINE__, x); \
+FUtilities::FLog(buff2, __VA_ARGS__); \
+}
+
 namespace FUtilities
 {
 	void FLog(const char* fmt, ...);

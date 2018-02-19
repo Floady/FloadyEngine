@@ -13,18 +13,27 @@ FGameLevel::FGameLevel(const char * aLevelName)
 {
 	FJsonObject* level = FJson::Parse(aLevelName); //"Configs//level.txt"
 	const FJsonObject* child = level->GetFirstChild();
+	bool firstOne = false;
 	while (child)
 	{
 		int gridSize = 1;
 		float x = 0.0f;
 		float z = 0.0f;
+		if(firstOne)
+		{
+			gridSize = 5;
+			x = 0.0f;
+			z = 20.0f;
+		}
+
 		for (int i = 0; i < gridSize; i++)
 		{
 			for (int j = 0; j < gridSize; j++)
 			{
 				FGameEntity* newEntity = FGameEntityFactory::GetInstance()->Create(child->GetName());
 				newEntity->Init(*child);
-				//newEntity->SetPos(FVector3(x, 0, z));
+				if (firstOne)
+					newEntity->SetPos(FVector3(x, 0, z));
 				newEntity->GetRenderableObject()->SetPos(FVector3(x, 0, z));
 				myEntityContainer.push_back(newEntity);
 				x += 10;
@@ -34,6 +43,7 @@ FGameLevel::FGameLevel(const char * aLevelName)
 		}
 
 		child = level->GetNextChild();
+		firstOne = false;
 	}
 
 	// procedural lights test

@@ -5,22 +5,23 @@
 	{
 		"FRenderMeshComponent" : 
 		{
-		"posX" : 25.0,
-		"posY" : 5.0,
-		"posZ" : 75.0,
-		"scaleX" : 1.0,
-		"scaleY" : 1.0,
-		"scaleZ" : 1.0,
-		"isNavBlocker" : false,
-		"canMove" :false,
-		"type" : 0,
-		"tex" : "marble.png",
-		"instanced" : true
+			"posX" : 25.0,
+			"posY" : 5.0,
+			"posZ" : 40.0,
+			"scaleX" : 0.01,
+			"scaleY" : 0.01,
+			"scaleZ" : 0.01,
+			"isNavBlocker" : false,
+			"canMove" :false,
+			"type" : 2,
+			"tex" : "marble.png",
+			"model" : "sponza.obj",
+			"instanced" : true
 		}
 	},		
-	"posX" : 20.0,
+	"posX" : 5.0,
 	"posY" : 5.0,
-	"posZ" : 75.0,
+	"posZ" : 5.0,
 	"canMove" : false
 }
 }

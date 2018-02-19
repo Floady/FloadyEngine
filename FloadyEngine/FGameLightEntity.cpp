@@ -16,7 +16,7 @@ FGameLightEntity::FGameLightEntity()
 {
 	myLightId = 0;
 	myColorAlpha = 0;
-	myAlphaStep = 0.3;
+	myAlphaStep = 0.3f;
 	myPos.x = 0; myPos.y = 0; myPos.z = 0;
 }
 
@@ -64,9 +64,9 @@ void FGameLightEntity::Update(double aDeltaTime)
 
 	
 	if (myColorAlpha >= 0.0f)
-		myAlphaStep = -0.3;
+		myAlphaStep = -0.3f;
 	else if(myColorAlpha <= -1.0f)
-		myAlphaStep = 0.3;
+		myAlphaStep = 0.3f;
 
 	// todo: convert this stuff in behaviors or styles that lights can play (movement, color, shuttering)
 	myColorAlpha += myAlphaStep * aDeltaTime;

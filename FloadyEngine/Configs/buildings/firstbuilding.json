@@ -15,6 +15,7 @@
 			"canMove" :false,
 			"type" : 2,
 			"tex" : "marble.png",
+			"instanced" : true,
 			"model" : "sponza.obj"
 			},
 			"FPhysicsComponent" : 

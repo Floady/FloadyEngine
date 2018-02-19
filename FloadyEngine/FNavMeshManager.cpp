@@ -237,7 +237,7 @@ int s_hull_pro(std::vector<Shx> &pts, std::vector<Triad> &triads)
 	float r2 = pts[1].r;
 	float c2 = pts[1].c;
 	int mid = -1;
-	float romin2 = 9.0e20, ro2, R, C;
+	float romin2 = 9.0e20f, ro2, R, C;
 
 	int k = 2;
 	while (k<nump) {
@@ -2557,7 +2557,7 @@ std::vector<FVector3> FNavMeshManager::FindPath(FVector3 aStart, FVector3 anEnd)
 		{
 			if (curTri == startTriangle)
 			{
-				FUtilities::FLog("Path could not be computed\n"); //path impossible
+				FLOG("Path could not be computed\n"); //path impossible
 				break;
 			}
 			continue;
@@ -2594,7 +2594,7 @@ std::vector<FVector3> FNavMeshManager::FindPath(FVector3 aStart, FVector3 anEnd)
 	{
 		if (tri == -1)
 		{
-			FUtilities::FLog("PrevNode not set, abort backtrace\n");
+			FLOG("PrevNode not set, abort backtrace\n");
 			return std::vector<FVector3>();
 			//break;
 		}

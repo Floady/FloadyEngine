@@ -37,6 +37,8 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 
 	myWidth = aWidth;
 	myHeight = aHeight;
+
+	myMutex.Init(aManager->GetDevice(), "FDynamicTest");
 }
 
 FDynamicText::~FDynamicText()
@@ -170,15 +172,8 @@ void FDynamicText::Init()
 	}
 
 	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
 
 	skipNextRender = false;
 }
@@ -198,17 +193,6 @@ void FDynamicText::Render()
 
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	// wait for cmdlist to be done before returning
-	//ID3D12Fence* m_fence;
-	//HANDLE m_fenceEvent;
-	//m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	//int fenceToWaitFor = 1; // what value?
-	//HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	//result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	//m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	//WaitForSingleObject(m_fenceEvent, INFINITE);
-	//m_fence->Release();
 }
 
 void FDynamicText::PopulateCommandList()
@@ -332,10 +316,8 @@ void FDynamicText::PopulateCommandListAsync()
 		return;
 
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
-	ID3D12CommandAllocator* cmdAllocator = myManagerClass->GetCommandAllocatorForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
 	
-	HRESULT hr;
 	if (myIsDeferred)
 	{
 		// copy modelviewproj data to gpu
@@ -582,16 +564,8 @@ void FDynamicText::SetShader()
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
-	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
 
 	firstFrame = false;
 }

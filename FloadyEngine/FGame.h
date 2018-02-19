@@ -31,6 +31,8 @@ public:
 	void Init();
 	bool Update(double aDeltaTime);
 	void RenderAsync();
+	void ClearBuffersAsync();
+	void RenderWorldAsync();
 	static FGame* GetInstance() { return ourInstance; }
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }

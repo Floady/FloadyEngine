@@ -101,37 +101,37 @@ private:
 
 void FObjLoader::PrintInfo(const tinyobj::attrib_t& attrib,	const std::vector<tinyobj::shape_t>& shapes, const std::vector<tinyobj::material_t>& materials) 
 {
-	FUtilities::FLog("# of vertices    : %i\n", (attrib.vertices.size() / 3));
-	FUtilities::FLog("# of normals    : %i\n", (attrib.normals.size() / 3));
-	FUtilities::FLog("# of texcoords    : %i\n", (attrib.texcoords.size() / 2));
-	FUtilities::FLog("# of shapes    : %i\n", shapes.size());
-	FUtilities::FLog("# of materials    : %i\n", materials.size());
+	FLOG("# of vertices    : %i", (attrib.vertices.size() / 3));
+	FLOG("# of normals    : %i", (attrib.normals.size() / 3));
+	FLOG("# of texcoords    : %i", (attrib.texcoords.size() / 2));
+	FLOG("# of shapes    : %i", shapes.size());
+	FLOG("# of materials    : %i", materials.size());
 
 	for (size_t v = 0; v < attrib.vertices.size() / 3; v++) {
-		FUtilities::FLog("  v[%ld] = (%f, %f, %f)\n", static_cast<long>(v),
+		FLOG("  v[%ld] = (%f, %f, %f)", static_cast<long>(v),
 			static_cast<const double>(attrib.vertices[3 * v + 0]),
 			static_cast<const double>(attrib.vertices[3 * v + 1]),
 			static_cast<const double>(attrib.vertices[3 * v + 2]));
 	}
 
 	for (size_t v = 0; v < attrib.normals.size() / 3; v++) {
-		FUtilities::FLog("  n[%ld] = (%f, %f, %f)\n", static_cast<long>(v),
+		FLOG("  n[%ld] = (%f, %f, %f)", static_cast<long>(v),
 			static_cast<const double>(attrib.normals[3 * v + 0]),
 			static_cast<const double>(attrib.normals[3 * v + 1]),
 			static_cast<const double>(attrib.normals[3 * v + 2]));
 	}
 
 	for (size_t v = 0; v < attrib.texcoords.size() / 2; v++) {
-		FUtilities::FLog("  uv[%ld] = (%f, %f)\n", static_cast<long>(v),
+		FLOG("  uv[%ld] = (%f, %f)", static_cast<long>(v),
 			static_cast<const double>(attrib.texcoords[2 * v + 0]),
 			static_cast<const double>(attrib.texcoords[2 * v + 1]));
 	}
 
 	// For each shape
 	for (size_t i = 0; i < shapes.size(); i++) {
-		FUtilities::FLog("shape[%ld].name = %s\n", static_cast<long>(i),
+		FLOG("shape[%ld].name = %s", static_cast<long>(i),
 			shapes[i].name.c_str());
-		FUtilities::FLog("Size of shape[%ld].indices: %lu\n", static_cast<long>(i),
+		FLOG("Size of shape[%ld].indices: %lu", static_cast<long>(i),
 			static_cast<unsigned long>(shapes[i].mesh.indices.size()));
 
 		size_t index_offset = 0;
@@ -139,132 +139,132 @@ void FObjLoader::PrintInfo(const tinyobj::attrib_t& attrib,	const std::vector<ti
 		assert(shapes[i].mesh.num_face_vertices.size() ==
 			shapes[i].mesh.material_ids.size());
 
-		FUtilities::FLog("shape[%ld].num_faces: %lu\n", static_cast<long>(i),
+		FLOG("shape[%ld].num_faces: %lu", static_cast<long>(i),
 			static_cast<unsigned long>(shapes[i].mesh.num_face_vertices.size()));
 
 		// For each face
 		for (size_t f = 0; f < shapes[i].mesh.num_face_vertices.size(); f++) {
 			size_t fnum = shapes[i].mesh.num_face_vertices[f];
 
-			FUtilities::FLog("  face[%ld].fnum = %ld\n", static_cast<long>(f),
+			FLOG("  face[%ld].fnum = %ld", static_cast<long>(f),
 				static_cast<unsigned long>(fnum));
 
 			// For each vertex in the face
 			for (size_t v = 0; v < fnum; v++) {
 				tinyobj::index_t idx = shapes[i].mesh.indices[index_offset + v];
-				printf("    face[%ld].v[%ld].idx = %d/%d/%d\n", static_cast<long>(f),
+				printf("    face[%ld].v[%ld].idx = %d/%d/%d", static_cast<long>(f),
 					static_cast<long>(v), idx.vertex_index, idx.normal_index,
 					idx.texcoord_index);
 			}
 
-			FUtilities::FLog("  face[%ld].material_id = %d\n", static_cast<long>(f),
+			FLOG("  face[%ld].material_id = %d", static_cast<long>(f),
 				shapes[i].mesh.material_ids[f]);
 
 			index_offset += fnum;
 		}
 
-		FUtilities::FLog("shape[%ld].num_tags: %lu\n", static_cast<long>(i),
+		FLOG("shape[%ld].num_tags: %lu", static_cast<long>(i),
 			static_cast<unsigned long>(shapes[i].mesh.tags.size()));
 		for (size_t t = 0; t < shapes[i].mesh.tags.size(); t++) {
-			FUtilities::FLog("  tag[%ld] = %s ", static_cast<long>(t),
+			FLOG("  tag[%ld] = %s ", static_cast<long>(t),
 				shapes[i].mesh.tags[t].name.c_str());
-			FUtilities::FLog(" ints: [");
+			FLOG(" ints: [");
 			for (size_t j = 0; j < shapes[i].mesh.tags[t].intValues.size(); ++j) {
-				FUtilities::FLog("%ld", static_cast<long>(shapes[i].mesh.tags[t].intValues[j]));
+				FLOG("%ld", static_cast<long>(shapes[i].mesh.tags[t].intValues[j]));
 				if (j < (shapes[i].mesh.tags[t].intValues.size() - 1)) {
-					FUtilities::FLog(", ");
+					FLOG(", ");
 				}
 			}
-			FUtilities::FLog("]");
+			FLOG("]");
 
-			FUtilities::FLog(" floats: [");
+			FLOG(" floats: [");
 			for (size_t j = 0; j < shapes[i].mesh.tags[t].floatValues.size(); ++j) {
-				FUtilities::FLog("%f", static_cast<const double>(
+				FLOG("%f", static_cast<const double>(
 					shapes[i].mesh.tags[t].floatValues[j]));
 				if (j < (shapes[i].mesh.tags[t].floatValues.size() - 1)) {
-					FUtilities::FLog(", ");
+					FLOG(", ");
 				}
 			}
-			FUtilities::FLog("]");
+			FLOG("]");
 
-			FUtilities::FLog(" strings: [");
+			FLOG(" strings: [");
 			for (size_t j = 0; j < shapes[i].mesh.tags[t].stringValues.size(); ++j) {
-				FUtilities::FLog("%s", shapes[i].mesh.tags[t].stringValues[j].c_str());
+				FLOG("%s", shapes[i].mesh.tags[t].stringValues[j].c_str());
 				if (j < (shapes[i].mesh.tags[t].stringValues.size() - 1)) {
-					FUtilities::FLog(", ");
+					FLOG(", ");
 				}
 			}
-			FUtilities::FLog("]");
-			FUtilities::FLog("\n");
+			FLOG("]");
+			FLOG("");
 		}
 	}
 
 	for (size_t i = 0; i < materials.size(); i++) {
-		FUtilities::FLog("material[%ld].name = %s\n", static_cast<long>(i),
+		FLOG("material[%ld].name = %s", static_cast<long>(i),
 			materials[i].name.c_str());
-		FUtilities::FLog("  material.Ka = (%f, %f ,%f)\n",
+		FLOG("  material.Ka = (%f, %f ,%f)",
 			static_cast<const double>(materials[i].ambient[0]),
 			static_cast<const double>(materials[i].ambient[1]),
 			static_cast<const double>(materials[i].ambient[2]));
-		FUtilities::FLog("  material.Kd = (%f, %f ,%f)\n",
+		FLOG("  material.Kd = (%f, %f ,%f)",
 			static_cast<const double>(materials[i].diffuse[0]),
 			static_cast<const double>(materials[i].diffuse[1]),
 			static_cast<const double>(materials[i].diffuse[2]));
-		FUtilities::FLog("  material.Ks = (%f, %f ,%f)\n",
+		FLOG("  material.Ks = (%f, %f ,%f)",
 			static_cast<const double>(materials[i].specular[0]),
 			static_cast<const double>(materials[i].specular[1]),
 			static_cast<const double>(materials[i].specular[2]));
-		FUtilities::FLog("  material.Tr = (%f, %f ,%f)\n",
+		FLOG("  material.Tr = (%f, %f ,%f)",
 			static_cast<const double>(materials[i].transmittance[0]),
 			static_cast<const double>(materials[i].transmittance[1]),
 			static_cast<const double>(materials[i].transmittance[2]));
-		FUtilities::FLog("  material.Ke = (%f, %f ,%f)\n",
+		FLOG("  material.Ke = (%f, %f ,%f)",
 			static_cast<const double>(materials[i].emission[0]),
 			static_cast<const double>(materials[i].emission[1]),
 			static_cast<const double>(materials[i].emission[2]));
-		FUtilities::FLog("  material.Ns = %f\n",
+		FLOG("  material.Ns = %f",
 			static_cast<const double>(materials[i].shininess));
-		FUtilities::FLog("  material.Ni = %f\n", static_cast<const double>(materials[i].ior));
-		FUtilities::FLog("  material.dissolve = %f\n",
+		FLOG("  material.Ni = %f", static_cast<const double>(materials[i].ior));
+		FLOG("  material.dissolve = %f",
 			static_cast<const double>(materials[i].dissolve));
-		FUtilities::FLog("  material.illum = %d\n", materials[i].illum);
-		FUtilities::FLog("  material.map_Ka = %s\n", materials[i].ambient_texname.c_str());
-		FUtilities::FLog("  material.map_Kd = %s\n", materials[i].diffuse_texname.c_str());
-		FUtilities::FLog("  material.map_Ks = %s\n", materials[i].specular_texname.c_str());
-		FUtilities::FLog("  material.map_Ns = %s\n",
+		FLOG("  material.illum = %d", materials[i].illum);
+		FLOG("  material.map_Ka = %s", materials[i].ambient_texname.c_str());
+		FLOG("  material.map_Kd = %s", materials[i].diffuse_texname.c_str());
+		FLOG("  material.map_Ks = %s", materials[i].specular_texname.c_str());
+		FLOG("  material.map_Ns = %s",
 			materials[i].specular_highlight_texname.c_str());
-		FUtilities::FLog("  material.map_bump = %s\n", materials[i].bump_texname.c_str());
-		FUtilities::FLog("    bump_multiplier = %f\n", static_cast<const double>(materials[i].bump_texopt.bump_multiplier));
-		FUtilities::FLog("  material.map_d = %s\n", materials[i].alpha_texname.c_str());
-		FUtilities::FLog("  material.disp = %s\n", materials[i].displacement_texname.c_str());
-		FUtilities::FLog("  <<PBR>>\n");
-		FUtilities::FLog("  material.Pr     = %f\n", static_cast<const double>(materials[i].roughness));
-		FUtilities::FLog("  material.Pm     = %f\n", static_cast<const double>(materials[i].metallic));
-		FUtilities::FLog("  material.Ps     = %f\n", static_cast<const double>(materials[i].sheen));
-		FUtilities::FLog("  material.Pc     = %f\n", static_cast<const double>(materials[i].clearcoat_thickness));
-		FUtilities::FLog("  material.Pcr    = %f\n", static_cast<const double>(materials[i].clearcoat_thickness));
-		FUtilities::FLog("  material.aniso  = %f\n", static_cast<const double>(materials[i].anisotropy));
-		FUtilities::FLog("  material.anisor = %f\n", static_cast<const double>(materials[i].anisotropy_rotation));
-		FUtilities::FLog("  material.map_Ke = %s\n", materials[i].emissive_texname.c_str());
-		FUtilities::FLog("  material.map_Pr = %s\n", materials[i].roughness_texname.c_str());
-		FUtilities::FLog("  material.map_Pm = %s\n", materials[i].metallic_texname.c_str());
-		FUtilities::FLog("  material.map_Ps = %s\n", materials[i].sheen_texname.c_str());
-		FUtilities::FLog("  material.norm   = %s\n", materials[i].normal_texname.c_str());
+		FLOG("  material.map_bump = %s", materials[i].bump_texname.c_str());
+		FLOG("    bump_multiplier = %f", static_cast<const double>(materials[i].bump_texopt.bump_multiplier));
+		FLOG("  material.map_d = %s", materials[i].alpha_texname.c_str());
+		FLOG("  material.disp = %s", materials[i].displacement_texname.c_str());
+		FLOG("  <<PBR>>");
+		FLOG("  material.Pr     = %f", static_cast<const double>(materials[i].roughness));
+		FLOG("  material.Pm     = %f", static_cast<const double>(materials[i].metallic));
+		FLOG("  material.Ps     = %f", static_cast<const double>(materials[i].sheen));
+		FLOG("  material.Pc     = %f", static_cast<const double>(materials[i].clearcoat_thickness));
+		FLOG("  material.Pcr    = %f", static_cast<const double>(materials[i].clearcoat_thickness));
+		FLOG("  material.aniso  = %f", static_cast<const double>(materials[i].anisotropy));
+		FLOG("  material.anisor = %f", static_cast<const double>(materials[i].anisotropy_rotation));
+		FLOG("  material.map_Ke = %s", materials[i].emissive_texname.c_str());
+		FLOG("  material.map_Pr = %s", materials[i].roughness_texname.c_str());
+		FLOG("  material.map_Pm = %s", materials[i].metallic_texname.c_str());
+		FLOG("  material.map_Ps = %s", materials[i].sheen_texname.c_str());
+		FLOG("  material.norm   = %s", materials[i].normal_texname.c_str());
 		std::map<std::string, std::string>::const_iterator it(
 			materials[i].unknown_parameter.begin());
 		std::map<std::string, std::string>::const_iterator itEnd(
 			materials[i].unknown_parameter.end());
 
 		for (; it != itEnd; it++) {
-			FUtilities::FLog("  material.%s = %s\n", it->first.c_str(), it->second.c_str());
+			FLOG("  material.%s = %s", it->first.c_str(), it->second.c_str());
 		}
-		FUtilities::FLog("\n");
+		FLOG("");
 	}
 }
 
 bool FObjLoader::TestLoadObj(const char* filename, const char* basepath, bool triangulate) 
 {
-	FUtilities::FLog("Loading %s\n", filename);
+	FLOG("Loading %s", filename);
 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -275,14 +275,14 @@ bool FObjLoader::TestLoadObj(const char* filename, const char* basepath, bool tr
 	std::string err;
 	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, basepath, triangulate);
 	t.end();
-	FUtilities::FLog("Parsing time: %lu [msecs]\n", t.msec());
+	FLOG("Parsing time: %lu [msecs]", t.msec());
 
 	if (!err.empty()) {
-		FUtilities::FLog("%s\n", err.c_str());
+		FLOG("%s", err.c_str());
 	}
 
 	if (!ret) {
-		FUtilities::FLog("Failed to load/parse .obj.\n");
+		FLOG("Failed to load/parse .obj.");
 		return false;
 	}
 
@@ -294,7 +294,7 @@ bool FObjLoader::TestLoadObj(const char* filename, const char* basepath, bool tr
 
 bool FObjLoader::LoadObj(const char* filename, FObjMesh& aMesh, const char* basepath, bool triangulate) 
 {
-	FUtilities::FLog("Loading %s\n", filename);
+	FLOG("Loading %s", filename);
 
 	tinyobj::attrib_t& attrib = aMesh.myAttributes;
 	std::vector<tinyobj::shape_t>& shapes = aMesh.myShapes;
@@ -305,14 +305,14 @@ bool FObjLoader::LoadObj(const char* filename, FObjMesh& aMesh, const char* base
 	std::string err;
 	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, basepath, triangulate);
 	t.end();
-	FUtilities::FLog("Parsing time: %lu [msecs]\n", t.msec());
+	FLOG("Parsing time: %lu [msecs]", t.msec());
 
 	if (!err.empty()) {
-		FUtilities::FLog("%s\n", err.c_str());
+		FLOG("%s", err.c_str());
 	}
 
 	if (!ret) {
-		FUtilities::FLog("Failed to load/parse .obj.\n");
+		FLOG("Failed to load/parse .obj.");
 		return false;
 	}
 
@@ -322,7 +322,7 @@ bool FObjLoader::LoadObj(const char* filename, FObjMesh& aMesh, const char* base
 }
 
 bool FObjLoader::TestStreamLoadObj() {
-	FUtilities::FLog("tream Loading.\n");
+	FLOG("tream Loading.");
 
 	std::stringstream objStream;
 	objStream << "mtllib cube.mtl\n"
@@ -418,7 +418,7 @@ bool FObjLoader::TestStreamLoadObj() {
 		&matSSReader);
 
 	if (!err.empty()) {
-		FUtilities::FLog("%s\n", err.c_str());
+		FLOG("%s", err.c_str());
 	}
 
 	if (!ret) {
@@ -432,7 +432,7 @@ bool FObjLoader::TestStreamLoadObj() {
 
 FObjLoader::FObjLoader()
 {
-	FUtilities::FLog("FOBJLoader triggered \n");
+	FLOG("FOBJLoader triggered ");
 }
 
 

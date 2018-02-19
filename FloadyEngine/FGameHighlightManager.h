@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "d3d12.h"
+#include "FD3d12Renderer.h"
 
 class FGameEntity;
 
@@ -29,5 +30,7 @@ private:
 	ID3D12Resource* myProjectionMatrix;
 	UINT8* myConstantBufferPtrProjMatrix;
 	int heapOffset;
+
+	FD3d12Renderer::GPUMutex myMutex;
 };
 

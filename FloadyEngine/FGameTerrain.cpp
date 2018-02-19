@@ -58,9 +58,9 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	
 	indices.clear();
 	indices.reserve(myTerrainSizeX * myTerrainSizeZ * 6);
-	for (size_t j = 0; j < myTerrainSizeX - 1; j++)
+	for (int j = 0; j < myTerrainSizeX - 1; j++)
 	{
-			for (size_t i = 0; i < myTerrainSizeZ - 1; i++)
+			for (int i = 0; i < myTerrainSizeZ - 1; i++)
 		{
 			indices.push_back(j + (i*myTerrainSizeZ));
 			indices.push_back(j + 1 + (i*myTerrainSizeZ));
@@ -81,8 +81,8 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	const int baseHeight = 1;
 	const int maxHeight = 20;
 	const int percentageOfExtrudes = 10;
-	for (size_t i = 1; i < myTerrainSizeX-1; i++)
-		for (size_t j = 1; j < myTerrainSizeZ-1; j++)
+	for (int i = 1; i < myTerrainSizeX-1; i++)
+		for (int j = 1; j < myTerrainSizeZ-1; j++)
 		{
 			int idx = i + j * myTerrainSizeX;
 			if (rand() % 100 < percentageOfExtrudes)
@@ -143,7 +143,7 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	
 	myGraphicsObject->SetShader("terrainShader.hlsl");
 
-	FUtilities::FLog("Terrain made \n");
+	FLOG("Terrain made");
 
 	btTriangleMesh* triangleMeshTerrain = new btTriangleMesh();
 	for (int i = 0; i < indices.size(); i+=3)
@@ -182,6 +182,7 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 
 	myGraphicsObject->myAABB.Grow(FVector3(myTerrainSizeX * myTileSize, 40, myTerrainSizeZ * myTileSize));
+	//myGraphicsObject->SetCastsShadows(false);
 }
 
 

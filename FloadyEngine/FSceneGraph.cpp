@@ -1,4 +1,5 @@
 #include "FSceneGraph.h"
+#include "FUtilities.h"
 
 
 
@@ -18,17 +19,60 @@ void FSceneGraph::InitNewObjects()
 		}
 	}
 
+	if (myInitObjects.size() > 0)
+		FLOG("Initialized new objects");
+
 	myInitObjects.clear();
 }
 
-void FSceneGraph::AddObject(FRenderableObject * anObject, bool anIsTransparant)
+void FSceneGraph::AddObject(FRenderableObject * anObject, bool anIsTransparant, bool callInit)
 {
 	if (anIsTransparant)
-		myTransparantObjects.push_back(anObject);
-	else
-		myObjects.push_back(anObject);
+	{
+		bool isInList = false;
+		for (FRenderableObject* obj : myTransparantObjects)
+		{
+			if (obj == anObject)
+			{
+				isInList = true;
+				break;
+			}
+		}
 
-	myInitObjects.push_back(anObject);
+		if (!isInList)
+			myTransparantObjects.push_back(anObject);
+	}
+	else
+	{
+		bool isInList = false;
+		for (FRenderableObject* obj : myObjects)
+		{
+			if (obj == anObject)
+			{
+				isInList = true;
+				break;
+			}
+		}
+
+		if (!isInList)
+			myObjects.push_back(anObject);
+	}
+
+	if(callInit)
+	{	
+		bool isInList = false;
+		for (FRenderableObject* obj : myInitObjects)
+		{
+			if (obj == anObject)
+			{
+				isInList = true;
+				break;
+			}
+		}
+
+		if(!isInList)
+			myInitObjects.push_back(anObject);
+	}
 }
 
 void FSceneGraph::RemoveObject(FRenderableObject * anObject)
@@ -56,6 +100,27 @@ void FSceneGraph::RemoveObject(FRenderableObject * anObject)
 		if (*it == anObject)
 		{
 			myInitObjects.erase(it);
+			break;
+		}
+	}
+}
+
+void FSceneGraph::HideObject(FRenderableObject * anObject)
+{
+	for (std::vector<FRenderableObject*>::iterator it = myTransparantObjects.begin(); it != myTransparantObjects.end(); ++it)
+	{
+		if (*it == anObject)
+		{
+			myTransparantObjects.erase(it);
+			break;
+		}
+	}
+
+	for (std::vector<FRenderableObject*>::iterator it = myObjects.begin(); it != myObjects.end(); ++it)
+	{
+		if (*it == anObject)
+		{
+			myObjects.erase(it);
 			break;
 		}
 	}

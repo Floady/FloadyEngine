@@ -12,6 +12,7 @@
 #include "FProfiler.h"
 
 static std::string ourFallbackTextureName = "reserved_fallback.reserved";
+#pragma optimize("", off)
 
 namespace
 {
@@ -252,7 +253,7 @@ void FTextureManager::ReloadTextures()
 		hFind = FindFirstFileW(folderFilters[i], &data);
 		if (hFind != INVALID_HANDLE_VALUE) {
 			do {
-				FUtilities::FLog("%ws\n", data.cFileName);
+				FLOG("%ws", data.cFileName);
 
 				std::wstring mywstring(data.cFileName);
 				std::wstring concatted_stdstr = folderPrefix[i] + mywstring;
@@ -266,12 +267,12 @@ void FTextureManager::ReloadTextures()
 					//	FPROFILE_FUNCTION("FAssetImg Load");
 
 						if (!LoadTexture(cStrFilenameConcat.c_str()))
-							FUtilities::FLog("Failed loading: %ws\n", data.cFileName);
+							FLOG("Failed loading: %ws", data.cFileName);
 					}
 					myTextures[cStrFilename].myWidth = fi_width;
 					myTextures[cStrFilename].myHeight = fi_height;
 					myTextures[cStrFilename].myRawPixelData = transformedBytes2;
-					FUtilities::FLog("Taking load data from FreeImage for: %ws\n", data.cFileName);
+					FLOG("Taking load data from FreeImage for: %ws", data.cFileName);
 				}
 				else
 				{
@@ -280,7 +281,7 @@ void FTextureManager::ReloadTextures()
 					myTextures[cStrFilename].myWidth = width;
 					myTextures[cStrFilename].myHeight = height;
 					myTextures[cStrFilename].myRawPixelData = transformedBytes;
-					FUtilities::FLog("Taking load data from libPNG straight for: %ws\n", data.cFileName);
+					FLOG("Taking load data from libPNG straight for: %ws", data.cFileName);
 				}
 
 				myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
@@ -373,12 +374,20 @@ FTextureManager::FTextureManager()
 
 void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsCommandList* aCommandList)
 {
+	const int maxItems = 5;
+	int nrOfItemsDone = 0;
 	for (std::map<std::string, TextureInfo>::iterator it = myTextures.begin(); it != myTextures.end(); ++it)
 	{
+		if (nrOfItemsDone >= maxItems)
+		{
+			break;
+		}
+
 		TextureInfo& texture = it->second;
 		if (texture.myRawPixelData && !texture.myD3DResource)
 		{
-			FUtilities::FLog("init: %s\n", it->first.c_str());
+			nrOfItemsDone++;
+			FLOG("init: %s", it->first.c_str());
 			// Describe and create a Texture2D.
 			D3D12_RESOURCE_DESC textureDesc = {};
 			textureDesc.MipLevels = 1;
@@ -391,13 +400,19 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 			textureDesc.SampleDesc.Quality = 0;
 			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-			aDevice->CreateCommittedResource(
+			HRESULT hr = aDevice->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE,
 				&textureDesc,
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
 				IID_PPV_ARGS(&texture.myD3DResource));
+
+			if (FAILED(hr))
+			{
+				HRESULT hr2 = FD3d12Renderer::GetInstance()->GetDevice()->GetDeviceRemovedReason();
+				FLOG("CreateCommitedResource failed %x [%x]", hr, hr2);
+			}
 
 			// Create the GPU upload buffer.
 			ID3D12Resource* textureUploadHeap;

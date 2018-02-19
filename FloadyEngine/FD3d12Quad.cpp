@@ -17,6 +17,7 @@ FD3d12Quad::FD3d12Quad(FD3d12Renderer* aManager, FVector3 aPos)
 {
 	myManagerClass = aManager;
 	int tmp = aManager->GetNextOffset();
+	//myMutex.Init(aManager->GetDevice(), "Fd3d12QuadSetShader");
 }
 
 FD3d12Quad::~FD3d12Quad()
@@ -396,20 +397,9 @@ void FD3d12Quad::SetShader()
 	if (!firstFrame)
 	{
 		m_commandList->Close();
-		ID3D12CommandList* ppCommandLists[] = { m_commandList };
-		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
 	// wait for cmdlist to be done before returning
-	ID3D12Fence* m_fence;
-	HANDLE m_fenceEvent;
-	m_fenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-	int fenceToWaitFor = 1; // what value?
-	HRESULT result = myManagerClass->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence);
-	result = myManagerClass->GetCommandQueue()->Signal(m_fence, fenceToWaitFor);
-	m_fence->SetEventOnCompletion(1, m_fenceEvent);
-	WaitForSingleObject(m_fenceEvent, INFINITE);
-	m_fence->Release();
 
 	firstFrame = false;
 }

@@ -231,7 +231,7 @@ void FPostProcessEffect::SetShader()
 	{
 		_com_error err(hr);
 		LPCTSTR errMsg = err.ErrorMessage();
-		FUtilities::FLog(FUtilities::ConvertFromUtf16ToUtf8(std::wstring(errMsg).append(L"\n")).c_str());
+		FLOG(FUtilities::ConvertFromUtf16ToUtf8(std::wstring(errMsg)).c_str());
 	}
 
 	hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, FD3d12Renderer::GetInstance()->GetCommandAllocator(), myPipelineState, IID_PPV_ARGS(&myCommandList));
@@ -302,7 +302,7 @@ void FPostProcessEffect::Render()
 	CloseHandle(m_fenceEvent);
 }
 
-void FPostProcessEffect::RenderAsync()
+void FPostProcessEffect::RenderAsync(ID3D12GraphicsCommandList* aCmdList)
 {
 	if (skipNextRender)
 	{
@@ -310,9 +310,12 @@ void FPostProcessEffect::RenderAsync()
 		return;
 	}
 
+	if (!myPipelineState)
+		return;
+
 	//FPROFILE_FUNCTION(myDebugName);
 
-	ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
+	ID3D12GraphicsCommandList* cmdList = aCmdList; // FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 
 	// Set necessary state.
 	cmdList->SetGraphicsRootSignature(myRootSignature);

@@ -116,16 +116,16 @@ void FNavMeshManagerRecast::DebugDraw()
 
 				const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-				FVector3 colorNav(0.5,0.8,0.5);
+				FVector3 colorNav(0.5f,0.8f,0.5f);
 				dtPolyRef base = navmesh->getPolyRefBase(tile);
 				const dtNavMeshQuery* query = nullptr;
 				unsigned char flags = 0;
 				if (query && query->isInClosedList(base | (dtPolyRef)i))
-					colorNav = FVector3(1, 0.8, 0);
+					colorNav = FVector3(1, 0.8f, 0);
 				else
 				{
 					if (p->getArea() == 1) // these flags are game specific - todo improve with enums and area costs
-						colorNav = FVector3(0.8, 0.2, 0.2);
+						colorNav = FVector3(0.8f, 0.2f, 0.2f);
 					/*
 					if (flags & DU_DRAWNAVMESH_COLOR_TILES) //DU_DRAWNAVMESH_COLOR_TILES
 						col = tileColor;
@@ -236,7 +236,7 @@ void FNavMeshManagerRecast::DebugDraw()
 
 	if (myDebugFlags & (1 << DebugDrawFlags::DRAW_VERTICES))
 	{
-		FVector3 colorVtx(0.5, 0.1, 0.1);
+		FVector3 colorVtx(0.5f, 0.1f, 0.1f);
 		for (int i = 0; i < m_pmesh->nverts; ++i)
 		{
 			const unsigned short* v = &m_pmesh->verts[i * 3];
@@ -294,8 +294,8 @@ void FNavMeshManagerRecast::DebugDraw()
 
 bool FNavMeshManagerRecast::GenerateNavMesh()
 {
-	float m_cellSize = 1.3;
-	float m_cellHeight = 0.5;
+	float m_cellSize = 1.3f;
+	float m_cellHeight = 0.5f;
 	float m_agentHeight = 2.0f;
 	float m_agentRadius = 1.0f;
 	float m_agentMaxClimb = 1.0f;
@@ -710,7 +710,7 @@ FVector3 FNavMeshManagerRecast::RayCast(FVector3 aStart, FVector3 anEnd)
 		}
 	}
 
-	FD3d12Renderer::GetInstance()->GetDebugDrawer()->DrawTriangle(t.V0, t.V1, t.V2, FVector3(0.8, 0.3, 0.3));
+	FD3d12Renderer::GetInstance()->GetDebugDrawer()->DrawTriangle(t.V0, t.V1, t.V2, FVector3(0.8f, 0.3f, 0.3f));
 	return closestPos;
 }
 
@@ -831,5 +831,5 @@ FNavMeshManagerRecast * FNavMeshManagerRecast::GetInstance()
 
 void FContext::doLog(const rcLogCategory, const char * aText, const int aLen)
 {
-	FUtilities::FLog("%s\n", aText);
+	FLOG("%s", aText);
 }

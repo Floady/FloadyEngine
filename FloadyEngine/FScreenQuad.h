@@ -23,6 +23,8 @@ public:
 	void PopulateCommandList();
 	void PopulateCommandListAsync() override;
 	void PopulateCommandListAsyncShadows() override {}
+	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) override {}
+	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) override {}
 	void SetText(const char* aNewText);
 	void SetShader();
 	void SetUVOffset(const FVector3& aTL, const FVector3& aBR);
