@@ -132,7 +132,7 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 			string path = "models/";
 			path.append(myModelInstanceName);
 
-			FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FObjLoader::FObjMesh&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)));
+			FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)));
 			m = mesh->myMeshData;
 
 			dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myMesh = mesh;
@@ -223,8 +223,12 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 	{
 		FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
 		
-
-		if (ourShouldRecalc || FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(myInstanceData.GetAABB()))
+		FAABB aabb2 = FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetLocalAABB();
+		aabb2.myMax = aabb2.myMax * myInstanceData.myScale;
+		aabb2.myMin = aabb2.myMin * myInstanceData.myScale;
+		aabb2.myMax = aabb2.myMax + myInstanceData.myPos;
+		aabb2.myMin = aabb2.myMin + myInstanceData.myPos;
+		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(aabb2) || ourShouldRecalc)
 		{
 			//if (debugDrawer)
 			//{

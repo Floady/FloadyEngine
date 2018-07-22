@@ -49,7 +49,8 @@
 			"posX" : 20.0,
 			"posY" : 5.0,
 			"posZ" : 40.0,
-			"canMove" :false
+			"canMove" :false,
+			"name" : "thirdBuilding"
 		}
 	},
 	

@@ -159,7 +159,7 @@ void FDynamicText::Init()
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz");
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz-+");
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
 		myManagerClass->GetDevice()->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
@@ -439,7 +439,7 @@ void FDynamicText::SetText(const char * aNewText)
 
 	// Create the vertex buffer.
 	{
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "abcdefghijklmnopqrtsuvwxyz123456789.0");
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "-abcdefghijklmnopqrtsuvwxyz123456789.0");
 
 		float texWidth, texHeight;
 		const FFontManager::FWordInfo& wordInfo = FFontManager::GetInstance()->GetUVsForWord(font, myText, texWidth, texHeight, myUseKerning);

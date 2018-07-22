@@ -434,7 +434,7 @@ FAABB FLightManager::SpotLight::GetAABB()
 
 	// debug draw light AABB
 	FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
-	debugDrawer->drawAABB(myPos + aabb.myMin, myPos + aabb.myMax, FVector3(1, 0, 1));
+	//debugDrawer->drawAABB(myPos + aabb.myMin, myPos + aabb.myMax, FVector3(1, 0, 1));
 
 	aabb.myMin += myPos;
 	aabb.myMax += myPos;

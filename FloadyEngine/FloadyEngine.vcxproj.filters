@@ -160,9 +160,6 @@
     <ClCompile Include="FGameEntityFactory.cpp">
       <Filter>Game\Entities\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FGameLightEntity.cpp">
-      <Filter>Game\Entities\Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FGameTerrain.cpp">
       <Filter>Game\Entities\Source Files</Filter>
     </ClCompile>
@@ -240,6 +237,9 @@
     </ClCompile>
     <ClCompile Include="FThrowableTrajectory.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FLightComponent.cpp">
+      <Filter>Game\Entities\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -352,9 +352,6 @@
     <ClInclude Include="FGameEntityFactory.h">
       <Filter>Game\Entities\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FGameLightEntity.h">
-      <Filter>Game\Entities\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FGameTerrain.h">
       <Filter>Game\Entities\Header Files</Filter>
     </ClInclude>
@@ -432,6 +429,9 @@
     </ClInclude>
     <ClInclude Include="FThrowableTrajectory.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FLightComponent.h">
+      <Filter>Game\Entities\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -23,24 +23,12 @@
 #define VERBOSE_RENDER_LOG(x, ...)
 //#pragma optimize("", off)
 
+#if GRAPHICS_DEBUGGING
+#include <pix.h>
+#else
 #define USE_PIX
 #include <pix3.h>
-
-#define BUNDLE_RESOURCE 1
-
-#define OLDSCHOOL_FENCE { \
-ID3D12Fence* m_fence2; \
-HANDLE m_fenceEvent2; \
-HRESULT result; \
-int fenceToWaitFor = InterlockedIncrement(&FD3d12Renderer::GetInstance()->m_fenceValue); \
-m_fenceEvent2 = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS); \
-result = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&m_fence2); \
-result = GetCommandQueue()->Signal(m_fence2, fenceToWaitFor); \
-m_fence2->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent2); \
-WaitForSingleObject(m_fenceEvent2, INFINITE);  \
-m_fence2->Release(); \
-CloseHandle(m_fenceEvent2); \
-}
+#endif
 
 FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
 
@@ -907,7 +895,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	// Init resources for managers, they record in cmd list and execute alltogether
 	{
-		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.", this, m_commandList);
+		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.-,", this, m_commandList);
 
 		FPrimitiveGeometry::InitD3DResources(m_device, m_commandList);
 
@@ -1556,7 +1544,6 @@ void FD3d12Renderer::RecordRenderToGBuffer()
 	{
 		//FPROFILE_FUNCTION_GPU("Render pass");
 
-#if BUNDLE_RESOURCE
 		CD3DX12_RESOURCE_BARRIER barriersBefore[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
@@ -1567,27 +1554,16 @@ void FD3d12Renderer::RecordRenderToGBuffer()
 		};
 		commandList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
 
-#else
-
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
-		{
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		}
-
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-#endif
 
 		commandList->RSSetViewports(1, &GetViewPort());
 		commandList->RSSetScissorRects(1, &GetScissorRect());
 
-#if THE_NEW_WAY
 		ID3D12DescriptorHeap* ppHeaps[] = { GetSRVHeap() };
 		commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = GetDSVHandle();
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { GetGBufferHandle(0), GetGBufferHandle(1), GetGBufferHandle(2) , GetGBufferHandle(3) };
 		commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-#endif
 
 		for (FRenderableObject* object : mySceneGraph.GetObjects())
 		{
@@ -1597,7 +1573,6 @@ void FD3d12Renderer::RecordRenderToGBuffer()
 			}
 		}
 
-#if BUNDLE_RESOURCE
 		CD3DX12_RESOURCE_BARRIER barriersAfter[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
@@ -1607,14 +1582,6 @@ void FD3d12Renderer::RecordRenderToGBuffer()
 			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(3), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 		};
 		commandList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
-#else
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
-		{
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		}
-#endif
-
 	}
 
 	commandList->Close();
@@ -1780,7 +1747,6 @@ void FD3d12Renderer::DoRenderToGBuffer()
 	{
 		FPROFILE_FUNCTION_GPU("Render pass");
 
-#if BUNDLE_RESOURCE
 		CD3DX12_RESOURCE_BARRIER barriersBefore[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
@@ -1791,28 +1757,16 @@ void FD3d12Renderer::DoRenderToGBuffer()
 		};
 		commandList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
 
-#else
-
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
-		{
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		}
-
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-#endif
-
 		commandList->RSSetViewports(1, &GetViewPort());
 		commandList->RSSetScissorRects(1, &GetScissorRect());
 
-	#if THE_NEW_WAY
 		ID3D12DescriptorHeap* ppHeaps[] = { GetSRVHeap() };
 		commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = GetDSVHandle();
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { GetGBufferHandle(0), GetGBufferHandle(1), GetGBufferHandle(2) , GetGBufferHandle(3) };
 		commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	#endif
-	
+		
 		for (FRenderableObject* object : mySceneGraph.GetObjects())
 		{
 			if (object->GetIsVisible())
@@ -1821,7 +1775,6 @@ void FD3d12Renderer::DoRenderToGBuffer()
 			}
 		}
 
-#if BUNDLE_RESOURCE
 		CD3DX12_RESOURCE_BARRIER barriersAfter[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
@@ -1831,14 +1784,6 @@ void FD3d12Renderer::DoRenderToGBuffer()
 			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(3), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 		};
 		commandList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
-#else
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		for (size_t i = 0; i < FD3d12Renderer::GbufferType::Gbuffer_Combined; i++)
-		{
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		}
-#endif
-
 	}
 }
 

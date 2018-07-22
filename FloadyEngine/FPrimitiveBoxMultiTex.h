@@ -10,7 +10,7 @@ class FPrimitiveBoxMultiTex : public FPrimitiveBoxInstanced
 {
 public:
 	void Init() override;
-	void ObjectLoadingDone(const FObjLoader::FObjMesh& anObj);
+	void ObjectLoadingDone(const FMeshManager::FMeshObject& anObj);
 	FPrimitiveBoxMultiTex(FD3d12Renderer* aRenderer, FVector3 aPos, FVector3 aScale, FPrimitiveBoxInstanced::PrimitiveType aType, int aNrOfInstances);
 	~FPrimitiveBoxMultiTex();
 

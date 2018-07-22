@@ -47,10 +47,10 @@ public:
 		std::vector<int> myIndices;
 		std::string myFileName;
 		LoadState myLoadState;
-		FDelegate2<void(const FObjLoader::FObjMesh&)> myCallBack;
+		FDelegate2<void(const FMeshManager::FMeshObject&)> myCallBack;
 	};
 
-	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FObjLoader::FObjMesh&)> aCB = FDelegate2<void(const FObjLoader::FObjMesh&)>::FDelegate2());
+	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FMeshManager::FMeshObject&)> aCB = FDelegate2<void(const FMeshManager::FMeshObject&)>::FDelegate2());
 
 private:
 	std::map<std::string, FMeshObject*> myMeshes;

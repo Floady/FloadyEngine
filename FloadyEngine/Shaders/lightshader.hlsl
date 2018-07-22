@@ -90,7 +90,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	if(receiveShadows)
 	{
 		[loop]
-		for( int qh = 0; qh < 16; qh++ )
+		for( int qh = 0; qh < 32; qh++ )
 		{
 			bool isLightMatrixValid = isLightMatrixValid = (myLights.myLights[qh].myLightViewProjMatrix._m03 + myLights.myLights[qh].myLightViewProjMatrix._m13 + myLights.myLights[qh].myLightViewProjMatrix._m23 + myLights.myLights[qh].myLightViewProjMatrix._m33) != 0;
 				
@@ -205,7 +205,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				{			
 					float3 lightDir3 = normalize(myLights.myLights[qh].myWorldDir.xyz);
 					float rad = acos(dot(lightDir3, lightDir));
-					if(rad > myLights.myLights[qh].myLightType.y || distToLight > myLights.myLights[qh].myLightType.z) // distToLight > myLights.myLights[qh].myLightType.z // TODO!
+					if(rad > myLights.myLights[qh].myLightType.y || distToLight > myLights.myLights[qh].myLightType.z)
 					{	
 						isOutOfLightZone = true;						
 					}	
@@ -259,7 +259,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	float3 AmbientLightColor = float3(1,1,1) * 0.5f;
 	
-	if(receiveShadows)
+	if(receiveShadows) //TODO: if we are receiving shadows, we receive lighting, tone down the ambient for this (skybox is the only one not receiving shadows atm)
 		AmbientLightColor = float3(1,1,1) * 0.1f;
 		
 	output.color += colors * float4(AmbientLightColor, 1);

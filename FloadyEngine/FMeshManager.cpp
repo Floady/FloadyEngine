@@ -126,9 +126,9 @@ void FMeshManager::InitLoadedMeshesD3D()
 			obj2->myIndexBufferView.SizeInBytes = sizeof(int) * nrOfIndices;
 
 			obj2->myIndicesCount = nrOfIndices;
-
+			
 			if(loadMeshObj.myCallBack)
-				loadMeshObj.myCallBack(loadMeshObj.myObject->myMeshData);
+				loadMeshObj.myCallBack(*loadMeshObj.myObject);
 
 			FLOG("Mesh Done %s", aPath.c_str());
 			item.second.myLoadState = FMeshLoadObject::LoadState::Done;
@@ -225,7 +225,7 @@ FMeshManager* FMeshManager::GetInstance()
 	return ourInstance;
 }
 
-FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDelegate2<void(const FObjLoader::FObjMesh&)> aCB)
+FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDelegate2<void(const FMeshManager::FMeshObject&)> aCB)
 {
 	//FPROFILE_FUNCTION("Load mesh");
 

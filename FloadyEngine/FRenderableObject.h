@@ -52,6 +52,8 @@ public:
 	FAABB GetAABB() const
 	{
 		FAABB aabb = myAABB;
+		//aabb.myMax *= myScale;
+		//aabb.myMin *= myScale;
 		aabb.myMax += myPos;
 		aabb.myMin += myPos;
 		return aabb;

@@ -35,7 +35,8 @@
 		"posX" : 20.0,
 		"posY" : 5.0,
 		"posZ" : 40.0,
-		"canMove" :true
+		"canMove" :true,
+		"name" : "fourthBuilding"
 	},
 	
 	"MenuItems" :

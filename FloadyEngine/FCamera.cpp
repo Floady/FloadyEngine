@@ -35,7 +35,7 @@ FCamera::FCamera(float aWidth, float aHeight)
 	// near + far set here
 	// Flipping near and far makes depth precision way better but the object dissapears sooner o.0 - also still has artifacts anyway
 	//myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 1.0f, 100.0f);
-	myProjMatrix = XMMatrixPerspectiveFovLH(myFovY, aspectRatio, myFar, myNear);
+	myProjMatrix = XMMatrixPerspectiveFovLH(myFovY, aspectRatio, myFar*2, myNear);
 	XMStoreFloat4x4(&myProjMatrixFloatVersion, myProjMatrix);
 	UpdateViewProj();
 }
@@ -309,10 +309,13 @@ void FCamera::UpdateViewProj()
 		{
 			// point alternative
 			{
-				debugDrawer->DrawPoint(myFrustumCorners[4], size, color);
-				debugDrawer->DrawPoint(myFrustumCorners[5], size, color);
-				debugDrawer->DrawPoint(myFrustumCorners[6], size, color);
-				debugDrawer->DrawPoint(myFrustumCorners[7], size, color);
+				size = 2.0f;
+				FVector3 colorCorners = FVector3(0, 1, 0);
+				debugDrawer->DrawPoint(myFrustumCorners[4], size, colorCorners);
+				debugDrawer->DrawPoint(myFrustumCorners[5], size, colorCorners);
+				debugDrawer->DrawPoint(myFrustumCorners[6], size, colorCorners);
+				debugDrawer->DrawPoint(myFrustumCorners[7], size, colorCorners);
+				size = 0.6f;
 			}
 
 			for (size_t i = 0; i < 6; i++)

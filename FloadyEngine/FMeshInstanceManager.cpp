@@ -80,7 +80,7 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 		path.append(aMeshName);
 
 		// todo change this to a mesh load object so its clear when tis alive and dead
-		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FObjLoader::FObjMesh&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)));
+		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)));
 		m = mesh->myMeshData;
 
 		dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myMesh = mesh;
@@ -94,7 +94,7 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 		myPool->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
 		myPool->m_indexBufferView.SizeInBytes = sizeof(int) * mesh->myIndicesCount;
 
-		// setup AABB
+		// setup AABB - TODO bug vertices = 0 here, so there wont be an AABB
 		for (FPrimitiveGeometry::Vertex2& vert : mesh->myVertices)
 		{
 			myPool->myAABB.myMax.x = max(myPool->myAABB.myMax.x, vert.position.x * myPool->GetScale().x);

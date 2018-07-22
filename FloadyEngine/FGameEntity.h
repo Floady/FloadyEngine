@@ -26,6 +26,7 @@ public:
 	void SetOwnerEntity(FGameEntity* anEntity) { myOwner = anEntity; }
 	FGameEntity* GetOwnerEntity() { return myOwner ? myOwner->GetOwnerEntity() : this; }
 	virtual void SetPos(const FVector3& aPos);
+	const FVector3& GetPos() { return myPos; }
 
 	virtual FRenderMeshComponent* GetRenderableObject();
 
@@ -45,5 +46,6 @@ protected:
 private:
 	std::map<const char*, std::vector<FGameEntityComponent*>> myComponentsLookup;
 	std::vector<FGameEntityComponent*> myComponents;
+	std::string myName;
 };
 

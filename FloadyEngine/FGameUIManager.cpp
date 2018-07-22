@@ -23,6 +23,11 @@ void FGameUIManager::Update()
 	{
 	case MainScreen:
 		break;
+	case Debug:
+	{
+		myDebugPanel->Update(); 
+		break;
+	}
 	case InGame:
 	{
 		myBuildingPanel->Update();

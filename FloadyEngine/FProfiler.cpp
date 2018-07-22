@@ -3,8 +3,13 @@
 #include "FDynamicText.h"
 #include "windows.h"
 #include "FJobSystem.h"
+
+#if GRAPHICS_DEBUGGING
+#include <pix.h>
+#else
 #define USE_PIX
 #include <pix3.h>
+#endif
 
 FProfiler* FProfiler::ourInstance = nullptr;
 unsigned int FProfiler::ourHistoryBufferCount = 120;

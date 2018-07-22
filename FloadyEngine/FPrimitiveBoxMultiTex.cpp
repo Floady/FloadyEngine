@@ -116,12 +116,12 @@ void FPrimitiveBoxMultiTex::Init()
 	}
 }
 
-void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FObjLoader::FObjMesh& anObj)
+void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshObject& anObj)
 {
 	FLOG("ObgjectLOadingDone called");
 
 	// map all textures to the slots
-	const FObjLoader::FObjMesh& m = anObj;
+	const FObjLoader::FObjMesh& m = anObj.myMeshData;
 
 	int matcounter = 0;
 	std::string name;
@@ -146,6 +146,17 @@ void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FObjLoader::FObjMesh& anObj)
 		}
 
 		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + m.myMaterials.size());
+	}
+
+	for (const FPrimitiveGeometry::Vertex2& vert : anObj.myVertices)
+	{
+		myAABB.myMax.x = max(myAABB.myMax.x, vert.position.x * GetScale().x);
+		myAABB.myMax.y = max(myAABB.myMax.y, vert.position.y * GetScale().y);
+		myAABB.myMax.z = max(myAABB.myMax.z, vert.position.z * GetScale().z);
+
+		myAABB.myMin.x = min(myAABB.myMin.x, vert.position.x * GetScale().x);
+		myAABB.myMin.y = min(myAABB.myMin.y, vert.position.y * GetScale().y);
+		myAABB.myMin.z = min(myAABB.myMin.z, vert.position.z * GetScale().z);
 	}
 }
 

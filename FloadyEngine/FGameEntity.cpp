@@ -57,6 +57,8 @@ void FGameEntity::Init(const FJsonObject & anObj)
 	pos.z = anObj.GetItem("posZ").GetAs<double>();
 	myCanMove = anObj.GetItem("canMove").GetAs<bool>();
 
+	myName = anObj.GetItem("name").GetAs<string>();
+
 	Init(pos);
 }
 

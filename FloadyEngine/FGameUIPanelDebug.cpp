@@ -59,15 +59,23 @@ FGameUIPanelDebug::FGameUIPanelDebug()
 	AddObject(button9);
 	pos += offset;
 	
-
 	FGUIButtonToggle* button10 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FCamera, &FCamera::SetDebugDrawEnabled>(FD3d12Renderer::GetInstance()->GetCamera()));
 	button10->SetDynamicText("CamDebug Draw");
 	AddObject(button10);
 	pos += offset;
+
+	pos += offset;
+	FVector3 sizePosLabel(0.3f, 0.05f, 0);
+	myCameraPositionLabel = new FGUIButton(pos, pos + sizePosLabel, "buttonBlanco.png", FDelegate2<void()>::from<FCamera, &FCamera::UpdateViewProj>(FD3d12Renderer::GetInstance()->GetCamera()));
+	AddObject(myCameraPositionLabel);
 }
 
 void FGameUIPanelDebug::Update()
 {
+	char buff[128];
+	FVector3 pos = FGame::GetInstance()->GetRenderer()->GetCamera()->GetPos();
+	sprintf(buff, "pos: %4.2f, %4.2f, %4.2f", pos.x, pos.y, pos.z);
+	myCameraPositionLabel->SetDynamicText(buff);
 }
 
 
