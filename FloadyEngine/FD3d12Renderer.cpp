@@ -60,10 +60,10 @@ FD3d12Renderer::FD3d12Renderer()
 	FProfiler::GetInstance();
 
 	//*
-	myRenderJobSys = new FJobSystem(1);
+	myRenderJobSys = FJobSystem::GetInstance();
 	myRenderJobSys->WaitForAllJobs();
 	myRenderJobSys->ResetQueue();
-	myRenderJobSys->QueueJob((FDelegate2<void ()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)));
+	myRenderJobSys->QueueJob((FDelegate2<void ()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)), true);
 	myRenderJobSys->UnPause();
 	
 	/*/
@@ -818,7 +818,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	//*/
 
 	// command allocators for worker threads
-	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreads();
+	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreadsShort();
 	int nrOfThreads =  nrWorkerThreads + 1; // workers + main
 	m_workerThreadCmdAllocators = new ID3D12CommandAllocator*[nrOfThreads];
 	m_workerThreadCmdLists = new ID3D12GraphicsCommandList*[nrOfThreads];
@@ -1393,7 +1393,7 @@ void FD3d12Renderer::DoClearBuffers()
 	myRenderPassGputMtx.WaitFor();
 
 
-	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreads();
+	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreadsShort();
 	int nrOfThreads = nrWorkerThreads + 1;
 	VERBOSE_RENDER_LOG("Reset worker allocs");
 	for (int i = 0; i < nrOfThreads; i++)

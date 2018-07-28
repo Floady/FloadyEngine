@@ -111,7 +111,7 @@ FGame::FGame()
 	myAA = nullptr;
 	myFpsCounter = nullptr;
 
-	myRenderJobSys = new FJobSystem(1);
+	myRenderJobSys = FJobSystem::GetInstance();
 }
 
 FGame::~FGame()
@@ -440,10 +440,10 @@ bool FGame::Update(double aDeltaTime)
 		mySSAO->WriteConstBuffer(0, &constData[0], 80 * sizeof(float));
 
 		myRenderWindow->CheckForQuit();
-		myHighlightManager->Render();
 	}
 
 	myRenderJobSys->WaitForAllJobs();
+	myHighlightManager->Render();
 	FProfiler::GetInstance()->Render();
 	FProfiler::GetInstance()->StartFrame();
 

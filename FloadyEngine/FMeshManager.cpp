@@ -39,7 +39,7 @@ FMeshManager* FMeshManager::ourInstance = nullptr;
 
 FMeshManager::FMeshManager()
 {
-	myJobSystem = new FJobSystem(1);
+	myJobSystem = FJobSystem::GetInstance();
 	myJobSystem->UnPause();
 }
 
@@ -53,7 +53,7 @@ void FMeshManager::InitLoadedMeshesD3D()
 			const std::string& aPath = item.first;
 			item.second.myFileName = aPath;
 
-			if(myJobSystem->QueueJob(FDelegate2<void()>(item.second, &FMeshLoadObject::Load)))
+			if(myJobSystem->QueueJob(FDelegate2<void()>(item.second, &FMeshLoadObject::Load), true))
 			{
 				item.second.myLoadState = FMeshLoadObject::LoadState::Loading;
 			}

@@ -8,6 +8,7 @@
 #include "FProfiler.h"
 #include "FGameTerrain.h"
 #include "FRenderMeshComponent.h"
+#include "FJobSystem.h"
 
 FGameLevel::FGameLevel(const char * aLevelName)
 {
@@ -79,10 +80,15 @@ void FGameLevel::Update(double aDeltaTime)
 
 void FGameLevel::PostPhysicsUpdate()
 {
+	FJobSystem* jobSystem = FJobSystem::GetInstance();
+
 	for (FGameEntity* entity : myEntityContainer)
 	{
+		//jobSystem->QueueJob(FDelegate2<void()>(entity, &FGameEntity::PostPhysicsUpdate));
 		entity->PostPhysicsUpdate();
 	}
+
+	//jobSystem->WaitForAllJobs();
 }
 
 FGameLevel::~FGameLevel()

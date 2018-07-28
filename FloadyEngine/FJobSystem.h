@@ -15,38 +15,75 @@ public:
 		FJob(const FJob& aJob)
 		{
 			myFunc = aJob.myFunc;
+			myJobIDependOn = nullptr;
 			InterlockedExchange(&myFinished, 0);
+			InterlockedExchange(&myStarted, 1);
+			InterlockedExchange(&myQueued, 0);
+			InterlockedExchange(&myDependencyCounter, 0);
 		}
 
 		FJob()
 		{
+			myJobIDependOn = nullptr;
+			InterlockedExchange(&myStarted, 1);
 			InterlockedExchange(&myFinished, 0);
+			InterlockedExchange(&myQueued, 0);
+			InterlockedExchange(&myDependencyCounter, 0);
 		}
 
 		FDelegate2<void()> myFunc; // this is never read+write concurrently (we increment the job idx after assignment)
 		volatile LONG myFinished;
+		volatile LONG myStarted;;
+		volatile LONG myQueued;;
+		volatile LONG myDependencyCounter;
+		FJob* myJobIDependOn;
 	};
 
 	static thread_local int ourThreadIdx;
 
-	FJobSystem(int aNrWorkerThreads);
-	~FJobSystem();
+	
+	bool Initialize(int aNrWorkerThreadsShort, int aNrWorkerThreadsLong);
 	static FJobSystem* GetInstance();
-	FJob* GetNextJob();
-	bool QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false);
+	int GetNextJob(bool anIsLong);
+	bool SetJobIdFree(int anIdx, bool anIsLong);
+	FJob* GetJobFromQueue(int anIdx, bool anIsLong);
+	FJob* QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false, FJobSystem::FJob* aJobToDependOn = nullptr);
 	void ResetQueue();
 	void WaitForAllJobs();
 	void UnPause() { myIsPaused = false; }
 	void Pause() { myIsPaused = true; }
 	bool IsPaused() { return myIsPaused; }
-	int GetNrWorkerThreads() { return 10; } // myNrWorkerThreads; }
+	int GetNrWorkerThreadsShort() { return myNrWorkerThreadsShort; }
+	int GetNrWorkerThreadsLong() { return myNrWorkerThreadsLong; }
+	void Test();
+	void CountUp();
+	void CountUpWithSleep();
 private:
-	std::vector<FJob> myQueue;
+	FJobSystem(int aNrWorkerThreadsShort, int aNrWorkerThreadsLong);
+	~FJobSystem();
+	
+	std::vector<FJob> myQueueShort;
 	std::vector<FJob> myQueueLong;
+	int myFreeShortTasks[4096];
+	int myShortTasksQueue[4096];
 
-	volatile LONG myNextJobIndex;
-	volatile LONG myFreeIndex;
+	int myFreeLongTasks[4096];
+	int myLongTasksQueue[4096];
+	
+	volatile LONG myNextJobIndexShort;
+	volatile LONG myNextJobIndexLong;
+	volatile LONG myFreeIndexShort;
+	volatile LONG myFreeIndexLong;
+
+	volatile LONG myLastQueuedJobShort;
+	volatile LONG myLastQueuedJobLong;
+	
 	bool myIsPaused;
-	int myNrWorkerThreads;
+	int myNrWorkerThreadsShort;
+	int myNrWorkerThreadsLong;
+
+	// Test
+	LONG myCounter;
+	int myExpectedTotal;
 };
 
