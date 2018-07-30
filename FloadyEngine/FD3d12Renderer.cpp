@@ -61,11 +61,7 @@ FD3d12Renderer::FD3d12Renderer()
 
 	//*
 	myRenderJobSys = FJobSystem::GetInstance();
-	myRenderJobSys->WaitForAllJobs();
-	myRenderJobSys->ResetQueue();
-	myRenderJobSys->QueueJob((FDelegate2<void ()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)), true);
-	myRenderJobSys->UnPause();
-	
+	myRenderJobSys->QueueJob((FDelegate2<void ()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)), true);	
 	/*/
 
 	FTextureManager::GetInstance()->ReloadTextures();
@@ -1727,7 +1723,7 @@ void FD3d12Renderer::RecordPostProcesss()
 	}
 
 	{
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST));
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
 		commandList->CopyResource(GetRenderTarget(), myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));

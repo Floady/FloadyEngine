@@ -5,14 +5,14 @@ static FJobSystem* ourInstance = nullptr;
 static int ourWorkerThreadCounter = 0;
 thread_local int FJobSystem::ourThreadIdx = 0;
 
-#define JOB_DEBUG 1
+#define JOB_DEBUG 0
 
 #if JOB_DEBUG
 #pragma optimize("", off)
 #endif 
 
 #if JOB_DEBUG
-#define JOB_DEBUG_LOG(x, ...) FLOG(x, __VA_ARGS__);
+#define JOB_DEBUG_LOG(x, ...) FLOG("Thread: %d: "##x, FJobSystem::ourThreadIdx, __VA_ARGS__);
 #else
 #define JOB_DEBUG_LOG(x, ...) (void)(x);
 #endif
@@ -40,9 +40,8 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 					{
 						JOB_DEBUG_LOG("Starting %s job [%i]", isLong ? "long" : "short", nextJob);
 						job->myFunc();
-						job->myJobIDependOn = nullptr; // clear dependency before re-use
 						InterlockedExchange(&job->myFinished, 1);
-						InterlockedExchange(&job->myQueued, 0);
+
 						while (!jobSystem->SetJobIdFree(nextJob, isLong))
 						{
 							JOB_DEBUG_LOG("waiting for job[%i] to be set to free - retry", nextJob);
@@ -74,25 +73,67 @@ int FJobSystem::GetNextJob(bool anIsLong)
 	LONG curJobIdx = anIsLong ? myNextJobIndexLong : myNextJobIndexShort;
 	LONG curFreeIdx = anIsLong ? myFreeIndexLong : myFreeIndexShort;
 	std::vector<FJob>& queue = anIsLong ? myQueueLong : myQueueShort;
+	
+	// try get the next job if its not locked by a dependency
+	LONG newJobIdx = anIsLong ? myLongTasksQueue[myNextJobIndexLong] : myShortTasksQueue[myNextJobIndexShort];
+	bool isDependencyOk = false;
+	bool jobWantsToRun = !queue[curJobIdx].myStarted && queue[curJobIdx].myQueued;
+	bool jobWasDependant = false;
+	
+	FJob* depJob = queue[curJobIdx].myJobIDependOn;
+	jobWasDependant = depJob != nullptr;
 
-	//if (curJobIdx < curFreeIdx)
+	if(jobWantsToRun)
 	{
-		LONG newJobIdx = anIsLong ? myLongTasksQueue[myNextJobIndexShort] : myShortTasksQueue[myNextJobIndexShort];
-		bool isDependencyOk = queue[curJobIdx].myJobIDependOn ? !(queue[curJobIdx].myJobIDependOn->myQueued && !queue[curJobIdx].myJobIDependOn->myFinished) : true;
-		if(!myQueueShort[curJobIdx].myStarted && isDependencyOk)
+		isDependencyOk = depJob ? !(depJob->myQueued && !depJob->myFinished) : true;
+		jobWantsToRun &= isDependencyOk;
+
+		if(jobWantsToRun)
 		{
 			if (InterlockedCompareExchange(anIsLong ? &myNextJobIndexLong : &myNextJobIndexShort, newJobIdx, curJobIdx) == curJobIdx)
 			{
-				JOB_DEBUG_LOG("Get %s Job: %d %p", anIsLong ? "long" : "short", curJobIdx, anIsLong ? &myQueueLong[curJobIdx] : &myQueueShort[curJobIdx]);
+				JOB_DEBUG_LOG("Get %s Job: %d %p (next job: %d)", anIsLong ? "long" : "short", curJobIdx, &queue[curJobIdx], newJobIdx);
 				return curJobIdx;
-			}
-			else
-			{
-				JOB_DEBUG_LOG("Failed to get job: %d", curJobIdx);
 			}
 		}
 	}
 
+	// only look ahead if this was a dependant job, otherwise it was just a race fail (and the worker will regrab latest, that is faster than traversing and relinking)
+	if(jobWasDependant && !isDependencyOk)
+	{
+		// find next available job
+		LONG nextAvailableJob = anIsLong ? myLongTasksQueue[curJobIdx] : myShortTasksQueue[curJobIdx];
+		LONG lastJob = curJobIdx;
+		bool isJobAvailable = false;
+		while (!isJobAvailable)
+		{
+			// check if this job is queued or not (if not, we reached the end of the queue) - no available jobs
+			if (!queue[nextAvailableJob].myQueued)
+				break;
+
+			// check next job, if it is not started yet, and has no dependencies - take it
+			FJob* depJob = queue[nextAvailableJob].myJobIDependOn;
+
+			bool jobHasADependantJobRunning = depJob ? depJob->myQueued && !depJob->myFinished : false;
+			isJobAvailable = !jobHasADependantJobRunning && !queue[nextAvailableJob].myStarted;
+			if (isJobAvailable)
+			{
+				// we return here without moving the nextjob index so that the locked job will still be picked up ASAP
+				anIsLong ? myLongTasksQueue[lastJob] : myShortTasksQueue[lastJob] = anIsLong ? myLongTasksQueue[nextAvailableJob] : myShortTasksQueue[nextAvailableJob]; // todo, thread safety
+				JOB_DEBUG_LOG("Relink %s Job: %d to %d", anIsLong ? "long" : "short", lastJob, anIsLong ? myLongTasksQueue[nextAvailableJob] : myShortTasksQueue[nextAvailableJob]);
+			
+				JOB_DEBUG_LOG("Get next available %s Job: %d %p", anIsLong ? "long" : "short", nextAvailableJob, &queue[nextAvailableJob]);
+				return nextAvailableJob;
+			}
+
+			// try next
+			lastJob = nextAvailableJob;
+			nextAvailableJob = anIsLong ? myLongTasksQueue[nextAvailableJob] : myShortTasksQueue[nextAvailableJob];
+		}
+	}
+
+	if(jobWantsToRun)
+		JOB_DEBUG_LOG("Failed to get job: %d", curJobIdx);
 
 	return -1;
 }
@@ -105,13 +146,30 @@ bool FJobSystem::SetJobIdFree(int anIdx, bool anIsLong)
 	LONG nextFreeIdx = anIdx;
 	volatile LONG* newFreeIdx = anIsLong ? &myFreeIndexLong : &myFreeIndexShort;
 
-	if (InterlockedCompareExchange(newFreeIdx, nextFreeIdx, curFreeIdx) == curFreeIdx)
+	// check if we were dependant and clear it before we release it to the queue
+	if (queue[anIdx].myJobIDependOn)
 	{
-		JOB_DEBUG_LOG("Set %s job to free: %d", anIsLong ? "long" : "short", nextFreeIdx);
-		anIsLong ? myFreeLongTasks[nextFreeIdx] : myFreeShortTasks[nextFreeIdx] = curFreeIdx;
+		InterlockedDecrement(&queue[anIdx].myJobIDependOn->myDependencyCounter);
+	}
+
+	// don't free jobs that others depend on to avoid them being recycled
+	if (true || queue[anIdx].myDependencyCounter > 0) // hack - dont recycle
+	{
+		queue[anIdx].myJobIDependOn = nullptr;
+		JOB_DEBUG_LOG("%s job not set to free as it has dependencies: %d", anIsLong ? "long" : "short", anIdx);
 		return true;
 	}
 
+	if (InterlockedCompareExchange(newFreeIdx, nextFreeIdx, curFreeIdx) == curFreeIdx)
+	{
+		InterlockedExchange(&queue[anIdx].myQueued, 0);
+		queue[anIdx].myJobIDependOn = nullptr;
+		JOB_DEBUG_LOG("Set %s job to free: %d (linking to %d)", anIsLong ? "long" : "short", nextFreeIdx, curFreeIdx);
+		anIsLong ? myFreeLongTasks[curFreeIdx] : myFreeShortTasks[curFreeIdx] = nextFreeIdx;
+		return true;
+	}
+
+	JOB_DEBUG_LOG("Failed to set %s job to free: %d", anIsLong ? "long" : "short", nextFreeIdx);
 	return false;
 }
 
@@ -123,6 +181,7 @@ FJobSystem::FJob * FJobSystem::GetJobFromQueue(int anIdx, bool anIsLong)
 FJobSystem::FJob* FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong, FJobSystem::FJob* aJobToDependOn)
 {
 	LONG curFreeIdx = anIsLong ? myFreeIndexLong : myFreeIndexShort;
+	LONG curJobIdx = anIsLong ? myNextJobIndexLong : myNextJobIndexShort;
 	
 	// Check if queue is full
 	std::vector<FJob>& queue = anIsLong ? myQueueLong : myQueueShort;
@@ -140,9 +199,11 @@ FJobSystem::FJob* FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool
 				InterlockedExchange(&queue[curFreeIdx].myStarted, 0);
 				InterlockedExchange(&queue[curFreeIdx].myFinished, 0);
 				InterlockedExchange(&queue[curFreeIdx].myQueued, 1);
-				anIsLong ? myLongTasksQueue[curLastQueuedJob] : myShortTasksQueue[curLastQueuedJob] = curFreeIdx;
-
-				JOB_DEBUG_LOG("Queued %s Job: %d", anIsLong ? "long" : "short", curFreeIdx);
+				if(aJobToDependOn)
+					InterlockedIncrement(&aJobToDependOn->myDependencyCounter); // let the job know we depend on it
+		
+				JOB_DEBUG_LOG("Queued %s Job: %d (next free = %d)", anIsLong ? "long" : "short", curFreeIdx, nextFreeIdx);
+	
 				return &queue[curFreeIdx];
 			}
 		}
@@ -152,23 +213,49 @@ FJobSystem::FJob* FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool
 	return nullptr;
 }
 
-void FJobSystem::ResetQueue()
+void FJobSystem::ResetQueue(bool aResetLong)
 {
-	myFreeIndexShort = 0;
-	myFreeIndexLong = 0;
-	myNextJobIndexShort = 0;
-	myNextJobIndexLong = 0;
-	myLastQueuedJobShort = 0;
-	myLastQueuedJobLong = 0;
+	JOB_DEBUG_LOG("Reset Queue: Short%s", aResetLong ? " and Long" : "");
 
-	for (size_t i = 0; i < 4096; i++)
+	if (aResetLong)
 	{
-		myFreeShortTasks[i] = i + 1;
-		myShortTasksQueue[i] = 0;
-		myFreeLongTasks[i] = i + 1;
-		myLongTasksQueue[i] = 0;
+		myFreeIndexLong = 0;
+		myNextJobIndexLong = 0;
+		myLastQueuedJobLong = 0;
+
+		for (size_t i = 0; i < 4096-1; i++)
+		{
+			myFreeLongTasks[i] = i + 1;
+			myLongTasksQueue[i] = i + 1;
+			myQueueLong[i].Reset();
+		}
+
+		myQueueLong[4095].Reset();
+		myFreeLongTasks[4095] = 0;
+		myLongTasksQueue[4095] = 0;
 	}
 
+	bool wasPaused = myIsPaused;
+	Pause();
+	WaitForAllJobs();
+
+	myFreeIndexShort = 0;
+	myNextJobIndexShort = 0;
+	myLastQueuedJobShort = 0;
+	
+	for (size_t i = 0; i < 4096-1; i++)
+	{
+		myFreeShortTasks[i] = i + 1;
+		myShortTasksQueue[i] = i + 1;
+		myQueueShort[i].Reset();
+	}
+
+	myQueueShort[4095].Reset();
+	myFreeShortTasks[4095] = 0;
+	myShortTasksQueue[4095] = 0;
+
+	if(!wasPaused)
+		UnPause();
 }
 
 void FJobSystem::WaitForAllJobs() // waits for short queue, never for long
@@ -180,7 +267,7 @@ void FJobSystem::WaitForAllJobs() // waits for short queue, never for long
 		isDone = true;
 		for (size_t i = 0; i < 4096; i++)
 		{
-			if (myQueueShort[i].myFunc && !(myQueueShort[i].myStarted && myQueueShort[i].myFinished))
+			if (myQueueShort[i].myFunc && myQueueShort[i].myQueued && !(myQueueShort[i].myStarted && myQueueShort[i].myFinished))
 			{
 				isDone = false;
 				break;
@@ -188,19 +275,9 @@ void FJobSystem::WaitForAllJobs() // waits for short queue, never for long
 		}
 	}
 
-	return;
+	JOB_DEBUG_LOG("Waiting For short tasks done");
 
-	//bool isDone = false;
-	//while (!isDone)
-	//{
-	//	isDone = true;
-	//	LONG freeIdx = myFreeIndexShort; // atomic assignment to cache value
-	//	for (int i = 0; i < freeIdx; i++)
-	//	{
-	//		LONG isFinished = myQueueShort[i].myFinished; // atomic assignment
-	//		isDone &= isFinished == 1;
-	//	}
-	//}
+	return;
 }
 
 void FJobSystem::Test()
@@ -226,11 +303,11 @@ void FJobSystem::Test()
 	FJob* newJob = nullptr;
 	for (size_t i = 0; i < myExpectedTotal; i++)
 	{
-		/*if (i < 50)
+		if (i < 50)
 		{
 			newJob = QueueJob((FDelegate2<void()>(this, &FJobSystem::CountUpWithSleep)), false, job);
 		}
-		else*/
+		else
 		{
 			newJob = QueueJob((FDelegate2<void()>(this, &FJobSystem::CountUpWithSleep)));
 		}
@@ -239,6 +316,7 @@ void FJobSystem::Test()
 	}
 	UnPause();
 	WaitForAllJobs();
+	ResetQueue();
 
 	FLOG("Test 2: %i == %i", myExpectedTotal, myCounter);
 }
@@ -267,7 +345,7 @@ FJobSystem::FJobSystem(int aNrWorkerThreadsShort, int aNrWorkerThreadsLong)
 	myQueueShort.resize(4096);
 	myQueueLong.resize(4096);
 
-	ResetQueue();
+	ResetQueue(true);
 
 	// use indexes to track completed and queued + free jobs
 	// grow pool with mutex if needed

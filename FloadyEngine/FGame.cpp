@@ -203,6 +203,17 @@ bool FGame::Update(double aDeltaTime)
 	FVector3 dir = FVector3(0.6, 1, 1); dir.Normalize();
 	FVector3 lastPos = startPos;
 	static float trajectoryVelocity = 10.0f;
+
+	// wait for short jobs before processing next frame
+	{
+		FPROFILE_FUNCTION("WaitForRender");
+		myRenderJobSys->WaitForAllJobs();
+		{
+			FPROFILE_FUNCTION("ResetQueue");
+			myRenderJobSys->ResetQueue();
+		}
+	}
+
 	//myThrowableTrajectory.Simulate(startPos, FVector3(0.6, 1, 1), trajectoryVelocity, path, 1000.0f);
 	//
 	//for (FThrowableTrajectory::TrajectoryPathSegment& segment : path.mySegments)
@@ -210,6 +221,8 @@ bool FGame::Update(double aDeltaTime)
 	//	FD3d12Renderer::GetInstance()->GetDebugDrawer()->drawLine(lastPos, segment.myPosition, FVector3(1.0f, 1.0f, 1.0f));
 	//	lastPos = segment.myPosition;
 	//}
+
+	FJobSystem::FJob* clearBufferJob = nullptr;
 
 	{
 		// update FPS
@@ -219,25 +232,21 @@ bool FGame::Update(double aDeltaTime)
 			sprintf_s(buff, "%s %f\0", "Fps: ", 1.0f / static_cast<float>(aDeltaTime));
 			myFpsCounter->SetText(buff);
 		}
-
+		
 		{
-			FPROFILE_FUNCTION("WaitForRender");
-			myRenderJobSys->WaitForAllJobs();
-			myRenderJobSys->ResetQueue();
-			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
-			myRenderJobSys->UnPause();
+			//myRenderJobSys->WaitForAllJobs();
+			//clearBufferJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
 		}
 
 		FPROFILE_FUNCTION("FGame Update");
 
-		/*
+		//*
 		// this should have dependencies - but works because 1 workerthread
-		myRenderJobSys->Pause();
-		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::UpdateViewProjMatrices));
-		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetVisibleAABB));
-		myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetHasMoved));
-		myRenderJobSys->QueueJob(FDelegate2<void()>(FD3d12Renderer::GetInstance(), &FD3d12Renderer::DoClearBuffers));
-		myRenderJobSys->UnPause();
+		FJobSystem::FJob* lightManagerQueue = nullptr;
+		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::UpdateViewProjMatrices));
+		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetVisibleAABB), false, lightManagerQueue);
+		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetHasMoved), false, lightManagerQueue);
+		// myRenderJobSys->WaitForAllJobs(); // moved a bit lower, before level update
 		/*/
 		FLightManager::GetInstance()->UpdateViewProjMatrices();
 		FLightManager::GetInstance()->ResetVisibleAABB();
@@ -374,12 +383,19 @@ bool FGame::Update(double aDeltaTime)
 
 
 		myMutex.WaitFor();
+		clearBufferJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
 		//FD3d12Renderer::GetInstance()->DoClearBuffers();
-
+		
+		{
+			FPROFILE_FUNCTION("Wait for lightmanager");
+			//myRenderJobSys->WaitForAllJobs();
+			lightManagerQueue->WaitForFinish();
+		}
+		
 		// Update world
 		{
-		//FPROFILE_FUNCTION("Level update");
-		myLevel->Update(aDeltaTime);
+			FPROFILE_FUNCTION("Level update");
+			myLevel->Update(aDeltaTime);
 		}
 		// Step physics
 		if (myInput->IsKeyDown(VK_SPACE))
@@ -408,13 +424,15 @@ bool FGame::Update(double aDeltaTime)
 	// Render world
 	{
 		FPROFILE_FUNCTION("FGame Render");
+		{
+			FPROFILE_FUNCTION("Wait For clearBufferJob");
+			clearBufferJob->WaitForFinish();
 
+		}
 		{
 			FPROFILE_FUNCTION("RenderWorldAsync");
 			myRenderJobSys->WaitForAllJobs();
-			myRenderJobSys->ResetQueue();
 			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderWorldAsync)));
-			myRenderJobSys->UnPause();
 		}
 
 		// update SSAO buffers
@@ -450,9 +468,8 @@ bool FGame::Update(double aDeltaTime)
 	myMutex.Lock();
 
 	//*
-	myRenderJobSys->ResetQueue();
 	myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
-	myRenderJobSys->UnPause(); 
+//	myRenderJobSys->WaitForAllJobs();
 	/*/
 	RenderAsync();
 	//*/

@@ -64,7 +64,7 @@ FGameLevel::FGameLevel(const char * aLevelName)
 
 void FGameLevel::Update(double aDeltaTime)
 {
-	//FPROFILE_FUNCTION("FGameLevel Update");
+//	FPROFILE_FUNCTION("FGameLevel Update");
 
 	FLightManager::GetInstance()->SortLights();
 	FCamera* cam = FD3d12Renderer::GetInstance()->GetCamera();

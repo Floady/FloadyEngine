@@ -14,15 +14,22 @@ public:
 	{
 		FJob(const FJob& aJob)
 		{
-			myFunc = aJob.myFunc;
-			myJobIDependOn = nullptr;
-			InterlockedExchange(&myFinished, 0);
-			InterlockedExchange(&myStarted, 1);
-			InterlockedExchange(&myQueued, 0);
-			InterlockedExchange(&myDependencyCounter, 0);
+			Reset();
+			myFunc = aJob.myFunc;			
 		}
 
 		FJob()
+		{
+			Reset();
+		}
+
+		void WaitForFinish()
+		{
+			while(!myFinished)
+			{ }
+		}
+		
+		void Reset()
 		{
 			myJobIDependOn = nullptr;
 			InterlockedExchange(&myStarted, 1);
@@ -48,7 +55,7 @@ public:
 	bool SetJobIdFree(int anIdx, bool anIsLong);
 	FJob* GetJobFromQueue(int anIdx, bool anIsLong);
 	FJob* QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false, FJobSystem::FJob* aJobToDependOn = nullptr);
-	void ResetQueue();
+	void ResetQueue(bool aResetLong = false);	
 	void WaitForAllJobs();
 	void UnPause() { myIsPaused = false; }
 	void Pause() { myIsPaused = true; }

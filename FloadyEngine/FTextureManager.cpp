@@ -253,7 +253,7 @@ void FTextureManager::ReloadTextures()
 		hFind = FindFirstFileW(folderFilters[i], &data);
 		if (hFind != INVALID_HANDLE_VALUE) {
 			do {
-				FLOG("%ws", data.cFileName);
+//				FLOG("%ws", data.cFileName);
 
 				std::wstring mywstring(data.cFileName);
 				std::wstring concatted_stdstr = folderPrefix[i] + mywstring;
@@ -272,7 +272,7 @@ void FTextureManager::ReloadTextures()
 					myTextures[cStrFilename].myWidth = fi_width;
 					myTextures[cStrFilename].myHeight = fi_height;
 					myTextures[cStrFilename].myRawPixelData = transformedBytes2;
-					FLOG("Taking load data from FreeImage for: %ws", data.cFileName);
+//					FLOG("Taking load data from FreeImage for: %ws", data.cFileName);
 				}
 				else
 				{
@@ -281,7 +281,7 @@ void FTextureManager::ReloadTextures()
 					myTextures[cStrFilename].myWidth = width;
 					myTextures[cStrFilename].myHeight = height;
 					myTextures[cStrFilename].myRawPixelData = transformedBytes;
-					FLOG("Taking load data from libPNG straight for: %ws", data.cFileName);
+//					FLOG("Taking load data from libPNG straight for: %ws", data.cFileName);
 				}
 
 				myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
