@@ -209,7 +209,7 @@ bool FGame::Update(double aDeltaTime)
 		FPROFILE_FUNCTION("WaitForRender");
 		myRenderJobSys->WaitForAllJobs();
 		{
-			FPROFILE_FUNCTION("ResetQueue");
+			FPROFILE_FUNCTION("FGame Update");
 			myRenderJobSys->ResetQueue();
 		}
 	}
