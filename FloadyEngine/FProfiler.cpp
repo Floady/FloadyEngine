@@ -3,6 +3,7 @@
 #include "FDynamicText.h"
 #include "windows.h"
 #include "FJobSystem.h"
+#include "FUtilities.h"
 
 #if GRAPHICS_DEBUGGING
 #include <pix.h>
@@ -140,15 +141,16 @@ void FProfiler::SetVisible(bool aVisible)
 	}
 }
 
-void scopedMarker::Start(bool aIsGPU)
+void scopedMarker::Start()
 {
 	if (!FD3d12Renderer::GetInstanceNoCreate())
 		return;
-/*
-	if (FD3d12Renderer::GetInstance()->GetCommandQueue())
-		PIXBeginEvent(FD3d12Renderer::GetInstance()->GetCommandQueue(), 0, myName);
-*/
-	myIsGPU = aIsGPU;
+
+	// CPU markers for Pix, when we arent doing graphics debugging (then we get double markers)
+#if !GRAPHICS_DEBUGGING
+	PIXBeginEvent(myColor, FUtilities::ConvertFromUtf8ToUtf16(myName).c_str());
+#endif
+
 	if(myIsGPU)
 	{
 		if(ID3D12GraphicsCommandList* cmdList = FD3d12Renderer::GetInstance()->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx))
@@ -163,8 +165,10 @@ scopedMarker::~scopedMarker()
 	if (!FD3d12Renderer::GetInstanceNoCreate())
 		return;
 
-	//if (FD3d12Renderer::GetInstance()->GetCommandQueue())
-	//	PIXEndEvent(FD3d12Renderer::GetInstance()->GetCommandQueue());
+	// CPU markers for Pix, when we arent doing graphics debugging (then we get double markers)
+#if !GRAPHICS_DEBUGGING
+	PIXEndEvent();
+#endif
 
 	if (myIsGPU)
 	{

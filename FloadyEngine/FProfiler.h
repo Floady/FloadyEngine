@@ -48,24 +48,28 @@ struct scopedMarker
 {
 	scopedMarker() {};
 
-	scopedMarker(const char* aName)
+	scopedMarker(const char* aName, bool anIsGPU = false, unsigned __int64 aColor = 0xFF00FF00)
 	{
 		myName = aName;
 		myTimer.Restart();
-		myIsGPU = false;
+		myIsGPU = anIsGPU;
+		myColor = aColor;
 	}
 
-	void Start(bool aIsGPU = false);
+	void Start();
 
 	~scopedMarker();
 
 	bool myIsGPU;
 	FTimer myTimer;
 	const char* myName;
+	unsigned __int64 myColor;
 };
 
-#define FPROFILE_FUNCTION(aName) scopedMarker __someMarker = scopedMarker(aName); __someMarker.Start();
-#define FPROFILE_FUNCTION_GPU(aName) scopedMarker __someMarker = scopedMarker(aName); __someMarker.Start(true);
+#define FPROFILE_FUNCTION_CUSTOM(aName, aColor) scopedMarker __someMarker = scopedMarker(aName, false, aColor); __someMarker.Start();
+#define FPROFILE_FUNCTION(aName) FPROFILE_FUNCTION_CUSTOM(aName, 0xFF00FF00)
+#define FPROFILE_FUNCTION_GPU_CUSTOM(aName, aColor) scopedMarker __someMarker = scopedMarker(aName, true, aColor); __someMarker.Start();
+#define FPROFILE_FUNCTION_GPU(aName) FPROFILE_FUNCTION_GPU_CUSTOM(aName, 0xFF00FFFF)
 //#define FPROFILE_FUNCTION(aName) void();
 
 

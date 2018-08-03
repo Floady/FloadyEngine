@@ -111,6 +111,10 @@ FGame::FGame()
 	myAA = nullptr;
 	myFpsCounter = nullptr;
 
+	myRenderPostEffectsJob = nullptr;
+	myRenderToBuffersJob = nullptr;
+	myExecuteCommandlistsJob = nullptr;
+
 	myRenderJobSys = FJobSystem::GetInstance();
 }
 
@@ -204,15 +208,18 @@ bool FGame::Update(double aDeltaTime)
 	FVector3 lastPos = startPos;
 	static float trajectoryVelocity = 10.0f;
 
+	FJob* clearBufferJob = nullptr;
 	// wait for short jobs before processing next frame
 	{
-		FPROFILE_FUNCTION("WaitForRender");
+		FPROFILE_FUNCTION_CUSTOM("WaitForRender", 0xFFFFAAAA);
 		myRenderJobSys->WaitForAllJobs();
 		{
-			FPROFILE_FUNCTION("FGame Update");
 			myRenderJobSys->ResetQueue();
 		}
 	}
+
+	FD3d12Renderer::GetInstance()->InitFrame();
+	clearBufferJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
 
 	//myThrowableTrajectory.Simulate(startPos, FVector3(0.6, 1, 1), trajectoryVelocity, path, 1000.0f);
 	//
@@ -222,7 +229,6 @@ bool FGame::Update(double aDeltaTime)
 	//	lastPos = segment.myPosition;
 	//}
 
-	FJobSystem::FJob* clearBufferJob = nullptr;
 
 	{
 		// update FPS
@@ -242,7 +248,7 @@ bool FGame::Update(double aDeltaTime)
 
 		//*
 		// this should have dependencies - but works because 1 workerthread
-		FJobSystem::FJob* lightManagerQueue = nullptr;
+		FJob* lightManagerQueue = nullptr;
 		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::UpdateViewProjMatrices));
 		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetVisibleAABB), false, lightManagerQueue);
 		lightManagerQueue = myRenderJobSys->QueueJob(FDelegate2<void()>(FLightManager::GetInstance(), &FLightManager::ResetHasMoved), false, lightManagerQueue);
@@ -383,18 +389,15 @@ bool FGame::Update(double aDeltaTime)
 
 
 		myMutex.WaitFor();
-		clearBufferJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
-		//FD3d12Renderer::GetInstance()->DoClearBuffers();
-		
+	
 		{
-			FPROFILE_FUNCTION("Wait for lightmanager");
-			//myRenderJobSys->WaitForAllJobs();
+			FPROFILE_FUNCTION_CUSTOM("Wait for lightmanager", 0xFFFFAAAA);
 			lightManagerQueue->WaitForFinish();
 		}
 		
 		// Update world
 		{
-			FPROFILE_FUNCTION("Level update");
+			FPROFILE_FUNCTION_CUSTOM("Level update", 0xFFFFFF00);
 			myLevel->Update(aDeltaTime);
 		}
 		// Step physics
@@ -424,16 +427,10 @@ bool FGame::Update(double aDeltaTime)
 	// Render world
 	{
 		FPROFILE_FUNCTION("FGame Render");
-		{
-			FPROFILE_FUNCTION("Wait For clearBufferJob");
-			clearBufferJob->WaitForFinish();
-
-		}
-		{
-			FPROFILE_FUNCTION("RenderWorldAsync");
-			myRenderJobSys->WaitForAllJobs();
-			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderWorldAsync)));
-		}
+		
+		// record cmdlists for render world
+		myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderWorldAsync)));
+		
 
 		// update SSAO buffers
 		float constData[80];
@@ -460,19 +457,19 @@ bool FGame::Update(double aDeltaTime)
 		myRenderWindow->CheckForQuit();
 	}
 
-	myRenderJobSys->WaitForAllJobs();
+	{
+		FPROFILE_FUNCTION_CUSTOM("WaitFor clearbuff renderworld", 0xFFFFAAAA);
+		myRenderJobSys->WaitForAllJobs();
+	}
 	myHighlightManager->Render();
 	FProfiler::GetInstance()->Render();
 	FProfiler::GetInstance()->StartFrame();
 
 	myMutex.Lock();
 
-	//*
-	myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
-//	myRenderJobSys->WaitForAllJobs();
-	/*/
-	RenderAsync();
-	//*/
+	FD3d12Renderer::GetInstance()->WaitForRender();
+	myExecuteCommandlistsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
+	myRenderPostEffectsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderPostEffectsAsync)), false, myExecuteCommandlistsJob);
 
 	return true;
 
@@ -480,22 +477,23 @@ bool FGame::Update(double aDeltaTime)
 
 void FGame::RenderAsync()
 {
-	//FPROFILE_FUNCTION("Clear buffers");
+	FPROFILE_FUNCTION("RenderAsync");
 	myRenderer->Render();
 	myMutex.Unlock();
-	myRenderer->RenderPostEffects();
+}
 
-	{
-		//FD3d12Renderer::GetInstance()->DoClearBuffers();
-		FD3d12Renderer::GetInstance()->WaitForRender();
-	}
+void FGame::RenderPostEffectsAsync()
+{
+	FPROFILE_FUNCTION("RenderPostEffectsAsync");
+	myRenderer->RenderPostEffects();
+	FD3d12Renderer::GetInstance()->WaitForRender();
 }
 
 void FGame::ClearBuffersAsync()
 {
 	FPROFILE_FUNCTION("Clear buffers");
+	FD3d12Renderer::GetInstance()->RecordClearBuffers();
 	FD3d12Renderer::GetInstance()->DoClearBuffers();
-	FD3d12Renderer::GetInstance()->WaitForRender();
 }
 
 void FGame::RenderWorldAsync()
@@ -505,5 +503,4 @@ void FGame::RenderWorldAsync()
 	FD3d12Renderer::GetInstance()->RecordShadowPass();
 	FD3d12Renderer::GetInstance()->RecordPostProcesss();
 	FD3d12Renderer::GetInstance()->RecordDebugDrawer();
-	FD3d12Renderer::GetInstance()->WaitForRender();
 }

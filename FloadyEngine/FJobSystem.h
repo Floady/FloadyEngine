@@ -6,46 +6,48 @@
 
 // Usage:
 // WaitForAllJobs -> ResetQueue -> Queue up some jobs -> (Unpause if needed), WaitForAllJobs, etc.
+struct FJob
+{
+	FJob(const FJob& aJob)
+	{
+		Reset();
+		myFunc = aJob.myFunc;
+	}
+
+	FJob()
+	{
+		Reset();
+	}
+
+	void WaitForFinish()
+	{
+		while (!myFinished)
+		{
+		}
+	}
+
+	void Reset()
+	{
+		myJobIDependOn = nullptr;
+		InterlockedExchange(&myStarted, 1);
+		InterlockedExchange(&myFinished, 0);
+		InterlockedExchange(&myQueued, 0);
+		InterlockedExchange(&myDependencyCounter, 0);
+	}
+
+	FDelegate2<void()> myFunc; // this is never read+write concurrently (we increment the job idx after assignment)
+	volatile LONG myFinished;
+	volatile LONG myStarted;;
+	volatile LONG myQueued;;
+	volatile LONG myDependencyCounter;
+	FJob* myJobIDependOn;
+};
+
 
 class FJobSystem
 {
 public:
-	struct FJob
-	{
-		FJob(const FJob& aJob)
-		{
-			Reset();
-			myFunc = aJob.myFunc;			
-		}
-
-		FJob()
-		{
-			Reset();
-		}
-
-		void WaitForFinish()
-		{
-			while(!myFinished)
-			{ }
-		}
-		
-		void Reset()
-		{
-			myJobIDependOn = nullptr;
-			InterlockedExchange(&myStarted, 1);
-			InterlockedExchange(&myFinished, 0);
-			InterlockedExchange(&myQueued, 0);
-			InterlockedExchange(&myDependencyCounter, 0);
-		}
-
-		FDelegate2<void()> myFunc; // this is never read+write concurrently (we increment the job idx after assignment)
-		volatile LONG myFinished;
-		volatile LONG myStarted;;
-		volatile LONG myQueued;;
-		volatile LONG myDependencyCounter;
-		FJob* myJobIDependOn;
-	};
-
+	
 	static thread_local int ourThreadIdx;
 
 	
@@ -54,7 +56,7 @@ public:
 	int GetNextJob(bool anIsLong);
 	bool SetJobIdFree(int anIdx, bool anIsLong);
 	FJob* GetJobFromQueue(int anIdx, bool anIsLong);
-	FJob* QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false, FJobSystem::FJob* aJobToDependOn = nullptr);
+	FJob* QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong = false, FJob* aJobToDependOn = nullptr);
 	void ResetQueue(bool aResetLong = false);	
 	void WaitForAllJobs();
 	void UnPause() { myIsPaused = false; }
@@ -92,5 +94,8 @@ private:
 	// Test
 	LONG myCounter;
 	int myExpectedTotal;
+
+	std::vector<HANDLE> myShortTaskThreads;
+	std::vector<HANDLE> myLongTaskThreads;
 };
 

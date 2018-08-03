@@ -80,8 +80,9 @@ public:
 	bool RenderPostEffects();
 
 	// Render tasks
+	void InitFrame();
 	void DoClearBuffers();
-	void DoRenderToGBuffer();
+	void RecordClearBuffers();
 	void RecordRenderToGBuffer();
 	void RecordDebugDrawer();
 	void RecordShadowPass();
@@ -119,6 +120,7 @@ public:
 	FDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
 	FSceneGraph& GetSceneGraph() { return mySceneGraph; }
 
+	void WaitForRenderFromThread();
 private:
 	FJobSystem* myRenderJobSys;
 	static FD3d12Renderer* ourInstance;
@@ -143,6 +145,7 @@ private:
 	ID3D12GraphicsCommandList* myRenderToGBufferCmdList;
 	ID3D12GraphicsCommandList* myPostProcessCmdList;
 	ID3D12GraphicsCommandList* myDebugDrawerCmdList;
+	ID3D12GraphicsCommandList* myClearBuffersCmdList;
 	ID3D12GraphicsCommandList* m_commandList;
 	ID3D12GraphicsCommandList* myShadowPassCommandLists[16];
 	ID3D12PipelineState* m_pipelineState;
@@ -185,5 +188,7 @@ private:
 	GPUMutex myPostProcessGpuMtx;
 	GPUMutex myTestMutex;
 	GPUMutex mySpecialMutex;
+
+	std::vector<GPUMutex*> myThreadLocalMutexes;
 };
 

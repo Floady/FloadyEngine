@@ -33,7 +33,7 @@ DWORD WINAPI FWorkerThread(LPVOID aJobSystem)
 			int nextJob = jobSystem->GetNextJob(isLong);
 			if (nextJob != -1)
 			{
-				FJobSystem::FJob* job = jobSystem->GetJobFromQueue(nextJob, isLong);
+				FJob* job = jobSystem->GetJobFromQueue(nextJob, isLong);
 				if(!job->myStarted)
 				{
 					if (!InterlockedExchange(&job->myStarted, 1))
@@ -173,12 +173,12 @@ bool FJobSystem::SetJobIdFree(int anIdx, bool anIsLong)
 	return false;
 }
 
-FJobSystem::FJob * FJobSystem::GetJobFromQueue(int anIdx, bool anIsLong)
+FJob * FJobSystem::GetJobFromQueue(int anIdx, bool anIsLong)
 {
 	return anIsLong ? &myQueueLong[anIdx] : &myQueueShort[anIdx];
 }
 
-FJobSystem::FJob* FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong, FJobSystem::FJob* aJobToDependOn)
+FJob* FJobSystem::QueueJob(const FDelegate2<void()>& aDelegate, bool anIsLong, FJob* aJobToDependOn)
 {
 	LONG curFreeIdx = anIsLong ? myFreeIndexLong : myFreeIndexShort;
 	LONG curJobIdx = anIsLong ? myNextJobIndexLong : myNextJobIndexShort;
@@ -357,14 +357,26 @@ FJobSystem::FJobSystem(int aNrWorkerThreadsShort, int aNrWorkerThreadsLong)
 	myNrWorkerThreadsShort = aNrWorkerThreadsShort;
 	for (int i = 0; i < myNrWorkerThreadsShort; i++)
 	{
-		CreateThread(0, 0, &FWorkerThread, this, 0, NULL);
+		HANDLE h = CreateThread(0, 0, &FWorkerThread, this, 0, NULL);
+		myShortTaskThreads.push_back(h);
 	}
 
 	myNrWorkerThreadsLong = aNrWorkerThreadsLong;
 	for (int i = 0; i < myNrWorkerThreadsLong; i++)
 	{
-		CreateThread(0, 0, &FWorkerThread, this, 0, NULL);
+		HANDLE h = CreateThread(0, 0, &FWorkerThread, this, 0, NULL);
+		myLongTaskThreads.push_back(h);
 	}
+
+	DWORD_PTR mask = 1;
+	SetThreadAffinityMask(myShortTaskThreads[0], mask);
+	SetThreadPriority(myShortTaskThreads[0], THREAD_PRIORITY_ABOVE_NORMAL);
+	mask = 2;
+	SetThreadAffinityMask(myShortTaskThreads[1], mask);
+	SetThreadPriority(myShortTaskThreads[1], THREAD_PRIORITY_ABOVE_NORMAL);
+	//mask = 4;
+	//SetThreadAffinityMask(myShortTaskThreads[2], mask);
+	//SetThreadPriority(myShortTaskThreads[2], THREAD_PRIORITY_ABOVE_NORMAL);
 
 	JOB_DEBUG_LOG("Created job system: %i short, %i long", myNrWorkerThreadsShort, myNrWorkerThreadsLong);
 }
@@ -385,7 +397,7 @@ FJobSystem* FJobSystem::GetInstance()
 {
 	if (!ourInstance)
 	{
-		ourInstance = new FJobSystem(3, 2);
+		ourInstance = new FJobSystem(2, 1);
 		ourInstance->Test();
 	}
 

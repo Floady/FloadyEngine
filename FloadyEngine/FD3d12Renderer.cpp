@@ -32,6 +32,9 @@
 
 FD3d12Renderer* FD3d12Renderer::ourInstance = nullptr;
 
+thread_local FD3d12Renderer::GPUMutex ourLocalWaitForRenderMutex;
+thread_local bool isMutexInit = false;
+
 FD3d12Renderer::FD3d12Renderer()
 	: myShaderManager()
 	, m_viewport()
@@ -72,6 +75,7 @@ FD3d12Renderer::FD3d12Renderer()
 
 	myRenderToGBufferCmdList = nullptr;
 	myPostProcessCmdList = nullptr;
+	myClearBuffersCmdList = nullptr;
 	myDebugDrawerCmdList = nullptr;
 }
 
@@ -861,7 +865,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		result = m_workerThreadCmdLists[i]->Close(); // start closed
 	}
 
-	for (size_t i = 0; i < 16; i++)
+	for (size_t i = 0; i < 4; i++)
 	{
 		result = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], NULL, __uuidof(ID3D12GraphicsCommandList), (void**)&myShadowPassCommandLists[i]);
 		myShadowPassCommandLists[i]->Close();
@@ -967,121 +971,21 @@ bool FD3d12Renderer::Render()
 
 		//*
 		{
-			//*
 			PIXBeginEvent(m_commandQueue, 0, L"ShadowPass");
 			ID3D12GraphicsCommandList* commandList = myShadowPassCommandLists[0];
 			ID3D12CommandList* ppCommandLists[] = { commandList };
 			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 			PIXEndEvent(m_commandQueue);
-
-			/*/
-			FPROFILE_FUNCTION("Shadow Pass");
-
-			PIXBeginEvent(m_commandQueue, 0, L"ShadowPass");
-
-			//@todo: only shadowcasting lights.. improve
-			ID3D12GraphicsCommandList* commandList = myShadowPassCommandLists[0];
-			std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
-			FLightManager::GetInstance()->SetActiveLight(-1);
-
-			commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
-
-			CD3DX12_RESOURCE_BARRIER barriersBefore[] =
-			{
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[1], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[2], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[3], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[4], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[5], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[6], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[7], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[8], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[9], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE)
-			};
-
-			commandList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
-
-			int numLights = min(pointlights.size() + 1, 10);
-			for (int i = 0; i < numLights; i++)
-			{
-				if (true)//i == 0 || GetCamera()->IsInFrustum(pointlights[i - 1].GetAABB()))
-				{
-					ID3D12GraphicsCommandList* commandListShadows = myShadowPassCommandLists[0];
-					{
-						commandListShadows->RSSetViewports(1, &GetViewPort());
-						commandListShadows->RSSetScissorRects(1, &GetScissorRect());
-						ID3D12DescriptorHeap* ppHeaps[] = { GetSRVHeap() };
-						commandListShadows->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-						D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = GetShadowMapHandle(FLightManager::GetInstance()->GetActiveLight());
-						D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myShadowScratchBuffView;// GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color);
-						commandListShadows->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-						commandListShadows->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-						for (FRenderableObject* object : mySceneGraph.GetObjects())
-						{
-							FAABB aabb = object->GetAABB();
-							if (object->CastsShadows()) //  && (i == 0 || pointlights[i - 1].GetAABB().IsInside(aabb))
-								object->PopulateCommandListInternalShadows(commandListShadows);
-						}
-					}
-				}
-
-				FLightManager::GetInstance()->SetActiveLight(i);
-			}
-
-			PIXEndEvent(m_commandQueue);
-
-			// clear color buff that we used in shadows (@todo: maybe replace with a dummy one that you never have to clear, or in the clear pass)
-			FTextureManager::GetInstance()->InitD3DResources(m_device, commandList);
-			FMeshManager::GetInstance()->InitLoadedMeshesD3D();
-			float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-			CD3DX12_RESOURCE_BARRIER barriersAfter[] =
-			{
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[0], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[1], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[2], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[3], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[4], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[5], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[6], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[7], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[8], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[9], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-			};
-
-			commandList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
-
-			commandList->Close();
-			ID3D12CommandList* ppCommandLists[] = { commandList };
-			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-			myTestMutex.Signal(GetCommandQueue());
-			myTestMutex.WaitFor();
-
-			UpdatePendingTextures();
-
-			//*/
 		}
 
 		{
 			FPROFILE_FUNCTION("Render Pass");
 			PIXBeginEvent(m_commandQueue, 0, L"RenderPass");
 
-			ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
-			commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
-			commandList->Close();
-
-			/*
-			DoRenderToGBuffer();
-			commandList->Close();
-			
-			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-			/*/
 			ID3D12CommandList* ppCommandLists[] = { myRenderToGBufferCmdList };
 			VERBOSE_RENDER_LOG("Execute RenderToGBuffer");
 			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-			//*/
+			
 			VERBOSE_RENDER_LOG("Finished RenderToGBuffer");
 			myPostProcessGpuMtx.Signal(GetCommandQueue());
 			myPostProcessGpuMtx.WaitFor();
@@ -1124,6 +1028,19 @@ void FD3d12Renderer::IncreaseInt()
 void FD3d12Renderer::SetDebugDrawEnabled(bool anEnabled)
 {
 	myDebugDrawEnabled = anEnabled;
+}
+
+
+void FD3d12Renderer::WaitForRenderFromThread()
+{
+	if (!isMutexInit)
+	{
+		isMutexInit = true;
+		ourLocalWaitForRenderMutex.Init(m_device, "threadLocalMT");
+		myThreadLocalMutexes.push_back(&ourLocalWaitForRenderMutex);
+	}
+	ourLocalWaitForRenderMutex.Signal(GetCommandQueue());
+	ourLocalWaitForRenderMutex.WaitFor();
 }
 
 void FD3d12Renderer::Shutdown()
@@ -1215,58 +1132,10 @@ bool FD3d12Renderer::RenderPostEffects()
 		FPROFILE_FUNCTION("FD3d12 PostEffect");
 
 		PIXBeginEvent(m_commandQueue, 0, L"PostEffects");
-		/*
-		ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
-
-		// copy combined onto first scratch
-		myCurrentPostProcessBufferIdx = 1; // 0 is the one we render to, 1 is the one we bind as resource
-		{
-			commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_gbuffer[Gbuffer_Combined], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
-			commandList->CopyResource(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], m_gbuffer[Gbuffer_Combined]);
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_gbuffer[Gbuffer_Combined], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		}
-
-		myCurrentPostProcessBufferIdx = 0;
-		// render all post effects while swapping back/forth between scratch - copy result over for next posteffect
-		for (FPostProcessEffect* postEffect : myPostEffects)
-		{
-			FPROFILE_FUNCTION(postEffect->myDebugName);
-
-			postEffect->RenderAsync();
-			{
-				int nextScratchBuffIdx = myCurrentPostProcessBufferIdx == 0 ? 1 : 0; // nrOfScratchBuffers
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
-				commandList->CopyResource(myPostProcessScratchBuffers[nextScratchBuffIdx], myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[nextScratchBuffIdx], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-				myCurrentPostProcessBufferIdx = nextScratchBuffIdx;
-			}
-
-		}
-
-		{
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
-			commandList->CopyResource(GetRenderTarget(), myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
-			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-			commandList->Close();
-
-			ID3D12CommandList* ppCommandLists[] = { commandList };
-			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-		}
-
-
-		/*/
+		
 		ID3D12CommandList* ppCommandLists[] = { myPostProcessCmdList };
 		GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-		//*/
-
+		
 		myPostProcessGpuMtx.Signal(GetCommandQueue());
 		myPostProcessGpuMtx.WaitFor();
 
@@ -1359,14 +1228,10 @@ bool FD3d12Renderer::RenderPostEffects()
 	return true;
 }
 
-void FD3d12Renderer::DoClearBuffers()
+void FD3d12Renderer::InitFrame()
 {
-	VERBOSE_RENDER_LOG("Clear buffer");
-
 	HRESULT result;
 	unsigned int renderTargetViewDescriptorSize;
-	float color[4];
-	ID3D12CommandList* ppCommandLists[1];
 
 	// Wait for highlightPost before resetting commandAlloc 
 	myPostProcessGpuMtx.WaitFor();
@@ -1388,33 +1253,48 @@ void FD3d12Renderer::DoClearBuffers()
 	myTestMutex.WaitFor();
 	myRenderPassGputMtx.WaitFor();
 
+	if (!myClearBuffersCmdList)
+	{
+		myClearBuffersCmdList = CreateCommandList();
+		myClearBuffersCmdList->Close();
+		myClearBuffersCmdList->SetName(L"ClearBuffer");
+	}
 
 	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreadsShort();
 	int nrOfThreads = nrWorkerThreads + 1;
-	VERBOSE_RENDER_LOG("Reset worker allocs");
+	VERBOSE_RENDER_LOG("Reset worker allocs %d", nrOfThreads);
 	for (int i = 0; i < nrOfThreads; i++)
 	{
+		VERBOSE_RENDER_LOG("Resetting %d", i);
 		result = m_workerThreadCmdAllocators[i]->Reset();
-//		VERBOSE_RENDER_LOG("KAPUT? %x", result);
+		VERBOSE_RENDER_LOG("KAPUT? %x", result);
 		if (FAILED(result))
 		{
 			assert(0);
 		}
 	}
 
-	// Reset (re-use) the memory associated command allocator.
-	/*
-	VERBOSE_RENDER_LOG("Reset main alloc");
-	result = GetCommandAllocator()->Reset();
-	if (FAILED(result))
+	for (size_t i = 0; i < myThreadLocalMutexes.size(); i++)
 	{
-		VERBOSE_RENDER_LOG("KAPUT");
-		return;
+		myThreadLocalMutexes[i]->Reset();
+		myThreadLocalMutexes[i]->Signal(GetCommandQueue());
+		myThreadLocalMutexes[i]->WaitFor();
 	}
-	*/
+
+
 
 	// Reset the command list, use empty pipeline state for now since there are no shaders and we are just clearing the screen.
-	result = m_commandList->Reset(GetCommandAllocator(), m_pipelineState);
+	result = m_commandList->Reset(GetCommandAllocator(), m_pipelineState); m_commandList->Close();
+	if (FAILED(result))
+	{
+		return;
+	}
+	if (myClearBuffersCmdList)
+	{
+		result = myClearBuffersCmdList->Reset(GetCommandAllocator(), m_pipelineState);
+		//myClearBuffersCmdList->Close();
+	}
+
 	if (FAILED(result))
 	{
 		return;
@@ -1427,10 +1307,34 @@ void FD3d12Renderer::DoClearBuffers()
 	{
 		myRenderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
 	}
+}
+
+void FD3d12Renderer::DoClearBuffers()
+{
+	ID3D12CommandList* ppCommandLists[1];
+	// Load the command list array (only one command list for now).
+	ppCommandLists[0] = myClearBuffersCmdList;
+
+	// Execute the list of commands.
+	VERBOSE_RENDER_LOG("Exec cmdlist clear buffer");
+	m_commandQueue->ExecuteCommandLists(1, ppCommandLists);
+
+	myPostProcessGpuMtx.Signal(GetCommandQueue());
+
+	VERBOSE_RENDER_LOG("Finished cmdlist clear buffer");
+
+	PIXEndEvent(m_commandQueue);
+}
+
+void FD3d12Renderer::RecordClearBuffers()
+{
+	VERBOSE_RENDER_LOG("Clear buffer");
+	HRESULT result;
 
 	PIXBeginEvent(m_commandQueue, 0, L"ClearBuffers");
 
 	// Then set the color to clear the window to.
+	float color[4];
 	color[0] = 0.0;
 	color[1] = 0.0;
 	color[2] = 0.0;
@@ -1457,24 +1361,24 @@ void FD3d12Renderer::DoClearBuffers()
 		CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[9], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE)
 	};
 	
-	m_commandList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
+	myClearBuffersCmdList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
 
-	m_commandList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
+	myClearBuffersCmdList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
 
 	// Set the back buffer as the render target.
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	m_commandList->OMSetRenderTargets(1, &myRenderTargetViewHandle, FALSE, &dsvHandle);
+	myClearBuffersCmdList->OMSetRenderTargets(1, &myRenderTargetViewHandle, FALSE, &dsvHandle);
 
 	for (int i = 0; i < Gbuffer_count; i++)
 	{
-		m_commandList->ClearRenderTargetView(m_gbufferViews[i], color, 0, NULL);
+		myClearBuffersCmdList->ClearRenderTargetView(m_gbufferViews[i], color, 0, NULL);
 	}
 
-	m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+	myClearBuffersCmdList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
 
 	for (int i = 0; i < 10; i++)
 	{
-		m_commandList->ClearDepthStencilView(myShadowMapViewHandle[i], D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
+		myClearBuffersCmdList->ClearDepthStencilView(myShadowMapViewHandle[i], D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0, 0, nullptr);
 	}
 
 	CD3DX12_RESOURCE_BARRIER barriersAfter[] =
@@ -1499,28 +1403,14 @@ void FD3d12Renderer::DoClearBuffers()
 	};
 
 
-	m_commandList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
+	myClearBuffersCmdList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
 
 	// Close the list of commands.
-	result = m_commandList->Close();
+	result = myClearBuffersCmdList->Close();
 	if (FAILED(result))
 	{
 		return;
 	}
-
-	// Load the command list array (only one command list for now).
-	ppCommandLists[0] = m_commandList;
-
-	// Execute the list of commands.
-	VERBOSE_RENDER_LOG("Exec cmdlist clear buffer");
-	m_commandQueue->ExecuteCommandLists(1, ppCommandLists);
-	
-	myPostProcessGpuMtx.Signal(GetCommandQueue());
-
-	VERBOSE_RENDER_LOG("Finished cmdlist clear buffer");
-
-	PIXEndEvent(m_commandQueue);
-
 }
 
 void FD3d12Renderer::RecordRenderToGBuffer()
@@ -1532,6 +1422,7 @@ void FD3d12Renderer::RecordRenderToGBuffer()
 	{
 		myRenderToGBufferCmdList = CreateCommandList();
 		myRenderToGBufferCmdList->Close();
+		myRenderToGBufferCmdList->SetName(L"RenderToGBuffer");
 	}
 
 	ID3D12GraphicsCommandList* commandList = myRenderToGBufferCmdList;
@@ -1592,6 +1483,7 @@ void FD3d12Renderer::RecordDebugDrawer()
 	{
 		myDebugDrawerCmdList = CreateCommandList();
 		myDebugDrawerCmdList->Close();
+		myDebugDrawerCmdList->SetName(L"RecordDebugDrawer");
 	}
 
 	myDebugDrawerCmdList->Reset(GetCommandAllocator(), nullptr);
@@ -1608,7 +1500,7 @@ void FD3d12Renderer::RecordShadowPass()
 	std::vector<FLightManager::SpotLight>& pointlights = FLightManager::GetInstance()->GetSpotlights();
 	FLightManager::GetInstance()->SetActiveLight(-1);
 
-	commandList->Reset(m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx], nullptr);
+	commandList->Reset(GetCommandAllocator(), nullptr);
 
 	CD3DX12_RESOURCE_BARRIER barriersBefore[] =
 	{
@@ -1687,6 +1579,7 @@ void FD3d12Renderer::RecordPostProcesss()
 	{
 		myPostProcessCmdList = CreateCommandList();
 		myPostProcessCmdList->Close();
+		myPostProcessCmdList->SetName(L"PostProc");
 	}
 
 	ID3D12GraphicsCommandList* commandList = myPostProcessCmdList;
@@ -1732,55 +1625,6 @@ void FD3d12Renderer::RecordPostProcesss()
 	}
 
 	commandList->Close();
-}
-
-void FD3d12Renderer::DoRenderToGBuffer()
-{
-	VERBOSE_RENDER_LOG("Render GBuffer");
-
-	ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];
-	
-	{
-		FPROFILE_FUNCTION_GPU("Render pass");
-
-		CD3DX12_RESOURCE_BARRIER barriersBefore[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(0), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(1), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(2), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(3), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),
-		};
-		commandList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
-
-		commandList->RSSetViewports(1, &GetViewPort());
-		commandList->RSSetScissorRects(1, &GetScissorRect());
-
-		ID3D12DescriptorHeap* ppHeaps[] = { GetSRVHeap() };
-		commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-		D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = GetDSVHandle();
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { GetGBufferHandle(0), GetGBufferHandle(1), GetGBufferHandle(2) , GetGBufferHandle(3) };
-		commandList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
-		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		
-		for (FRenderableObject* object : mySceneGraph.GetObjects())
-		{
-			if (object->GetIsVisible())
-			{
-				object->PopulateCommandListAsync();
-			}
-		}
-
-		CD3DX12_RESOURCE_BARRIER barriersAfter[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(0), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(1), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(2), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(3), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-		};
-		commandList->ResourceBarrier(_countof(barriersAfter), barriersAfter);
-	}
 }
 
 void FD3d12Renderer::SetRenderPassDependency(ID3D12CommandQueue * aQueue)
@@ -1850,6 +1694,7 @@ void FD3d12Renderer::GPUMutex::Signal(ID3D12CommandQueue * aCmdQueue)
 	myFenceValue = InterlockedIncrement(&FD3d12Renderer::GetInstance()->m_fenceValue);
 	HRESULT result = aCmdQueue->Signal(myFence, myFenceValue);
 	PIXEndEvent(aCmdQueue);
+//	FLOG("%d %s mutex signalled: %d",FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
 }
 
 void FD3d12Renderer::GPUMutex::WaitFor()
@@ -1879,6 +1724,7 @@ void FD3d12Renderer::GPUMutex::WaitFor()
 		completedValAfter = myFence->GetCompletedValue();
 	}
 
+//	FLOG("%d %s mutex waitfor completed: %d", FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
 	PIXEndEvent(myCmdQueue);
 }
 

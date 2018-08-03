@@ -24,6 +24,7 @@ class FGameBuildingManager;
 class FGameUIManager;
 class FPostProcessEffect;
 class FJobSystem;
+struct FJob;
 
 class FGame
 {
@@ -31,6 +32,7 @@ public:
 	void Init();
 	bool Update(double aDeltaTime);
 	void RenderAsync();
+	void RenderPostEffectsAsync();
 	void ClearBuffersAsync();
 	void RenderWorldAsync();
 	static FGame* GetInstance() { return ourInstance; }
@@ -76,5 +78,9 @@ private:
 	FPostProcessEffect* mySSAO;
 	FPostProcessEffect* myBlur;
 	FJobSystem* myRenderJobSys;
+
+	FJob* myRenderPostEffectsJob;
+	FJob* myRenderToBuffersJob;
+	FJob* myExecuteCommandlistsJob;
 };
 
