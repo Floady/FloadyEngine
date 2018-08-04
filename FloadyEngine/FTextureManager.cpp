@@ -12,7 +12,7 @@
 #include "FProfiler.h"
 
 static std::string ourFallbackTextureName = "reserved_fallback.reserved";
-#pragma optimize("", off)
+//#pragma optimize("", off)
 
 namespace
 {
@@ -244,7 +244,9 @@ void FTextureManager::ReloadTextures()
 	WIN32_FIND_DATA data;
 
 	//myTextures.clear();
-	
+	//myTextureMutex.WaitFor();
+	//myTextureMutex.Lock();
+
 	LPCWSTR folderFilters[] = { L"Textures//*.png" , L"Textures//sponza//*.png", L"Textures//sponza2//*.tga" };
 	LPCWSTR folderPrefix[] = { L"Textures//" , L"Textures//sponza//" , L"Textures//sponza2//" };
 
@@ -290,6 +292,8 @@ void FTextureManager::ReloadTextures()
 			FindClose(hFind);
 		}
 	}
+
+	//myTextureMutex.Unlock();
 }
 
 ID3D12Resource * FTextureManager::GetTextureD3D(const std::string& aTextureName) const
@@ -370,10 +374,15 @@ FTextureManager::FTextureManager()
 	
 	myInitializedD3D = false;
 	FreeImage_Initialise();
+
+	myTextureMutex.Init();
 }
 
 void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsCommandList* aCommandList)
 {
+	//myTextureMutex.WaitFor();
+	//myTextureMutex.Lock();
+
 	const int maxItems = 5;
 	int nrOfItemsDone = 0;
 	for (std::map<std::string, TextureInfo>::iterator it = myTextures.begin(); it != myTextures.end(); ++it)
@@ -417,13 +426,19 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 			// Create the GPU upload buffer.
 			ID3D12Resource* textureUploadHeap;
 			const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.myD3DResource, 0, 1);
-			aDevice->CreateCommittedResource(
+			hr = aDevice->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
 				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(&textureUploadHeap));
+
+			if (FAILED(hr))
+			{
+				HRESULT hr2 = FD3d12Renderer::GetInstance()->GetDevice()->GetDeviceRemovedReason();
+				FLOG("CreateCommitedResource failed %x [%x]", hr, hr2);
+			}
 
 			// Copy data to the intermediate upload heap and then schedule a copy 
 			// from the upload heap to the Texture2D.
@@ -439,6 +454,8 @@ void FTextureManager::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsComm
 	}
 
 	myInitializedD3D = true;
+	
+//	myTextureMutex.Unlock();
 }
 
 FTextureManager::~FTextureManager()

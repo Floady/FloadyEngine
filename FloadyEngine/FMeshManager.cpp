@@ -126,6 +126,7 @@ void FMeshManager::InitLoadedMeshesD3D()
 			obj2->myIndexBufferView.SizeInBytes = sizeof(int) * nrOfIndices;
 
 			obj2->myIndicesCount = nrOfIndices;
+			obj2->myVerticesSize = obj->myVertices.size();
 			
 			if(loadMeshObj.myCallBack)
 				loadMeshObj.myCallBack(*loadMeshObj.myObject);
@@ -240,16 +241,17 @@ FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDel
 	FMeshManager::FMeshObject* obj = myPendingLoadMeshes[aPath].myObject;
 	myMeshes[aPath] = obj;
 
-	obj->myIndicesCount = FPrimitiveGeometry::Box2::GetIndices().size();
-	obj->myVertexBuffer = FPrimitiveGeometry::Box2::GetVerticesBuffer();
-	obj->myIndexBuffer = FPrimitiveGeometry::Box2::GetIndicesBuffer();
-	obj->myVertexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetVerticesBuffer()->GetGPUVirtualAddress();
-	obj->myVertexBufferView.StrideInBytes = FPrimitiveGeometry::Box2::GetVerticesBufferStride();
-	obj->myVertexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetVertexBufferSize();
+	obj->myIndicesCount = FPrimitiveGeometry::DefaultModel::GetIndices().size();
+	obj->myVertexBuffer = FPrimitiveGeometry::DefaultModel::GetVerticesBuffer();
+	obj->myIndexBuffer = FPrimitiveGeometry::DefaultModel::GetIndicesBuffer();
+	obj->myVerticesSize = FPrimitiveGeometry::DefaultModel::GetVertices().size();
+	obj->myVertexBufferView.BufferLocation = FPrimitiveGeometry::DefaultModel::GetVerticesBuffer()->GetGPUVirtualAddress();
+	obj->myVertexBufferView.StrideInBytes = FPrimitiveGeometry::DefaultModel::GetVerticesBufferStride();
+	obj->myVertexBufferView.SizeInBytes = FPrimitiveGeometry::DefaultModel::GetVertexBufferSize();
 
-	obj->myIndexBufferView.BufferLocation = FPrimitiveGeometry::Box2::GetIndicesBuffer()->GetGPUVirtualAddress();
+	obj->myIndexBufferView.BufferLocation = FPrimitiveGeometry::DefaultModel::GetIndicesBuffer()->GetGPUVirtualAddress();
 	obj->myIndexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
-	obj->myIndexBufferView.SizeInBytes = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
+	obj->myIndexBufferView.SizeInBytes = FPrimitiveGeometry::DefaultModel::GetIndicesBufferSize();
 
 	return obj;
 }
@@ -260,7 +262,8 @@ FMeshManager::FMeshObject::FMeshObject()
 	myIndexBuffer = nullptr;
 	myVertexDataBegin = nullptr;
 	myIndexDataBegin = nullptr;
-	int myIndicesCount = 0;
+	myIndicesCount = 0;
+	myVerticesSize = 0;
 }
 
 void FMeshManager::FMeshLoadObject::Load()

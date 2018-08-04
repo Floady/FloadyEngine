@@ -34,5 +34,6 @@ private:
 	static FTextureManager* ourInstance;
 
 	std::map<std::string, TextureInfo> myTextures;
+	FD3d12Renderer::FMutex myTextureMutex;
 };
 

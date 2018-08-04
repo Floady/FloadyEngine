@@ -223,16 +223,16 @@ void FJobSystem::ResetQueue(bool aResetLong)
 		myNextJobIndexLong = 0;
 		myLastQueuedJobLong = 0;
 
-		for (size_t i = 0; i < 4096-1; i++)
+		for (size_t i = 0; i < JOBTASKPOOLSIZE -1; i++)
 		{
 			myFreeLongTasks[i] = i + 1;
 			myLongTasksQueue[i] = i + 1;
 			myQueueLong[i].Reset();
 		}
 
-		myQueueLong[4095].Reset();
-		myFreeLongTasks[4095] = 0;
-		myLongTasksQueue[4095] = 0;
+		myQueueLong[JOBTASKPOOLSIZE - 1].Reset();
+		myFreeLongTasks[JOBTASKPOOLSIZE - 1] = 0;
+		myLongTasksQueue[JOBTASKPOOLSIZE - 1] = 0;
 	}
 
 	bool wasPaused = myIsPaused;
@@ -243,16 +243,16 @@ void FJobSystem::ResetQueue(bool aResetLong)
 	myNextJobIndexShort = 0;
 	myLastQueuedJobShort = 0;
 	
-	for (size_t i = 0; i < 4096-1; i++)
+	for (size_t i = 0; i < JOBTASKPOOLSIZE - 1; i++)
 	{
 		myFreeShortTasks[i] = i + 1;
 		myShortTasksQueue[i] = i + 1;
 		myQueueShort[i].Reset();
 	}
 
-	myQueueShort[4095].Reset();
-	myFreeShortTasks[4095] = 0;
-	myShortTasksQueue[4095] = 0;
+	myQueueShort[JOBTASKPOOLSIZE - 1].Reset();
+	myFreeShortTasks[JOBTASKPOOLSIZE - 1] = 0;
+	myShortTasksQueue[JOBTASKPOOLSIZE - 1] = 0;
 
 	if(!wasPaused)
 		UnPause();
@@ -265,7 +265,7 @@ void FJobSystem::WaitForAllJobs() // waits for short queue, never for long
 	while (!isDone)
 	{
 		isDone = true;
-		for (size_t i = 0; i < 4096; i++)
+		for (size_t i = 0; i < JOBTASKPOOLSIZE; i++)
 		{
 			if (myQueueShort[i].myFunc && myQueueShort[i].myQueued && !(myQueueShort[i].myStarted && myQueueShort[i].myFinished))
 			{
@@ -342,10 +342,11 @@ FJobSystem::FJobSystem(int aNrWorkerThreadsShort, int aNrWorkerThreadsLong)
 	myIsPaused = true;
 
 	// grow the pool to sensible size
-	myQueueShort.resize(4096);
-	myQueueLong.resize(4096);
+	myQueueShort.resize(JOBTASKPOOLSIZE);
+	myQueueLong.resize(JOBTASKPOOLSIZE);
 
 	ResetQueue(true);
+	UnPause();
 
 	// use indexes to track completed and queued + free jobs
 	// grow pool with mutex if needed
@@ -397,8 +398,8 @@ FJobSystem* FJobSystem::GetInstance()
 {
 	if (!ourInstance)
 	{
-		ourInstance = new FJobSystem(2, 1);
-		ourInstance->Test();
+		ourInstance = new FJobSystem(2, 2);
+		//ourInstance->Test();
 	}
 
 	return ourInstance;

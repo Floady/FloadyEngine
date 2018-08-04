@@ -26,6 +26,7 @@ public:
 		UINT8* myVertexDataBegin;
 		UINT8* myIndexDataBegin;
 		int myIndicesCount;
+		int myVerticesSize;
 		D3D12_VERTEX_BUFFER_VIEW myVertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW myIndexBufferView;
 		std::vector<FPrimitiveGeometry::Vertex2> myVertices;

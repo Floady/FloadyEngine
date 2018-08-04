@@ -90,6 +90,7 @@ public:
 	void WaitForRender();
 	void SetRenderPassDependency(ID3D12CommandQueue* aQueue);
 	void SetPostProcessDependency(ID3D12CommandQueue* aQueue);
+	void InitNewTextures();
 
 	FShaderManager& GetShaderManager() { return myShaderManager;  }
 	ID3D12CommandAllocator* GetCommandAllocator();

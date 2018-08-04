@@ -3,6 +3,7 @@
 #include "FD3d12Renderer.h"
 #include "FCamera.h"
 #include <vector>
+#include "FUtilities.h"
 
 #include "FDelegate.h"
 #include "FFontManager.h"
@@ -12,6 +13,8 @@
 #include "FPrimitiveGeometry.h"
 #include "FProfiler.h"
 #include "FMeshInstanceManager.h"
+
+//#pragma optimize("", off)
 
 using namespace DirectX;
 #define DEFERRED 1
@@ -519,7 +522,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	}
 
 	// shadow data
-	float constData[32 * 16];
+	float constData[32 * 16] = { 0 };
 	int offsetInConstData = 0;
 	const std::vector<FLightManager::DirectionalLight>& dirLights = FLightManager::GetInstance()->GetDirectionalLights();
 	for (size_t i = 0; i < dirLights.size(); i++)
@@ -551,10 +554,10 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 		}
 	}
 
-	if (myIsGPUConstantDataDirty || ourShouldRecalc)
-		memcpy(myConstantBufferShadowsPtr, &constData[0], sizeof(float) * (offsetInConstData));
-	else
-		memcpy(myConstantBufferShadowsPtr + sizeof(float) * 16, &constData[1], sizeof(float) * (offsetInConstData - 16));
+	//if (myIsGPUConstantDataDirty || ourShouldRecalc)
+		memcpy(myConstantBufferShadowsPtr, &constData[0], sizeof(float) * (32*16)); // hack copy all for now (used to be offsetInConstData * 16) - otherwise we could keep garbage data around
+	//else
+		//memcpy(myConstantBufferShadowsPtr + sizeof(float) * 16, &constData[1], sizeof(float) * (offsetInConstData - 16));
 
 	myIsGPUConstantDataDirty = false;
 }

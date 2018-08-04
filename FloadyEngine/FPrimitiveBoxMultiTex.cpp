@@ -78,9 +78,6 @@ void FPrimitiveBoxMultiTex::Init()
 	}
 
 
-	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBoxInstanced, &FPrimitiveBoxInstanced::SetShader>(this));
-
 	// Create vertex + index buffer
 
 	// create constant buffer for modelview

@@ -88,11 +88,13 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 		myPool->myIndicesCount = mesh->myIndicesCount;
 		myPool->m_vertexBufferView.BufferLocation = mesh->myVertexBuffer->GetGPUVirtualAddress();
 		myPool->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
-		myPool->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVertices.size();
+		myPool->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVerticesSize;
 		
 		myPool->m_indexBufferView.BufferLocation = mesh->myIndexBuffer->GetGPUVirtualAddress();
 		myPool->m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;  // get from primitive manager
 		myPool->m_indexBufferView.SizeInBytes = sizeof(int) * mesh->myIndicesCount;
+
+		FLOG("PrimitiveBoxInstanced: rendering mesh %d %p %p", mesh->myVertices.size(), &mesh->myVertexBufferView, &mesh->myIndexBufferView);
 
 		// setup AABB - TODO bug vertices = 0 here, so there wont be an AABB
 		for (FPrimitiveGeometry::Vertex2& vert : mesh->myVertices)

@@ -140,5 +140,23 @@ public:
 		static const int GetVertexBufferSize();
 	};
 
+	struct DefaultModel
+	{
+	private:
+		static std::vector<int> indices;
+		static std::vector<Vertex2> vertices;
+		static ID3D12Resource* m_vertexBuffer;
+		static ID3D12Resource* m_indexBuffer;
+
+	public:
+		static std::vector<Vertex2>& GetVertices() { return vertices; }
+		static ID3D12Resource*& GetIndicesBuffer() { return m_indexBuffer; }
+		static ID3D12Resource*& GetVerticesBuffer() { return m_vertexBuffer; }
+		static int const GetVerticesBufferStride() { return sizeof(Vertex2); }
+		static std::vector<int>& GetIndices() { return indices; }
+		static const int GetIndicesBufferSize();
+		static const int GetVertexBufferSize();
+	};
+
 };
 

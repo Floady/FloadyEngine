@@ -3,6 +3,7 @@
 #include <vector>
 #include "windows.h"
 
+#define JOBTASKPOOLSIZE 128
 
 // Usage:
 // WaitForAllJobs -> ResetQueue -> Queue up some jobs -> (Unpause if needed), WaitForAllJobs, etc.
@@ -73,11 +74,11 @@ private:
 	
 	std::vector<FJob> myQueueShort;
 	std::vector<FJob> myQueueLong;
-	int myFreeShortTasks[4096];
-	int myShortTasksQueue[4096];
+	int myFreeShortTasks[JOBTASKPOOLSIZE];
+	int myShortTasksQueue[JOBTASKPOOLSIZE];
 
-	int myFreeLongTasks[4096];
-	int myLongTasksQueue[4096];
+	int myFreeLongTasks[JOBTASKPOOLSIZE];
+	int myLongTasksQueue[JOBTASKPOOLSIZE];
 	
 	volatile LONG myNextJobIndexShort;
 	volatile LONG myNextJobIndexLong;

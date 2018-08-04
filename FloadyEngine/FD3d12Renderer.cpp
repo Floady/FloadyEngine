@@ -1135,10 +1135,10 @@ bool FD3d12Renderer::RenderPostEffects()
 		
 		ID3D12CommandList* ppCommandLists[] = { myPostProcessCmdList };
 		GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-		
+		/*
 		myPostProcessGpuMtx.Signal(GetCommandQueue());
 		myPostProcessGpuMtx.WaitFor();
-
+*/
 		PIXEndEvent(m_commandQueue);
 	}
 
@@ -1152,8 +1152,8 @@ bool FD3d12Renderer::RenderPostEffects()
 	ID3D12CommandList* ppCommandLists[] = { myDebugDrawerCmdList };
 	GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-	myTestMutex.Signal(GetCommandQueue());
-	myTestMutex.WaitFor();
+	//myTestMutex.Signal(GetCommandQueue());
+	//myTestMutex.WaitFor();
 
 	PIXEndEvent(m_commandQueue);
 	//*/
@@ -1175,8 +1175,8 @@ bool FD3d12Renderer::RenderPostEffects()
 			ID3D12CommandList* ppCommandLists[] = { commandList };
 			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-			myTestMutex.Signal(GetCommandQueue());
-			myTestMutex.WaitFor();
+			//myTestMutex.Signal(GetCommandQueue());
+			//myTestMutex.WaitFor();
 			PIXEndEvent(m_commandQueue);
 		}
 	}
@@ -1217,11 +1217,13 @@ bool FD3d12Renderer::RenderPostEffects()
 	}
 
 	// wait for cmdlists to be done
-	myTestMutex.Signal(GetCommandQueue());
-	myTestMutex.WaitFor();
+	
+	//myTestMutex.Signal(GetCommandQueue());
+	//myTestMutex.WaitFor();
 
-	mySpecialMutex.Signal(GetCommandQueue());
-	mySpecialMutex.WaitFor();
+	//mySpecialMutex.Signal(GetCommandQueue());
+	//mySpecialMutex.WaitFor();
+
 	// Alternate the back buffer index back and forth between 0 and 1 each frame.
 	m_bufferIndex = m_bufferIndex == 0 ? 1 : 0;
 
@@ -1546,11 +1548,6 @@ void FD3d12Renderer::RecordShadowPass()
 		FLightManager::GetInstance()->SetActiveLight(i);
 	}
 
-	// clear color buff that we used in shadows (@todo: maybe replace with a dummy one that you never have to clear, or in the clear pass)
-	FTextureManager::GetInstance()->InitD3DResources(m_device, commandList);
-	FMeshManager::GetInstance()->InitLoadedMeshesD3D();
-	float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
 	CD3DX12_RESOURCE_BARRIER barriersAfter[] =
 	{
 		CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[0], D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
@@ -1643,6 +1640,16 @@ void FD3d12Renderer::SetPostProcessDependency(ID3D12CommandQueue * aQueue)
 	myPostProcessGpuMtx.Signal(aQueue);
 }
 
+void FD3d12Renderer::InitNewTextures()
+{
+	ID3D12GraphicsCommandList* cmdList = GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
+	cmdList->Reset(GetCommandAllocator(), nullptr);
+	FTextureManager::GetInstance()->InitD3DResources(m_device, cmdList);
+	cmdList->Close();
+	ID3D12CommandList* ppCommandLists[] = { cmdList };
+	GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+}
+
 ID3D12CommandAllocator * FD3d12Renderer::GetCommandAllocator()
 {
 	{ return m_workerThreadCmdAllocators[FJobSystem::ourThreadIdx]; }
@@ -1706,7 +1713,8 @@ void FD3d12Renderer::GPUMutex::WaitFor()
 	UINT64 completedVal = myFence->GetCompletedValue();
 	UINT64 completedValAfter;
 
-	if (completedVal > 4 && myFenceValue < 4 && completedVal - myFenceValue > 4)
+	// something went wrong
+	if (completedVal == 0xFFFFFFFFFFFFFFFF)
 		FLOG("breakhere completed: %u - value: %u", completedVal, myFenceValue);
 
 	if (myFence->GetCompletedValue() < myFenceValue)

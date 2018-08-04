@@ -119,8 +119,8 @@ void FD3d12Triangle::Init(ID3D12CommandAllocator* aCmdAllocator, ID3D12Device* a
 	ID3DBlob* pixelShader;
 
 	UINT compileFlags = 0;
-	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr);
-	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr);
+	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, nullptr);
+	D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, nullptr);
 
 	// Define the vertex input layout.
 	//D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =

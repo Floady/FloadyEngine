@@ -209,15 +209,6 @@ bool FGame::Update(double aDeltaTime)
 	static float trajectoryVelocity = 10.0f;
 
 	FJob* clearBufferJob = nullptr;
-	// wait for short jobs before processing next frame
-	{
-		FPROFILE_FUNCTION_CUSTOM("WaitForRender", 0xFFFFAAAA);
-		myRenderJobSys->WaitForAllJobs();
-		{
-			myRenderJobSys->ResetQueue();
-		}
-	}
-
 	FD3d12Renderer::GetInstance()->InitFrame();
 	clearBufferJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::ClearBuffersAsync)));
 
@@ -229,6 +220,8 @@ bool FGame::Update(double aDeltaTime)
 	//	lastPos = segment.myPosition;
 	//}
 
+	myRenderJobSys->QueueJob(FDelegate2<void()>(FMeshManager::GetInstance(), &FMeshManager::InitLoadedMeshesD3D));
+	myRenderJobSys->QueueJob(FDelegate2<void()>(FD3d12Renderer::GetInstance(), &FD3d12Renderer::InitNewTextures));
 
 	{
 		// update FPS
@@ -461,9 +454,17 @@ bool FGame::Update(double aDeltaTime)
 		FPROFILE_FUNCTION_CUSTOM("WaitFor clearbuff renderworld", 0xFFFFAAAA);
 		myRenderJobSys->WaitForAllJobs();
 	}
-	myHighlightManager->Render();
-	FProfiler::GetInstance()->Render();
-	FProfiler::GetInstance()->StartFrame();
+
+	{
+		FPROFILE_FUNCTION_CUSTOM("HighlightManager", 0xFFFFAAAA);
+		myHighlightManager->Render();
+	}
+
+	{
+		FPROFILE_FUNCTION_CUSTOM("Profiler", 0xFFFFAAAA);
+		FProfiler::GetInstance()->Render();
+		FProfiler::GetInstance()->StartFrame();
+	}
 
 	myMutex.Lock();
 
@@ -471,8 +472,22 @@ bool FGame::Update(double aDeltaTime)
 	myExecuteCommandlistsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
 	myRenderPostEffectsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderPostEffectsAsync)), false, myExecuteCommandlistsJob);
 
-	return true;
+	// wait for short jobs before processing next frame
+	{
+		FPROFILE_FUNCTION_CUSTOM("EndFrame", 0xFFFFAAAA);
+		{
+			FPROFILE_FUNCTION_CUSTOM("WaitForJobs", 0xFFFFAAAA);
+			myRenderJobSys->WaitForAllJobs();
+			myRenderJobSys->ResetQueue();
+		}
 
+		{
+			FPROFILE_FUNCTION_CUSTOM("WaitForRender", 0xFFFFAAAA);
+			FD3d12Renderer::GetInstance()->WaitForRender();
+		}
+	}
+
+	return true;
 }
 
 void FGame::RenderAsync()
@@ -486,7 +501,6 @@ void FGame::RenderPostEffectsAsync()
 {
 	FPROFILE_FUNCTION("RenderPostEffectsAsync");
 	myRenderer->RenderPostEffects();
-	FD3d12Renderer::GetInstance()->WaitForRender();
 }
 
 void FGame::ClearBuffersAsync()

@@ -6,10 +6,14 @@ ID3D12Resource* FPrimitiveGeometry::Box::m_vertexBuffer = nullptr;
 ID3D12Resource* FPrimitiveGeometry::Box::m_indexBuffer = nullptr;
 ID3D12Resource* FPrimitiveGeometry::Box2::m_vertexBuffer = nullptr;
 ID3D12Resource* FPrimitiveGeometry::Box2::m_indexBuffer = nullptr;
+ID3D12Resource* FPrimitiveGeometry::DefaultModel::m_vertexBuffer = nullptr;
+ID3D12Resource* FPrimitiveGeometry::DefaultModel::m_indexBuffer = nullptr;
 std::vector<int> FPrimitiveGeometry::Box::indices = std::vector<int>();
 std::vector<FPrimitiveGeometry::Vertex> FPrimitiveGeometry::Box::vertices = std::vector<FPrimitiveGeometry::Vertex>();
 std::vector<int> FPrimitiveGeometry::Box2::indices = std::vector<int>();
 std::vector<FPrimitiveGeometry::Vertex> FPrimitiveGeometry::Box2::vertices = std::vector<FPrimitiveGeometry::Vertex>();
+std::vector<int> FPrimitiveGeometry::DefaultModel::indices = std::vector<int>();
+std::vector<FPrimitiveGeometry::Vertex2> FPrimitiveGeometry::DefaultModel::vertices = std::vector<FPrimitiveGeometry::Vertex2>();
 
 const int FPrimitiveGeometry::Box::GetIndicesBufferSize()
 {
@@ -29,6 +33,16 @@ const int FPrimitiveGeometry::Box2::GetIndicesBufferSize()
 const int FPrimitiveGeometry::Box2::GetVertexBufferSize()
 {
 	return  sizeof(Vertex) * FPrimitiveGeometry::Box2::vertices.size();
+}
+
+const int FPrimitiveGeometry::DefaultModel::GetIndicesBufferSize()
+{
+	return  sizeof(int) * FPrimitiveGeometry::DefaultModel::indices.size();
+}
+
+const int FPrimitiveGeometry::DefaultModel::GetVertexBufferSize()
+{
+	return  sizeof(Vertex2) * FPrimitiveGeometry::DefaultModel::vertices.size();
 }
 
 
@@ -211,6 +225,104 @@ void FPrimitiveGeometry::InitD3DResources(ID3D12Device* aDevice, ID3D12GraphicsC
 				CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 				hr = FPrimitiveGeometry::Box2::GetIndicesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin));
 				const UINT indexBufferSize = FPrimitiveGeometry::Box2::GetIndicesBufferSize();
+				memcpy(pIndexDataBegin, &indices[0], indexBufferSize); // this was crashing with 20x20 1.0f radius
+			}
+		}
+
+		// DefaultModel
+		{
+			UINT8* pVertexDataBegin;
+			UINT8* pIndexDataBegin;
+
+			std::vector<Vertex2>& ret = FPrimitiveGeometry::DefaultModel::GetVertices();
+			std::vector<int>& indices = FPrimitiveGeometry::DefaultModel::GetIndices();
+			{
+				float radius = 0.5f;
+				int sliceCount = 20;
+				int stackCount = 20;
+
+				ret.push_back(Vertex2(0, radius, 0, 0, 1, 0, 0, 0));
+				float phiStep = PI / stackCount;
+				float thetaStep = 2.0f* PI / sliceCount;
+
+				for (int i = 0; i <= stackCount; i++) {
+					float phi = i*phiStep;
+					for (int j = 0; j <= sliceCount; j++) {
+						float theta = j*thetaStep;
+						FVector3 p = FVector3(
+							(radius*sin(phi)*cos(theta)),
+							(radius*cos(phi)),
+							(radius* sin(phi)*sin(theta))
+						);
+
+						FVector3 t = FVector3(-radius*sin(phi)*sin(theta), 0, radius*sin(phi)*cos(theta));
+						t.Normalize();
+						FVector3 n = p;
+						n.Normalize();
+						FVector3 uv = FVector3(theta / (PI * 2), phi / PI, 0.0f);
+						ret.push_back(Vertex2(p.x, p.y, p.z, n.x, n.y, n.z, uv.x, uv.y));
+					}
+				}
+
+				ret.push_back(Vertex2(0, -radius, 0, 0, -1, 0, 0, 1));
+
+				for (int i = 1; i <= sliceCount; i++) {
+					indices.push_back(0);
+					indices.push_back(i + 1);
+					indices.push_back(i);
+				}
+				int baseIndex = 1;
+				int ringVertexCount = sliceCount + 1;
+				for (int i = 0; i < stackCount; i++) {
+					for (int j = 0; j < sliceCount; j++) {
+						indices.push_back(baseIndex + i*ringVertexCount + j);
+						indices.push_back(baseIndex + i*ringVertexCount + j + 1);
+						indices.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+
+						indices.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+						indices.push_back(baseIndex + i*ringVertexCount + j + 1);
+						indices.push_back(baseIndex + (i + 1)*ringVertexCount + j + 1);
+					}
+				}
+				int southPoleIndex = ret.size() - 1;
+				baseIndex = southPoleIndex - ringVertexCount;
+				for (int i = 0; i < sliceCount; i++) {
+					indices.push_back(southPoleIndex);
+					indices.push_back(baseIndex + i);
+					indices.push_back(baseIndex + i + 1);
+				}
+			}
+
+			HRESULT hr = aDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertex2) * ret.size()), //todo these sizes should match the buff size aligned on memory if needed but is from old font
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&FPrimitiveGeometry::DefaultModel::GetVerticesBuffer()));
+
+			// Map the buffer
+			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+			hr = FPrimitiveGeometry::DefaultModel::GetVerticesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
+
+			// Create the vertex buffer.
+			{
+				const UINT vertexBufferSize = FPrimitiveGeometry::DefaultModel::GetVertexBufferSize();
+				memcpy(pVertexDataBegin, &ret[0], vertexBufferSize);
+
+				// index buffer
+				hr = aDevice->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					D3D12_HEAP_FLAG_NONE,
+					&CD3DX12_RESOURCE_DESC::Buffer(sizeof(int) * indices.size()),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(&FPrimitiveGeometry::DefaultModel::GetIndicesBuffer()));
+
+				// Map the buffer
+				CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+				hr = FPrimitiveGeometry::DefaultModel::GetIndicesBuffer()->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin));
+				const UINT indexBufferSize = FPrimitiveGeometry::DefaultModel::GetIndicesBufferSize();
 				memcpy(pIndexDataBegin, &indices[0], indexBufferSize); // this was crashing with 20x20 1.0f radius
 			}
 		}
