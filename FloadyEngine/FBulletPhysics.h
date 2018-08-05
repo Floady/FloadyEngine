@@ -52,6 +52,8 @@ public:
 	void SetPaused(bool aPause);
 	void TogglePaused() { myEnabled = !myEnabled; }
 	bool RayCast(FVector3 aStart, FVector3 anEnd, RayCastHit& outHitResult);
+	bool HasNewNavBlockers() const { return myHasNewNavBlockers; }
+	void ResetHasNewNavBlockers() { myHasNewNavBlockers = false; }
 
 	std::vector<FBulletPhysics::AABB> GetAABBs();
 private:
@@ -72,6 +74,6 @@ private:
 	};
 	btAlignedObjectArray<FPhysicsBody>	myRigidBodies;
 	bool myDebugDrawEnabled;
-	
+	bool myHasNewNavBlockers;
 };
 

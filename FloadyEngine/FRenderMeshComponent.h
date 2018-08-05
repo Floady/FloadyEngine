@@ -42,5 +42,6 @@ protected:
 	//std::vector<FPrimitiveGeometry::Vertex> vertices;
 	std::vector<int> indices;
 	string myModelInstanceName;
+	FVector3 myOffset;
 };
 

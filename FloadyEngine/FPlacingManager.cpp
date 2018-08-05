@@ -58,6 +58,7 @@ void FPlacingManager::UpdateMousePos(const FVector3& aPos)
 		else
 			myObject->SetColor(FVector3(1, 0, 0));
 		
+		newPos.y += myObject->GetLocalAABB().myMax.y / 2.0f;
 		myObject->SetPos(newPos);
 		myObject->RecalcModelMatrix();
 	}
@@ -71,8 +72,12 @@ void FPlacingManager::MouseDown(const FVector3& aPos)
 	if (!myFitsOnNavMesh)
 		return;
 
-	if(myPlaceCallback)
-		myPlaceCallback(aPos);
+	if (myPlaceCallback)
+	{
+		FVector3 pos = aPos;
+		pos.y += myObject->GetLocalAABB().myMax.y / 2.0f;
+		myPlaceCallback(pos);
+	}
 
 	ClearPlacable();
 }

@@ -35,6 +35,7 @@ public:
 	void RenderPostEffectsAsync();
 	void ClearBuffersAsync();
 	void RenderWorldAsync();
+	void RegenerateNavMesh();
 	static FGame* GetInstance() { return ourInstance; }
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
@@ -80,6 +81,7 @@ private:
 	FJobSystem* myRenderJobSys;
 
 	FJob* myRenderPostEffectsJob;
+	FJob* myRegenerateNavMeshJob;
 	FJob* myRenderToBuffersJob;
 	FJob* myExecuteCommandlistsJob;
 };

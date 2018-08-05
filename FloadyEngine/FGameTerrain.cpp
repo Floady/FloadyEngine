@@ -165,7 +165,7 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	FGame::GetInstance()->GetPhysics()->AddTerrain(myPhysicsObject, myColShape, this);
 
 	// send mesh to Recast	
-	FNavMeshManagerRecast::FInputMesh mesh;
+	FInputMesh mesh;
 	for (FPrimitiveGeometry::Vertex& vtx : vertices)
 	{
 		mesh.myVertices.push_back(vtx.position.x);
@@ -179,7 +179,7 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 	}
 
 	FNavMeshManagerRecast::GetInstance()->SetInputMesh(mesh);
-	FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
+	//FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
 
 	myGraphicsObject->myAABB.Grow(FVector3(myTerrainSizeX * myTileSize, 40, myTerrainSizeZ * myTileSize));
 	//myGraphicsObject->SetCastsShadows(false);

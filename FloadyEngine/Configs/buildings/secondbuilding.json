@@ -11,7 +11,7 @@
 			"scaleX" : 10.0,
 			"scaleY" : 10.0,
 			"scaleZ" : 10.0,
-			"isNavBlocker" : false,
+			"isNavBlocker" : true,
 			"canMove" :false,
 			"type" : 2,
 			"tex" : "marble.png",
@@ -27,7 +27,7 @@
 			"scaleY" : 10.0,
 			"scaleZ" : 10.0,
 			"mass" : 10.0,
-			"isNavBlocker" : false,
+			"isNavBlocker" : true,
 			"canMove" :false,
 			"type" : 1
 			}

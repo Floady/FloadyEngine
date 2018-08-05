@@ -39,6 +39,7 @@
 #include "FJobSystem.h"
 #include "FRenderMeshComponent.h"
 #include "FThrowableTrajectory.h"
+#include "FPhysicsComponent.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -83,7 +84,9 @@ void FGame::ConstructBuilding(const char * aBuildingName)
 	
 	myBuildingName = aBuildingName;
 	FGameBuilding* entity = (myBuildingManager->GetBuildingTemplates().find(myBuildingName))->second->CreateBuilding();
-	myPlacingManager->SetPlacable(true, entity->GetRepresentation()->GetRenderableObject()->GetScale(), FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this), entity->GetRepresentation()->GetRenderableObject()->GetTexture());
+	FVector3 scale = entity->GetRepresentation()->GetRenderableObject()->GetScale();
+	scale = entity->GetRepresentation()->GetComponentInSlot<FPhysicsComponent>(0) ? entity->GetRepresentation()->GetComponentInSlot<FPhysicsComponent>(0)->GetScale() : scale;
+	myPlacingManager->SetPlacable(true, scale, FDelegate2<void(FVector3)>::from<FGame, &FGame::ConstructBuilding>(this), entity->GetRepresentation()->GetRenderableObject()->GetTexture());
 	delete entity;
 }
 
@@ -114,6 +117,7 @@ FGame::FGame()
 	myRenderPostEffectsJob = nullptr;
 	myRenderToBuffersJob = nullptr;
 	myExecuteCommandlistsJob = nullptr;
+	myRegenerateNavMeshJob = nullptr;
 
 	myRenderJobSys = FJobSystem::GetInstance();
 }
@@ -266,16 +270,7 @@ bool FGame::Update(double aDeltaTime)
 		if (myInput->IsKeyDown(VK_F3))
 		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::MainScreen);
-
-			// re-init navmesh
-			std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
-			FNavMeshManagerRecast::GetInstance()->RemoveAllBlockingAABB();
-			for (FBulletPhysics::AABB& aabb : aabbs)
-			{
-				FNavMeshManagerRecast::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
-			}
-
-			FNavMeshManagerRecast::GetInstance()->GenerateNavMesh();
+			myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RegenerateNavMesh)));
 		}
 
 		if (myInput->IsKeyDown(VK_F4))
@@ -472,6 +467,12 @@ bool FGame::Update(double aDeltaTime)
 	myExecuteCommandlistsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
 	myRenderPostEffectsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderPostEffectsAsync)), false, myExecuteCommandlistsJob);
 
+	if (!myRegenerateNavMeshJob || (myPhysics->HasNewNavBlockers() && myRegenerateNavMeshJob->myFinished))
+	{
+		myPhysics->ResetHasNewNavBlockers();
+		myRegenerateNavMeshJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RegenerateNavMesh)), true);
+	}
+
 	// wait for short jobs before processing next frame
 	{
 		FPROFILE_FUNCTION_CUSTOM("EndFrame", 0xFFFFAAAA);
@@ -517,4 +518,24 @@ void FGame::RenderWorldAsync()
 	FD3d12Renderer::GetInstance()->RecordShadowPass();
 	FD3d12Renderer::GetInstance()->RecordPostProcesss();
 	FD3d12Renderer::GetInstance()->RecordDebugDrawer();
+}
+
+void FGame::RegenerateNavMesh()
+{
+	// re-init navmesh
+	std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
+	FNavMeshManagerRecast::GetInstance()->RemoveAllBlockingAABB();
+	for (FBulletPhysics::AABB& aabb : aabbs)
+	{
+		FNavMeshManagerRecast::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
+	}
+
+	FNavMesh* newNavMesh = new FNavMesh();
+	newNavMesh->myAABBList = FNavMeshManagerRecast::GetInstance()->myAABBList;
+	newNavMesh->Generate(FNavMeshManagerRecast::GetInstance()->GetInputMesh());
+
+	FNavMesh* curNavMesh = FNavMeshManagerRecast::GetInstance()->GetActiveNavMesh();
+	FNavMeshManagerRecast::GetInstance()->SetActiveNavMesh(newNavMesh);
+
+	delete curNavMesh;
 }

@@ -1,57 +1,55 @@
 {		
-	"FGameLightEntity" : 
+	"FGameEntity" : 
 	{
-		"type" : 1.0,
-		"radius" : 16.1,
-		"r" : 1.0,
-		"g" : 0.0,
-		"b" : 1.0,
-		"dirX" : 1.0,
-		"dirY" : 0.05,
-		"dirZ" : 0.0,
-		"offsetX" : 0.0,
-		"offsetY" : 1.5,
-		"offsetZ" : 0.0,
-		"canMove" :false,
-		
-		"FGameEntity" : 
+		"Components" : 
 		{
-			"Components" : 
+			"FRenderMeshComponent" : 
 			{
-				"FRenderMeshComponent" : 
-				{
-				"posX" : 25.0,
-				"posY" : 5.0,
-				"posZ" : 40.0,
-				"scaleX" : 1.0,
-				"scaleY" : 1.0,
-				"scaleZ" : 1.0,
-				"isNavBlocker" : false,
-				"canMove" :false,
-				"type" : 1,
-				"tex" : "marble.png",
-				"model" : "f16.obj"
-				},
-				"FPhysicsComponent" : 
-				{
-				"posX" : 25.0,
-				"posY" : 5.0,
-				"posZ" : 40.0,
-				"scaleX" : 1.0,
-				"scaleY" : 1.0,
-				"scaleZ" : 1.0,
-				"mass" : 10.0,
-				"isNavBlocker" : false,
-				"canMove" :false,
-				"type" : 0
-				}
-			},		
-			"posX" : 20.0,
-			"posY" : 5.0,
-			"posZ" : 40.0,
+			"posX" : 0.0,
+			"posY" : 0.0,
+			"posZ" : 0.0,
+			"scaleX" : 1.0,
+			"scaleY" : 1.0,
+			"scaleZ" : 1.0,
+			"isNavBlocker" : false,
 			"canMove" :false,
-			"name" : "thirdBuilding"
-		}
+			"type" : 1,
+			"tex" : "marble.png",
+			"model" : "f16.obj"
+			},
+			"FPhysicsComponent" : 
+			{
+			"posX" : 0.0,
+			"posY" : 0.0,
+			"posZ" : 0.0,
+			"scaleX" : 1.0,
+			"scaleY" : 1.0,
+			"scaleZ" : 1.0,
+			"mass" : 0.0,
+			"isNavBlocker" : true,
+			"canMove" :false,
+			"type" : 0
+			},
+			"FLightComponent" : 
+			{
+			"type" : 1.0,
+			"radius" : 10.1,
+			"r" : 1.0,
+			"g" : 1.0,
+			"b" : 1.0,
+			"dirX" : 0.0,
+			"dirY" : -1.0,
+			"dirZ" : 0.1,
+			"offsetX" : 0.0,
+			"offsetY" : 4.0,
+			"offsetZ" : 0.0
+			}
+		},		
+		"posX" : 10.0,
+		"posY" : 5.0,
+		"posZ" : 40.0,
+		"canMove" :true,
+		"name" : "thirdBuilding"
 	},
 	
 	"MenuItems" :
@@ -90,7 +88,7 @@
 						"mass" : 10.0,
 						"isNavBlocker" : false,
 						"canMove" :false,
-						"type" : 1
+						"type" : 0
 						},						
 						"FPathfindComponent" : 
 						{
@@ -140,7 +138,7 @@
 						"mass" : 10.0,
 						"isNavBlocker" : false,
 						"canMove" :false,
-						"type" : 1
+						"type" : 0
 						},						
 						"FPathfindComponent" : 
 						{

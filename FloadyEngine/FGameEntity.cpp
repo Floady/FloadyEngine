@@ -93,7 +93,7 @@ void FGameEntity::SetPos(const FVector3& aPos)
 
 	GetRenderableObject()->SetPos(aPos);
 
-	if(myCanMove)
+	if(GetComponentInSlotCount<FPhysicsComponent>() > 0)
 		GetComponentInSlot<FPhysicsComponent>(0)->SetPos(aPos);
 }
 

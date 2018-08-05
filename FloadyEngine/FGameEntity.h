@@ -33,8 +33,17 @@ public:
 	virtual ~FGameEntity();
 
 	template<typename T>
-	T* GetComponentInSlot(int aSlotId) {	
+	T* GetComponentInSlot(int aSlotId) {
 		return static_cast<T*>(myComponentsLookup[T::GetFClassName()][aSlotId]);
+	}
+
+	template<typename T>
+	int GetComponentInSlotCount() 
+	{
+		if(myComponentsLookup.find(T::GetFClassName()) != myComponentsLookup.end())
+			return myComponentsLookup[T::GetFClassName()].size();
+
+		return 0;
 	}
 
 protected:

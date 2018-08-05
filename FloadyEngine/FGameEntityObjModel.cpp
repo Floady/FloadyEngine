@@ -221,7 +221,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 	// send mesh to Recast	
 	{
 		const FVector3& scale = myGraphicsObject->GetScale();
-		FNavMeshManagerRecast::FInputMesh mesh;
+		FInputMesh mesh;
 		for (auto& item : vertices)
 		{
 			const FPrimitiveGeometry::Vertex2& vtx = item;

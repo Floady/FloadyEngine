@@ -15,9 +15,12 @@ public:
 	virtual void Update(double aDeltaTime);
 	virtual void PostPhysicsUpdate();
 	FVector3 GetPos();
+	FVector3 GetScale() { return myScale; };
 	void GetTransform(float* aMatrix);
 	void SetPos(const FVector3& aPos);
 protected:
 	btRigidBody* myPhysicsObject;
+	FVector3 myScale;
+	FVector3 myOffset;
 };
 

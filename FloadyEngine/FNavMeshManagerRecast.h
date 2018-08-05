@@ -13,17 +13,60 @@ class FContext : public rcContext
 	virtual void doLog(const rcLogCategory /*category*/, const char* /*msg*/, const int /*len*/) override;
 };
 
+struct FInputMesh
+{
+	std::vector<float> myVertices;
+	std::vector<int> myTriangles;
+	FVector3 myMin;
+	FVector3 myMax;
+};
+
+class FNavMesh
+{
+
+public:
+
+	FNavMesh();
+	~FNavMesh();
+
+	bool Generate(const FInputMesh& aMesh);
+	FVector3 RayCast(const FVector3& aStart, const FVector3& anEnd);
+	FVector3 GetClosestPointOnNavMesh(const FVector3& aPoint);
+	FVector3 GetClosestPointOnNavMesh(const FVector3& aPoint, const FVector3& aMaxExtends);
+	std::vector<FVector3> FindPath(const FVector3& aStart, const FVector3& anEnd);
+
+	rcContext* myContext;
+	unsigned char* myTriareas;
+	rcHeightfield* mySolid;
+	rcCompactHeightfield* myCompactHeightField;
+	rcContourSet* myContourSet;
+	rcPolyMesh* myPolyMesh;
+	rcConfig myConfig;
+	rcPolyMeshDetail* myDetailMesh;
+	
+	std::vector<FAABB> myAABBList; // do we need this per navmesh?
+
+	bool m_keepInterResults;
+	bool m_filterLowHangingObstacles;
+	bool m_filterLedgeSpans;
+	bool m_filterWalkableLowHeightSpans;
+	
+	FInputMesh myInputMesh;
+	
+	class dtNavMesh* myNavMesh;
+	class dtNavMeshQuery* myNavQuery;
+	class dtCrowd* myCrowd; // whats this for?
+
+	unsigned char* myNavData = 0;
+	
+	class rcContext* m_ctx;
+
+	bool myInitialized;
+};
+
 class FNavMeshManagerRecast
 {
 public:
-	struct FInputMesh
-	{
-		std::vector<float> myVertices;
-		std::vector<int> myTriangles;
-		FVector3 myMin;
-		FVector3 myMax;
-	};
-
 	FNavMeshManagerRecast();
 	~FNavMeshManagerRecast();
 	void SetDebugDrawEnabled(bool aShouldDebugDraw);
@@ -31,36 +74,24 @@ public:
 	void Update();
 	void DebugDraw();
 	bool GenerateNavMesh();
+	void SetActiveNavMesh(FNavMesh* aNavMesh) { myActiveNavMesh = aNavMesh; }
+	FNavMesh* GetActiveNavMesh() { return myActiveNavMesh; }
 	void SetInputMesh(FInputMesh& aMesh) { myInputMesh = aMesh; }
-	FVector3 RayCast(FVector3 aStart, FVector3 anEnd);
-	FVector3 GetClosestPointOnNavMesh(FVector3 aPoint);
-	FVector3 GetClosestPointOnNavMesh(FVector3 aPoint, FVector3 aMaxExtends);
-	std::vector<FVector3> FindPath(FVector3 aStart, FVector3 anEnd);
+	FVector3 RayCast(const FVector3& aStart, const FVector3& anEnd);
+	FVector3 GetClosestPointOnNavMesh(const FVector3& aPoint);
+	FVector3 GetClosestPointOnNavMesh(const FVector3& aPoint, const FVector3& aMaxExtends);
+	std::vector<FVector3> FindPath(const FVector3& aStart, const FVector3& anEnd);
 	void AddBlockingAABB(FVector3 aMin, FVector3 aMax);
 	static FNavMeshManagerRecast* GetInstance();
 	const std::vector<FAABB>& GetAABBList() const { return myAABBList; }
 
+	const FInputMesh& GetInputMesh() { return myInputMesh; }
 public:
-	rcContext* m_ctx;
-	unsigned char* m_triareas;
-	rcHeightfield* m_solid;
-	rcCompactHeightfield* m_chf;
-	rcContourSet* m_cset;
-	rcPolyMesh* m_pmesh;
 	rcConfig m_cfg;
-	rcPolyMeshDetail* m_dmesh;
 	std::vector<FAABB> myAABBList;
 
-	bool m_keepInterResults;
-	bool m_filterLowHangingObstacles;
-	bool m_filterLedgeSpans;
-	bool m_filterWalkableLowHeightSpans;
 	FInputMesh myInputMesh;
 
-	class dtNavMesh* m_navMesh;
-	class dtNavMeshQuery* m_navQuery;
-	class dtCrowd* m_crowd;
-	
 	enum DebugDrawFlags : int
 	{
 		DRAW_POLYS = 0,
@@ -71,6 +102,7 @@ public:
 
 	int myDebugFlags;
 
+	FNavMesh* myActiveNavMesh;
 private:
 	static FNavMeshManagerRecast* ourInstance;
 };

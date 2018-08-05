@@ -22,16 +22,23 @@ FPhysicsComponent::~FPhysicsComponent()
 
 void FPhysicsComponent::Init(const FJsonObject & anObj)
 {
-	FVector3 pos, scale;
+	FVector3 pos;
 	float mass;
 
 	pos.x = anObj.GetItem("posX").GetAs<double>();
 	pos.y = anObj.GetItem("posY").GetAs<double>();
 	pos.z = anObj.GetItem("posZ").GetAs<double>();
 
-	scale.x = anObj.GetItem("scaleX").GetAs<double>();
-	scale.y = anObj.GetItem("scaleY").GetAs<double>();
-	scale.z = anObj.GetItem("scaleZ").GetAs<double>();
+	myScale.x = anObj.GetItem("scaleX").GetAs<double>();
+	myScale.y = anObj.GetItem("scaleY").GetAs<double>();
+	myScale.z = anObj.GetItem("scaleZ").GetAs<double>();
+
+	if (anObj.HasItem("offsetX"))
+	{
+		myOffset.x = anObj.GetItem("offsetX").GetAs<double>();
+		myOffset.y = anObj.GetItem("offsetY").GetAs<double>();
+		myOffset.z = anObj.GetItem("offsetZ").GetAs<double>();
+	}
 
 	mass = anObj.GetItem("mass").GetAs<double>();
 
@@ -41,7 +48,7 @@ void FPhysicsComponent::Init(const FJsonObject & anObj)
 	int type = anObj.GetItem("type").GetAs<int>();
 	FBulletPhysics::CollisionPrimitiveType primType = type ? FBulletPhysics::CollisionPrimitiveType::Sphere : FBulletPhysics::CollisionPrimitiveType::Box;
 
-	myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(mass, pos, scale, primType, isNavBlocking, myOwner);
+	myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(mass, pos + myOffset, myScale, primType, isNavBlocking, myOwner);
 }
 
 void FPhysicsComponent::Update(double aDeltaTime)
@@ -93,7 +100,7 @@ void FPhysicsComponent::SetPos(const FVector3 & aPos)
 {
 	btTransform groundTransform;
 	groundTransform.setIdentity();
-	groundTransform.setOrigin(btVector3(aPos.x, aPos.y, aPos.z));
+	groundTransform.setOrigin(btVector3(aPos.x + myOffset.x, aPos.y + myOffset.y, aPos.z + myOffset.z));
 
 	if (myPhysicsObject)
 		myPhysicsObject->setWorldTransform(groundTransform);

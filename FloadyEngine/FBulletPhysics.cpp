@@ -6,14 +6,14 @@
 #include "FDebugDrawer.h"
 #include "FD3d12Renderer.h"
 #include "FBulletPhysics.h"
-
+#include "FUtilities.h"
 
 FBulletPhysics::FBulletPhysics()
 {
 	myEnabled = false;
 	myDebugDrawEnabled = false;
+	myHasNewNavBlockers = false;
 }
-
 
 FBulletPhysics::~FBulletPhysics()
 {
@@ -119,8 +119,6 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	else // default
 		shape = new btBoxShape(btVector3(btScalar(extends.x), btScalar(extends.y), btScalar(extends.z)));
 
-	
-
 	btScalar mass(aMass);
 	
 	m_collisionShapes.push_back(shape);
@@ -159,6 +157,10 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	fbody.myGameEntity = anEntity;
 	fbody.myShouldBlockNavMesh = aShouldBlockNav;
 	myRigidBodies.push_back(fbody);
+
+	if (aShouldBlockNav)
+		myHasNewNavBlockers = true;
+
 	return body;
 }
 
@@ -176,6 +178,16 @@ void FBulletPhysics::AddTerrain(btRigidBody * aBody, btCollisionShape* aCollisio
 
 void FBulletPhysics::RemoveObject(btRigidBody * aBody)
 {
+	int idxToRemove = -1;
+	for (int i = 0; i < myRigidBodies.size(); i++)
+	{
+		if (myRigidBodies[i].myRigidBody == aBody)
+		{
+			idxToRemove = i;
+			break;
+		}
+	}
+
 	for (int i = m_dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
 	{
 		btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[i];
@@ -184,8 +196,17 @@ void FBulletPhysics::RemoveObject(btRigidBody * aBody)
 		{
 			m_dynamicsWorld->removeCollisionObject(obj);
 			delete obj;
-			return;
+			break;
 		}
+	}
+
+	if (idxToRemove == -1)
+	{
+		FLOG("Error: removing a body that doesnt exist in RigidBodies?");
+	}
+	else
+	{
+		myRigidBodies.removeAtIndex(idxToRemove);
 	}
 }
 

@@ -78,6 +78,8 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		delete myGraphicsObject;
 		myGraphicsObject = nullptr;
 	}
+	
+	myOffset = FVector3(0, 0, 0);
 
 	FVector3 pos, scale;
 
@@ -94,6 +96,13 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	myIsInstanced = false;
 	if (anObj.HasItem("instanced"))
 		myIsInstanced = anObj.GetItem("instanced").GetAs<bool>();
+
+	if (anObj.HasItem("offsetX"))
+	{
+		myOffset.x = anObj.GetItem("offsetX").GetAs<double>();
+		myOffset.y = anObj.GetItem("offsetY").GetAs<double>();
+		myOffset.z = anObj.GetItem("offsetZ").GetAs<double>();
+	}
 
 	RenderMeshType type = static_cast<FRenderMeshComponent::RenderMeshType>(anObj.GetItem("type").GetAs<int>()); // 0 spehere, 1 box
 	switch (type)
@@ -268,10 +277,10 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 void FRenderMeshComponent::SetPos(const FVector3 & aPos)
 {
 	if (myGraphicsObject)
-		myGraphicsObject->SetPos(aPos);
+		myGraphicsObject->SetPos(myOffset + aPos);
 	else
 	{
-		myInstanceData.myPos = aPos;
+		myInstanceData.myPos = myOffset + aPos;
 		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->RecalcModelMatrix();
 	}
 }
