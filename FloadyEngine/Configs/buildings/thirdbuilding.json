@@ -117,9 +117,9 @@
 						"posX" : 25.0,
 						"posY" : 5.0,
 						"posZ" : 40.0,
-						"scaleX" : 3.0,
-						"scaleY" : 3.0,
-						"scaleZ" : 3.0,
+						"scaleX" : 1.5,
+						"scaleY" : 1.5,
+						"scaleZ" : 1.5,
 						"isNavBlocker" : false,
 						"canMove" :false,
 						"type" : 2,
@@ -132,9 +132,9 @@
 						"posX" : 25.0,
 						"posY" : 5.0,
 						"posZ" : 40.0,
-						"scaleX" : 3.0,
-						"scaleY" : 3.0,
-						"scaleZ" : 3.0,
+						"scaleX" : 1.5,
+						"scaleY" : 1.0,
+						"scaleZ" : 1.5,
 						"mass" : 10.0,
 						"isNavBlocker" : false,
 						"canMove" :false,
@@ -142,6 +142,7 @@
 						},						
 						"FPathfindComponent" : 
 						{
+							"speed" : 5.0
 						}
 					},		
 					"posX" : 20.0,

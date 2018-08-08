@@ -1523,7 +1523,7 @@ void FD3d12Renderer::RecordShadowPass()
 	int numLights = min(pointlights.size() + 1, 10);
 	for (int i = 0; i < numLights; i++)
 	{
-		if (true)//i == 0 || GetCamera()->IsInFrustum(pointlights[i - 1].GetAABB()))
+		if (true)//i == 0 || GetCamera()->IsInFrustum(pointlights[i - 1].GetAABB())) // todo hard to verify if this works
 		{
 			ID3D12GraphicsCommandList* commandListShadows = myShadowPassCommandLists[0];
 			{

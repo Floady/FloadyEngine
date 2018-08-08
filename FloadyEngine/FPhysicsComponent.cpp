@@ -2,6 +2,7 @@
 #include "FGame.h"
 #include "FBulletPhysics.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
+#include "FUtilities.h"
 
 
 REGISTER_GAMEENTITYCOMPONENT2(FPhysicsComponent);
@@ -96,12 +97,32 @@ void FPhysicsComponent::GetTransform(float* aMatrix)
 	aMatrix[idx + 3] = 1.0f;
 }
 
+void FPhysicsComponent::SetYaw(float aYaw)
+{
+	btQuaternion rot(btVector3(0, 1, 0), aYaw);
+	myPhysicsObject->getWorldTransform().setRotation(rot);
+}
+
+void FPhysicsComponent::Yaw(float aYaw)
+{
+	btQuaternion rot(btVector3(0, 1, 0), aYaw);
+	myPhysicsObject->getWorldTransform().setRotation(myPhysicsObject->getWorldTransform().getRotation() * rot);
+}
+
+void FPhysicsComponent::SetRoll(float aRoll)
+{
+	btQuaternion rot(btVector3(1, 0, 0), aRoll);
+	myPhysicsObject->getWorldTransform().setRotation(rot);
+}
+
+void FPhysicsComponent::Roll(float aRoll)
+{
+	btQuaternion rot(btVector3(1, 0, 0), aRoll);
+	myPhysicsObject->getWorldTransform().setRotation(myPhysicsObject->getWorldTransform().getRotation() * rot);
+}
+
 void FPhysicsComponent::SetPos(const FVector3 & aPos)
 {
-	btTransform groundTransform;
-	groundTransform.setIdentity();
-	groundTransform.setOrigin(btVector3(aPos.x + myOffset.x, aPos.y + myOffset.y, aPos.z + myOffset.z));
-
 	if (myPhysicsObject)
-		myPhysicsObject->setWorldTransform(groundTransform);
+		myPhysicsObject->getWorldTransform().setOrigin(btVector3(aPos.x + myOffset.x, aPos.y + myOffset.y, aPos.z + myOffset.z));
 }

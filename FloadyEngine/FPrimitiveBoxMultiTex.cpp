@@ -30,12 +30,9 @@ void FPrimitiveBoxMultiTex::Init()
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 		}
 
-		CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-		rootParameters[0].InitAsDescriptorTable(2, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
+		// get root sig with 32 SRV's
+		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(64, 1);
+		m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -52,21 +49,16 @@ void FPrimitiveBoxMultiTex::Init()
 		sampler.RegisterSpace = 0;
 		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDesc;
-		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
 		ID3DBlob* signature;
 		ID3DBlob* error;
-		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
-		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
-		m_rootSignature->SetName(L"PrimitiveBoxInstanced");
 
 		// shadow root sig
 		CD3DX12_DESCRIPTOR_RANGE1 rangesShadows[1];
 		rangesShadows[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-		CD3DX12_ROOT_PARAMETER1 rootParametersShadow[1];
+		CD3DX12_ROOT_PARAMETER1 rootParametersShadow[2];
 		rootParametersShadow[0].InitAsDescriptorTable(1, &rangesShadows[0], D3D12_SHADER_VISIBILITY_ALL);
+		rootParametersShadow[1].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDescShadows;
 		rootSignatureDescShadows.Init_1_1(_countof(rootParametersShadow), rootParametersShadow, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -77,29 +69,27 @@ void FPrimitiveBoxMultiTex::Init()
 		m_rootSignatureShadows->SetName(L"PrimitiveBoxInstancedShadow");
 	}
 
-
 	// Create vertex + index buffer
 
 	// create constant buffer for modelview
 
 	const int buff_size = sizeof(float) * (myNrOfInstances + 1) * 16;
 	myHeapOffsetCBVShadow = myManagerClass->CreateConstantBuffer(m_ModelProjMatrixShadow, myConstantBufferShadowsPtr, sizeof(float) * 32 * 16);
+	myManagerClass->CreateConstantBuffer(myShadowPerInstanceData, myShadowPerInstanceDataPtr, sizeof(PerDrawCallData) * 16); // nrOfDrawcalls or nrOfLights TODO
 	myHeapOffsetCBV = myManagerClass->CreateConstantBuffer(m_ModelProjMatrix, myConstantBufferPtr, buff_size);
 	m_ModelProjMatrix->SetName(L"PrimitiveBoxInstancedConst");
 	m_ModelProjMatrixShadow->SetName(L"PrimitiveBoxInstancedConstShadows");
+	myShadowPerInstanceData->SetName(L"PrimitiveBoxMultiTexConstShadowsInstanceData");
 	myHeapOffsetAll = myHeapOffsetCBV;
 	myHeapOffsetText = myHeapOffsetAll;
 
 	memset(myConstantBufferShadowsPtr, 0, sizeof(float) * 32 * 16);
+	memset(myShadowPerInstanceDataPtr, 0, sizeof(PerDrawCallData) * 16);
 
 	skipNextRender = false;
 	myIsInitialized = true;
 
 	RecalcModelMatrix();
-
-	// get root sig with 32 SRV's
-	m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(64, 1);
-	m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
 	// set to multitex shader
 	SetShader("primitiveshader_deferredMultiTex.hlsl");

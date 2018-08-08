@@ -921,15 +921,22 @@ std::vector<FVector3> FNavMesh::FindPath(const FVector3& aStart, const FVector3&
 	myNavQuery->findStraightPath(spos, epos, polys, npolys, polysStraight2, nullptr, polysStraight, &npolysStraight, MAX_POLYS);
 
 	std::vector<FVector3> path;
-	path.push_back(aStart);
+//	path.push_back(aStart);
 
 	for (int i = 0; i < npolys; i++)
 	{
 		dtStatus status = 0;
 		float reqPos[3];
 		status = myNavQuery->closestPointOnPoly(polys[i], epos, reqPos, 0);
-		path.push_back(FVector3(reqPos[0], reqPos[1], reqPos[2]));
+	//	path.push_back(FVector3(reqPos[0], reqPos[1], reqPos[2]));
 	}
+
+	// correct the start
+	float reqPos[3];
+	dtStatus status = myNavQuery->closestPointOnPoly(startRef, spos, reqPos, 0);
+	spos[0] = reqPos[0];
+	spos[1] = reqPos[1];
+	spos[2] = reqPos[2];
 
 	// use straight path for now (there is also follow and sliced which i think are better?)
 	if (npolys)
@@ -949,7 +956,7 @@ std::vector<FVector3> FNavMesh::FindPath(const FVector3& aStart, const FVector3&
 			m_straightPathPolys, &m_nstraightPath, MAX_POLYS, m_straightPathOptions);
 
 		path.clear();
-		path.push_back(aStart);
+		//path.push_back(aStart);
 		for (int i = 0; i < m_nstraightPath; ++i)
 		{
 			path.push_back(FVector3(m_straightPath[i * 3], m_straightPath[i * 3 + 1], m_straightPath[i * 3 + 2]));

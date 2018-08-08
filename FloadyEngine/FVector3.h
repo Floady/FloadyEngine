@@ -75,7 +75,7 @@ float SqrLength() const
 #endif
 }
 
-float Dot( FVector3 a_V ) const
+float Dot( const FVector3& a_V ) const
 {
 #if NONVECTORIZED
 	return x * a_V.x + y * a_V.y + z * a_V.z;
@@ -85,7 +85,7 @@ float Dot( FVector3 a_V ) const
 #endif
 }
 
-FVector3 Cross( FVector3 v ) const
+FVector3 Cross(const FVector3& v ) const
 {
 #if NONVECTORIZED
 	return FVector3( y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x );

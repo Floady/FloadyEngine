@@ -142,6 +142,7 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	btRigidBody::btRigidBodyConstructionInfo cInfo(mass, myMotionState, shape, localInertia);
 
 	btRigidBody* body = new btRigidBody(cInfo);
+	//body->setGravity(btVector3(0, 0, 0));
 	//body->setContactProcessingThreshold(m_defaultContactProcessingThreshold);
 
 #else

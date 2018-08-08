@@ -236,7 +236,12 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				if(receiveShadows) // todo hack: skybox sets receiveShadows to false - we shouldnt 'light' it either, just full ambient?
 				{
 					if(!isOutOfLightZone && shadowDepth != 0 && (projShadowDepth < shadowDepth - shadowBias))
+					{
 						isOutOfLightZone = true;
+				
+				//		output.color = float4(0.0f, 1.0f, 0.0f, 0.0f);	
+					//	return output;
+				}
 				}
 				
 				if(!isOutOfLightZone)
@@ -252,11 +257,10 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					+ (SpecularColor * LightSpecularColor * specLighting * 0.5) // Use light specular vector as intensity multiplier
 					), texel.w);
 						
-				}
+				}				
 			}
 		}
 	}
-	
 	float3 AmbientLightColor = float3(1,1,1) * 0.5f;
 	
 	if(receiveShadows) //TODO: if we are receiving shadows, we receive lighting, tone down the ambient for this (skybox is the only one not receiving shadows atm)
