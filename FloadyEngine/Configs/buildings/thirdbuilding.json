@@ -74,7 +74,7 @@
 						"canMove" :false,
 						"type" : 2,
 						"tex" : "marble.png",
-						"instanced" : true,
+						"instanced" : false,
 						"model" : "f16.obj"
 						},
 						"FPhysicsComponent" : 

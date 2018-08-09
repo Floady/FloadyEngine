@@ -36,7 +36,7 @@ unsigned int FMeshInstanceManager::GetMeshInstanceId(const std::string& aMeshNam
 	return (myMeshInstances[aMeshName].size()-1) * myNrOfInstancesPerPool + myMeshInstances[aMeshName][myMeshInstances[aMeshName].size()-1].GetNextInstanceId();
 }
 
-FPrimitiveBoxInstanced::PerInstanceData& FMeshInstanceManager::GetInstanceData(const std::string& aMeshName, unsigned int anInstanceId)
+FRenderableObjectInstanceData& FMeshInstanceManager::GetInstanceData(const std::string& aMeshName, unsigned int anInstanceId)
 {
 	unsigned int poolIdx = floor(anInstanceId / myNrOfInstancesPerPool);
 	return myMeshInstances[aMeshName][poolIdx].myPool->GetInstanceData(anInstanceId % myNrOfInstancesPerPool);

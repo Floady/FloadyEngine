@@ -21,6 +21,7 @@ public:
 	struct FMeshObject
 	{
 		FMeshObject();
+		~FMeshObject();
 		ID3D12Resource* myVertexBuffer;
 		ID3D12Resource* myIndexBuffer;
 		UINT8* myVertexDataBegin;

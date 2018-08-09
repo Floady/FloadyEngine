@@ -14,7 +14,7 @@ public:
 	static unsigned int myNrOfInstancesPerPool;
 	static FMeshInstanceManager* GetInstance();
 	unsigned int GetMeshInstanceId(const std::string& aMeshName);
-	FPrimitiveBoxInstanced::PerInstanceData& GetInstanceData(const std::string& aMeshName, unsigned int anInstanceId);
+	FRenderableObjectInstanceData& GetInstanceData(const std::string& aMeshName, unsigned int anInstanceId);
 	FPrimitiveBoxInstanced* GetInstance(const std::string& aMeshName, unsigned int anInstanceId);
 private:
 	struct MeshPool

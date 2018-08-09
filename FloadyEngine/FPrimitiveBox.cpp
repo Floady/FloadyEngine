@@ -286,17 +286,6 @@ void FPrimitiveBox::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdL
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 	
-#if DEFERRED
-#if !THE_NEW_WAY
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
-	aCmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
-	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-#endif
-#else
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-#endif
-
 	if (myMesh)
 	{
 		aCmdList->IASetVertexBuffers(0, 1, &myMesh->myVertexBufferView);
@@ -322,26 +311,11 @@ void FPrimitiveBox::PopulateCommandListInternalShadows(ID3D12GraphicsCommandList
 	aCmdList->SetPipelineState(m_pipelineStateShadows);
 	aCmdList->SetGraphicsRootSignature(m_rootSignatureShadows);
 
-#if !THE_NEW_WAY
-	aCmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
-	aCmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
-	// is this how we bind textures?
-	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-#endif
-
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetCBVShadow;
 	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
-
-#if !THE_NEW_WAY
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle(FLightManager::GetInstance()->GetActiveLight());
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color);
-	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-#endif
 
 	if (myMesh)
 	{

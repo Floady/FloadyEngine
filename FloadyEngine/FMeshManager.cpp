@@ -1,6 +1,6 @@
 #include "FMeshManager.h"
-#include "FRenderableObject.h"
 #include "FD3d12Renderer.h"
+#include "FRenderableObject.h"
 #include "FPrimitiveGeometry.h"
 #include "FObjLoader.h"
 #include "FProfiler.h"
@@ -216,6 +216,10 @@ void FMeshManager::LoadMeshObj(const std::string & aPath)
 
 FMeshManager::~FMeshManager()
 {
+	for (auto& obj : myMeshes)
+	{
+		delete obj.second;
+	}
 }
 
 FMeshManager* FMeshManager::GetInstance()
@@ -259,6 +263,21 @@ FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDel
 FMeshManager::FMeshObject::FMeshObject()
 {
 	myVertexBuffer = nullptr;
+	myIndexBuffer = nullptr;
+	myVertexDataBegin = nullptr;
+	myIndexDataBegin = nullptr;
+	myIndicesCount = 0;
+	myVerticesSize = 0;
+}
+
+FMeshManager::FMeshObject::~FMeshObject()
+{
+	if (myVertexBuffer)
+		myVertexBuffer->Release();
+
+	if (myIndexBuffer)
+		myIndexBuffer->Release();
+
 	myIndexBuffer = nullptr;
 	myVertexDataBegin = nullptr;
 	myIndexDataBegin = nullptr;

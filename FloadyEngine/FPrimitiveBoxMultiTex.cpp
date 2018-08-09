@@ -34,6 +34,7 @@ void FPrimitiveBoxMultiTex::Init()
 		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(64, 1);
 		m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
+		//*
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -67,6 +68,11 @@ void FPrimitiveBoxMultiTex::Init()
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDescShadows, featureData.HighestVersion, &signatureShadows, &error);
 		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signatureShadows->GetBufferPointer(), signatureShadows->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatureShadows));
 		m_rootSignatureShadows->SetName(L"PrimitiveBoxInstancedShadow");
+		/*/
+		m_rootSignatureShadows = FD3d12Renderer::GetInstance()->GetRootSignature(0, 1);
+		m_rootSignatureShadows->SetName(L"PrimitiveBoxMultiTexShadows");
+
+		//*/
 	}
 
 	// Create vertex + index buffer

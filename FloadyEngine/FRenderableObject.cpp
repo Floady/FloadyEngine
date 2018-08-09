@@ -19,6 +19,7 @@ FAABB FRenderableObject::GetLocalAABB() const
 
 FRenderableObject::FRenderableObject()
 {
+	m_ModelProjMatrix = nullptr;
 	myIsVisible = true;
 	myCastsShadows = true;
 	myRenderCCW = false;
@@ -29,6 +30,8 @@ FRenderableObject::FRenderableObject()
 
 FRenderableObject::~FRenderableObject()
 {
+	if (m_ModelProjMatrix)
+		m_ModelProjMatrix->Release();
 }
 
 bool FAABB::IsInside(const FVector3& aPoint) const
@@ -47,3 +50,14 @@ bool FAABB::IsInside(const FAABB& anAABB) const
 	return isInside;
 }
 
+FRenderableObjectInstanceData::FRenderableObjectInstanceData()
+{
+	memset(myModelMatrix, 0, sizeof(float) * 16);
+	memset(myRotMatrix, 0, sizeof(float) * 16);
+	FVector3 myPos = FVector3(0, 0, 0);
+	myScale = FVector3(1,1,1);
+	myAABB = FAABB();
+	myAABB.Grow(-myScale);
+	myAABB.Grow(myScale);
+	myIsVisible = false;;
+}

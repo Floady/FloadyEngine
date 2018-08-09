@@ -26,6 +26,8 @@ int CALLBACK WinMain(
 			frameTime = 0.033;
 	}
 	
+	delete myGame;
+
 	return 0;
 }
 

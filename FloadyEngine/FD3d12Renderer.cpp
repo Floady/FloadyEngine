@@ -79,8 +79,47 @@ FD3d12Renderer::FD3d12Renderer()
 	myDebugDrawerCmdList = nullptr;
 }
 
+#define D3D_SAFE_RELEASE(x) if(x) x->Release();
 FD3d12Renderer::~FD3d12Renderer()
 {
+	delete myDebugDrawer;
+	FTextureManager::GetInstance()->ReleaseTextures();
+	D3D_SAFE_RELEASE(m_device);
+	D3D_SAFE_RELEASE(m_commandQueue);
+	D3D_SAFE_RELEASE(m_swapChain);
+	D3D_SAFE_RELEASE(m_renderTargetViewHeap);
+	D3D_SAFE_RELEASE(myRenderToGBufferCmdList);
+	D3D_SAFE_RELEASE(myPostProcessCmdList);
+	D3D_SAFE_RELEASE(myDebugDrawerCmdList);
+	D3D_SAFE_RELEASE(myClearBuffersCmdList);
+	D3D_SAFE_RELEASE(m_commandList);
+	D3D_SAFE_RELEASE(m_pipelineState);
+	D3D_SAFE_RELEASE(m_fence);
+	D3D_SAFE_RELEASE(m_srvHeap);
+	D3D_SAFE_RELEASE(m_dsvHeap);
+	D3D_SAFE_RELEASE(myShadowScratchBuff);
+	D3D_SAFE_RELEASE(m_dsvHeap);
+	D3D_SAFE_RELEASE(m_dsvHeap);
+
+	for (int i = 0; i < 10; i++)
+	{
+		D3D_SAFE_RELEASE(myShadowMap[i]);
+	}
+
+	for (int i = 0; i < 2; i++)
+	{
+		D3D_SAFE_RELEASE(m_backBufferRenderTarget[i]);
+	}
+	
+	for (int i = 0; i < 2; i++)
+	{
+		D3D_SAFE_RELEASE(myPostProcessScratchBuffers[i]);
+	}
+
+	for (int i = 0; i < 16; i++)
+	{
+		D3D_SAFE_RELEASE(myShadowPassCommandLists[i]);
+	}
 }
 
 static FD3d12Quad* myQuad = nullptr;

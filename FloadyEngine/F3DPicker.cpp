@@ -1,4 +1,3 @@
-#include "FRenderableObject.h"
 #include "F3DPicker.h"
 #include "FCamera.h"
 #include "FRenderWindow.h"

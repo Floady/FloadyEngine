@@ -4,7 +4,6 @@
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 
-#define THE_NEW_WAY 1
 #define GRAPHICS_DEBUGGING 0 // enable this if you use VS graphics debugger so we use their pix version
 
 class FCamera;

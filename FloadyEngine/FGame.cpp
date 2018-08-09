@@ -140,6 +140,8 @@ FGame::~FGame()
 
 	delete myFpsCounter;
 	myFpsCounter = nullptr;
+
+	delete FMeshManager::GetInstance();
 }
 
 void FGame::Init()

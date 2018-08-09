@@ -1,5 +1,4 @@
 #include "FGameEntityObjModel.h"
-#include "FRenderableObject.h"
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
 #include "FGame.h"
@@ -16,6 +15,7 @@
 #include "FBulletPhysics.h"
 #include "FRenderMeshComponent.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
+#include "FRenderableObject.h"
 
 using namespace DirectX;
 

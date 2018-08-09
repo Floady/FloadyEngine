@@ -17,7 +17,6 @@
 //#pragma optimize("", off)
 
 using namespace DirectX;
-#define DEFERRED 1
 
 bool ourShouldRecalc = false;
 
@@ -29,18 +28,14 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 	//	assert(aNrOfInstances <= 16); // @todo: limited to 16 instances for now (shader dependency)
 
 	myNrOfInstances = aNrOfInstances;
-	myModelMatrix = new PerInstanceData[myNrOfInstances];
+	myModelMatrix = new FRenderableObjectInstanceData[myNrOfInstances];
 	myPerDrawCallData = new PerDrawCallData[16]; // TODO nrOfLights (nrOfDrawCalls)
 	for (size_t i = 0; i < 16; i++)
 	{
 		myPerDrawCallData[i].myLightIndex = i;
 	}
 	myModelMatrix[0].myIsVisible = true;
-#if DEFERRED
 	shaderfilename = "primitiveshader_deferred.hlsl";
-#else
-	shaderfilename = "primitiveshader.hlsl";
-#endif
 	shaderfilenameShadow = "primitiveshader_deferredShadows.hlsl";
 
 	myTexName = "testtexture2.png"; // something default
@@ -125,9 +120,18 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 	myMutex.Init(aManager->GetDevice(), "FPrimitiveBoxInstanced");
 }
 
+#define D3D_SAFE_RELEASE(x) if(x) x->Release();
 FPrimitiveBoxInstanced::~FPrimitiveBoxInstanced()
 {
 	myManagerClass->GetShaderManager().UnregisterForHotReload(this);
+
+	D3D_SAFE_RELEASE(m_rootSignature);
+	D3D_SAFE_RELEASE(m_rootSignatureShadows);
+	D3D_SAFE_RELEASE(m_pipelineState);
+	D3D_SAFE_RELEASE(m_pipelineStateShadows);
+	D3D_SAFE_RELEASE(m_commandList);
+	D3D_SAFE_RELEASE(m_ModelProjMatrixShadow);
+	D3D_SAFE_RELEASE(myShadowPerInstanceData);
 }
 
 void FPrimitiveBoxInstanced::Init()
@@ -294,20 +298,6 @@ void FPrimitiveBoxInstanced::PopulateCommandListInternal(ID3D12GraphicsCommandLi
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-#if DEFERRED
-#if !THE_NEW_WAY
-	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
-	aCmdList->OMSetRenderTargets(4, rtvHandles, FALSE, &dsvHeap);
-	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-#endif
-#else
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetRTVHandle();
-	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-#endif
-
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetAll;
 	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
@@ -337,38 +327,12 @@ void FPrimitiveBoxInstanced::PopulateCommandListInternalShadows(ID3D12GraphicsCo
 	aCmdList->SetPipelineState(m_pipelineStateShadows);
 	aCmdList->SetGraphicsRootSignature(m_rootSignatureShadows);
 
-#if !THE_NEW_WAY
-	ID3D12DescriptorHeap* ppHeaps[] = { myManagerClass->GetSRVHeap() };
-	aCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-#endif
-
 	// Get the size of the memory location for the render target view descriptors.
 	unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = myManagerClass->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += srvSize*myHeapOffsetCBVShadow;
 	aCmdList->SetGraphicsRootDescriptorTable(0, handle);
-
-#if !THE_NEW_WAY
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetShadowMapHandle(FLightManager::GetInstance()->GetActiveLight());
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = myManagerClass->GetGBufferHandle(FD3d12Renderer::GbufferType::Gbuffer_color);
-	aCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHeap);
-	aCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-#endif
-	// TODO shadows can need rendering even if not visible - the myUsedIndex does not work when things are removed (such as building placement)
-	//if (myMesh)
-	//{
-	//	aCmdList->IASetVertexBuffers(0, 1, &myMesh->myVertexBufferView);
-	//	aCmdList->IASetIndexBuffer(&myMesh->myIndexBufferView);
-	//	aCmdList->DrawIndexedInstanced(myMesh->myIndicesCount, myUsedIndex + 1, 0, 0, 0);
-	//}
-	//else
-	//{
-	//	aCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	//	aCmdList->IASetIndexBuffer(&m_indexBufferView);
-	//	aCmdList->DrawIndexedInstanced(myIndicesCount, myUsedIndex + 1, 0, 0, 0);
-	//}
 
 	if(myShadowPerInstanceData)
 		aCmdList->SetGraphicsRootConstantBufferView(1, myShadowPerInstanceData->GetGPUVirtualAddress() + sizeof(PerDrawCallData) * FLightManager::GetInstance()->GetActiveLight());
@@ -422,16 +386,13 @@ void FPrimitiveBoxInstanced::SetShader()
 		psoDesc.DepthStencilState.DepthEnable = FALSE;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-#if DEFERRED
+
 	psoDesc.NumRenderTargets = myManagerClass->Gbuffer_Combined;
 	for (size_t i = 0; i < myManagerClass->Gbuffer_Combined; i++)
 	{
 		psoDesc.RTVFormats[i] = myManagerClass->gbufferFormat[i];
 	}
-#else
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-#endif
+
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
@@ -474,7 +435,9 @@ void FPrimitiveBoxInstanced::RecalcModelMatrix()
 		offset = scale * mtxRot * offset;
 
 		offset = XMMatrixTranspose(offset);
-		XMStoreFloat4x4(&myModelMatrix[0].myModelMatrix, offset);
+		XMFLOAT4X4 result;
+		XMStoreFloat4x4(&result, offset);
+		memcpy(myModelMatrix[0].myModelMatrix, result.m, sizeof(float) * 16);
 		myIsMatrixDirty = false;
 	}
 
@@ -493,7 +456,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	}
 	//
 
-	const int buff_size = sizeof(float) * (myNrOfInstances + 1) * 16;
+	const int buff_size = sizeof(float) * (myNrOfInstances + 1 + 1) * 16;
 	//myIsGPUConstantDataDirty = true;
 
 	myNrOfVisibleInstances = 0;
@@ -507,7 +470,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 		{
 			if (myModelMatrix[i].myIsVisible)
 			{
-				memcpy(&constData[offset], myModelMatrix[i].myModelMatrix.m, sizeof(XMFLOAT4X4));
+				memcpy(&constData[offset], myModelMatrix[i].myModelMatrix, sizeof(float) * 16);
 				myNrOfVisibleInstances++;
 				offset += 16;
 			}
@@ -548,7 +511,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 		{
 			if (myModelMatrix[i].myIsVisible)
 			{
-				memcpy(&constData[offsetInConstData], myModelMatrix[i].myModelMatrix.m, sizeof(XMFLOAT4X4));
+				memcpy(&constData[offsetInConstData], myModelMatrix[i].myModelMatrix, sizeof(float) * 16);
 				offsetInConstData += 16;
 			}
 		}

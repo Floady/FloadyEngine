@@ -1,0 +1,12 @@
+newmtl F16s
+Ka 0 0 0
+Kd 0 0 0
+Ks 0 0 0
+map_Kd F16s2.png 
+
+newmtl F16t
+Ka 0 0 0
+Kd 0 0 0
+Ks 0 0 0
+map_Kd F16s2.png 
+

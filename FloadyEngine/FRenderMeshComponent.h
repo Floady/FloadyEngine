@@ -33,7 +33,6 @@ public:
 
 protected:
 	FRenderableObject* myGraphicsObject; // for non instances only
-	FRenderableObjectInstanceData myInstanceData; // for instances
 	unsigned int myMeshInstanceId;
 	bool myIsInstanced;
 

@@ -296,6 +296,15 @@ void FTextureManager::ReloadTextures()
 	//myTextureMutex.Unlock();
 }
 
+void FTextureManager::ReleaseTextures()
+{
+	for (std::map<std::string, TextureInfo>::iterator it = myTextures.begin(); it != myTextures.end(); ++it)
+	{
+		if((*it).second.myD3DResource)
+			(*it).second.myD3DResource->Release();
+	}
+}
+
 ID3D12Resource * FTextureManager::GetTextureD3D(const std::string& aTextureName) const
 {
 	assert(myInitializedD3D && "NOT INIT D3D");

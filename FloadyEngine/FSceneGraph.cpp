@@ -128,4 +128,10 @@ void FSceneGraph::HideObject(FRenderableObject * anObject)
 
 FSceneGraph::~FSceneGraph()
 {
+	for (std::vector<FRenderableObject*>::iterator it = myObjects.begin(); it != myObjects.end(); ++it)
+	{
+		delete *it;
+	}
+
+	myObjects.clear();
 }

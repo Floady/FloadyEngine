@@ -2,7 +2,6 @@
 #include "FVector3.h"
 #include <d3d12.h>
 
-
 struct FAABB
 {
 	FAABB() { Reset(); }
@@ -45,20 +44,23 @@ struct ID3D12Resource;
 class FRenderableObjectInstanceData
 {
 public:
-	FAABB myAABB;
+	FRenderableObjectInstanceData();
+	float myModelMatrix[4][4];
 	float myRotMatrix[16];
+	FAABB myAABB;
 	FVector3 myPos;
 	FVector3 myScale;
+	bool myIsVisible;	
+
 	FAABB GetAABB() const
 	{
 		FAABB aabb = myAABB;
-		//aabb.myMax *= myScale;
-		//aabb.myMin *= myScale;
+		aabb.myMax *= myScale;
+		aabb.myMin *= myScale;
 		aabb.myMax += myPos;
 		aabb.myMin += myPos;
 		return aabb;
 	}
-
 };
 
 class FRenderableObject

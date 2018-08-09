@@ -28,13 +28,6 @@ public:
 		Sphere
 	};
 
-	struct PerInstanceData
-	{
-		PerInstanceData() { myIsVisible = false; }
-		DirectX::XMFLOAT4X4 myModelMatrix;
-		bool myIsVisible;
-	};
-
 	FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, PrimitiveType aType, unsigned int aNrOfInstances = 1);
 	~FPrimitiveBoxInstanced();
 	bool GetIsVisible() override { return true; }
@@ -59,10 +52,10 @@ public:
 	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
 	int GetIndicesCount() { return myIndicesCount; }
 	bool IsInitialized() { return myIsInitialized; }
-	PerInstanceData& GetInstanceData(int i) { myUsedIndex = max(myUsedIndex, i); myModelMatrix[i].myIsVisible = true; return myModelMatrix[i]; }
+	FRenderableObjectInstanceData& GetInstanceData(int i) { myUsedIndex = max(myUsedIndex, i); myModelMatrix[i].myIsVisible = true; return myModelMatrix[i]; }
 	ID3D12RootSignature* m_rootSignature;
 	FMeshManager::FMeshObject* myMesh;
-
+	
 protected:
 	ID3D12RootSignature* m_rootSignatureShadows;
 	ID3D12PipelineState* m_pipelineState;
@@ -70,7 +63,7 @@ protected:
 	ID3D12GraphicsCommandList* m_commandList;
 	int myUsedIndex;
 	
-	PerInstanceData* myModelMatrix;
+	FRenderableObjectInstanceData* myModelMatrix;
 
 	UINT8* myConstantBufferPtr;
 	UINT8* myConstantBufferShadowsPtr;

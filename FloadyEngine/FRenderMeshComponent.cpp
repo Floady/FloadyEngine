@@ -1,5 +1,4 @@
 #include "FRenderMeshComponent.h"
-#include "FRenderableObject.h"
 #include "FMeshInstanceManager.h"
 #include "FDebugDrawer.h"
 #include "FCamera.h"
@@ -65,7 +64,7 @@ FRenderMeshComponent::~FRenderMeshComponent()
 
 	if (myIsInstanced)
 	{
-		FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 		data.myIsVisible = false;
 	}
 }
@@ -179,6 +178,8 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	}
 	else
 	{
+		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+		
 		XMMATRIX mtxRot3 = XMMatrixIdentity();
 		XMFLOAT4X4 m2;
 		XMStoreFloat4x4(&m2, mtxRot3);
@@ -187,24 +188,21 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		{
 			for (int j = 0; j < 4; j++)
 			{
-				myInstanceData.myRotMatrix[i * 4 + j] = m2.m[i][j];
+				data.myRotMatrix[i * 4 + j] = m2.m[i][j];
 			}
 		}
 
 
 		string tex = anObj.GetItem("tex").GetAs<string>();
 
-		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->SetTexture(tex.c_str()); ;
-		//FMeshInstanceManager::GetInstance()->GetInstance("sphere", myMeshInstanceId)->SetScale(scale);
-		myInstanceData.myScale = scale;
+		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->SetTexture(tex.c_str());
+		data.myScale = scale;
 
-		myInstanceData.myAABB = FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetLocalAABB();
+		data.myAABB = FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetLocalAABB();
 
-		FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
-
+		
 		data.myIsVisible = true;
-		//const FVector3& pos = myInstanceData.myPos;
-		myInstanceData.myPos = pos;
+		data.myPos = pos;
 		const FVector3& scale2 = scale;// GetScale();
 		XMFLOAT4X4 m = XMFLOAT4X4();
 		XMMATRIX mtxRot = XMLoadFloat4x4(&m);
@@ -213,7 +211,9 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		offset = scale * offset;
 
 		offset = XMMatrixTranspose(offset);
-		XMStoreFloat4x4(&data.myModelMatrix, offset);
+		XMFLOAT4X4 result;
+		XMStoreFloat4x4(&result, offset);
+		memcpy(data.myModelMatrix, result.m, sizeof(float) * 16);
 	}
 }
 
@@ -230,45 +230,42 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 
 	if (myIsInstanced)
 	{
+		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+
 		FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
 		
-		FAABB aabb2 = FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetLocalAABB();
-		aabb2.myMax = aabb2.myMax * myInstanceData.myScale;
-		aabb2.myMin = aabb2.myMin * myInstanceData.myScale;
-		aabb2.myMax = aabb2.myMax + myInstanceData.myPos;
-		aabb2.myMin = aabb2.myMin + myInstanceData.myPos;
+		
+		FAABB aabb2 = data.GetAABB();
 		if (FD3d12Renderer::GetInstance()->GetCamera()->IsInFrustum(aabb2) || ourShouldRecalc)
 		{
 			//if (debugDrawer)
 			//{
-			//	FAABB& aabb = myInstanceData.GetAABB();
-			//	debugDrawer->drawAABB(aabb.myMin, aabb.myMax, FVector3(0.2, 0.2, 1));
+			//	debugDrawer->drawAABB(aabb2.myMin, aabb2.myMax, FVector3(0.2, 0.2, 1));
 			//}
 
-			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
-			
 			data.myIsVisible = true;
 
-			const FVector3& pos2 = myInstanceData.myPos;
+			const FVector3& pos2 = data.myPos;
 			const FVector3& scale2 = GetScale();
-			XMFLOAT4X4 m = XMFLOAT4X4(myInstanceData.myRotMatrix);
+			XMFLOAT4X4 m = XMFLOAT4X4(data.myRotMatrix);
 			XMMATRIX mtxRot = XMLoadFloat4x4(&m);
 			XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
 			XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos2.x, pos2.y, pos2.z, 1));
 			offset = scale * mtxRot * offset;
 
 			offset = XMMatrixTranspose(offset);
-			XMStoreFloat4x4(&data.myModelMatrix, offset);
+			XMFLOAT4X4 result;
+			XMStoreFloat4x4(&result, offset);
+			memcpy(data.myModelMatrix, result.m, sizeof(float) * 16);
+
 		}
 		else
 		{
 			//if (debugDrawer)
 			//{
-			//	FAABB& aabb = myInstanceData.GetAABB();
-			//	debugDrawer->drawAABB(aabb.myMin, aabb.myMax, FVector3(1, 0.2, 0.2));
+			//	debugDrawer->drawAABB(aabb2.myMin, aabb2.myMax, FVector3(1, 0.2, 0.2));
 			//}
 
-			FPrimitiveBoxInstanced::PerInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 			data.myIsVisible = false;
 		}
 	}
@@ -280,17 +277,30 @@ void FRenderMeshComponent::SetPos(const FVector3 & aPos)
 		myGraphicsObject->SetPos(myOffset + aPos);
 	else
 	{
-		myInstanceData.myPos = myOffset + aPos;
+		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+		data.myPos = myOffset + aPos;
 		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->RecalcModelMatrix();
 	}
 }
 
 FAABB FRenderMeshComponent::GetAABB() const
 {
+	FAABB aabb;
 	if (myGraphicsObject)
-		return myGraphicsObject->GetAABB();
+		aabb = myGraphicsObject->GetAABB();
 	else
-		return myInstanceData.GetAABB();
+	{
+		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
+		aabb = data.GetAABB();
+	}
+
+	if (false)
+	{
+		FDebugDrawer* debugDrawer = FD3d12Renderer::GetInstance()->GetDebugDrawer();
+		debugDrawer->drawAABB(aabb, FVector3(1, 0, 0));
+	}
+
+	return aabb;
 }
 
 const char * FRenderMeshComponent::GetTexture()
@@ -306,7 +316,7 @@ float * FRenderMeshComponent::GetRotMatrix()
 	if (myGraphicsObject)
 		return myGraphicsObject->myRotMatrix;
 	else
-		return myInstanceData.myRotMatrix;
+		return FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId).myRotMatrix;
 }
 
 const FVector3 & FRenderMeshComponent::GetScale()
@@ -314,5 +324,5 @@ const FVector3 & FRenderMeshComponent::GetScale()
 	if (myGraphicsObject)
 		return myGraphicsObject->GetScale();
 	else
-		return myInstanceData.myScale;
+		return FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId).myScale;
 }
