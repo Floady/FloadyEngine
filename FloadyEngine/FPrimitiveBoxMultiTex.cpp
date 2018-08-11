@@ -31,7 +31,7 @@ void FPrimitiveBoxMultiTex::Init()
 		}
 
 		// get root sig with 32 SRV's
-		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(64, 1);
+		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(96, 1);
 		m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
 		//*
@@ -103,7 +103,7 @@ void FPrimitiveBoxMultiTex::Init()
 	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBoxInstanced, &FPrimitiveBoxInstanced::SetShader>(this));
 	
 	myTexOffset = FD3d12Renderer::GetInstance()->BindTexture("");
-	for (size_t i = 0; i < 63; i++) // 63 + 1 = 64 :^)
+	for (size_t i = 0; i < 95; i++) // 63 + 1 = 64 :^)
 	{
 		FD3d12Renderer::GetInstance()->BindTexture("");
 	}
@@ -138,7 +138,18 @@ void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshObject& a
 			name = mat.bump_texname.substr(mat.bump_texname.find('\\') + 1, mat.bump_texname.length());
 		}
 
-		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + m.myMaterials.size());
+		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + 32);
+	}
+
+	for (size_t i = 0; i < m.myMaterials.size(); i++)
+	{
+		const tinyobj::material_t& mat = m.myMaterials[i];
+		if (!mat.specular_texname.empty())
+		{
+			name = mat.specular_texname.substr(mat.specular_texname.find('\\') + 1, mat.specular_texname.length());
+		}
+
+		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + 64);
 	}
 
 	for (const FPrimitiveGeometry::Vertex2& vert : anObj.myVertices)

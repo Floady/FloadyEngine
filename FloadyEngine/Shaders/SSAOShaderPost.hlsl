@@ -153,7 +153,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	}
 	ao/=(float)iterations*4.0;
 	
-	//output.color = float4(scratchbuff.Sample(g_sampler, input.uv).xyz, 1.0);
+	float3 testColor = float4(g_combinedTexture.Sample(g_sampler, input.uv).xyz, 1.0);
+	
 	output.color = float4(1.0f - ao.xxx, 1);
 	//output.color = float4(ao.x*5, 0, 0, 1);
 	//output.color += float4(tangent.xyz, 1);

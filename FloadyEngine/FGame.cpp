@@ -180,7 +180,7 @@ void FGame::Init()
 
 	// Load level and add a sunlight
 	myLevel = new FGameLevel("Configs//level3.txt");
-	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(0.25f, 0.15f, 0.05f), 0.0f);
+	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(1.75f, 1.65f, 1.55f), 0.0f);
 
 	// init navmesh	- old 2d navmesh
 //	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
@@ -518,7 +518,7 @@ void FGame::RenderWorldAsync()
 	FPROFILE_FUNCTION("RenderWorldAsync");
 	FD3d12Renderer::GetInstance()->RecordRenderToGBuffer();
 	FD3d12Renderer::GetInstance()->RecordShadowPass();
-	FD3d12Renderer::GetInstance()->RecordPostProcesss();
+	FD3d12Renderer::GetInstance()->RecordPostProcess();
 	FD3d12Renderer::GetInstance()->RecordDebugDrawer();
 }
 

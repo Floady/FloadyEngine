@@ -46,6 +46,8 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 	m_ModelProjMatrixShadow = nullptr;
 	myIsMatrixDirty = true;
 	myIsGPUConstantDataDirty = true;
+	m_rootSignature = nullptr;
+	m_rootSignatureShadows = nullptr;
 
 	myPos.x = aPos.x;
 	myPos.y = aPos.y;
@@ -411,7 +413,7 @@ void FPrimitiveBoxInstanced::SetShader()
 	psoDescShadows.SampleMask = UINT_MAX;
 	psoDescShadows.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDescShadows.NumRenderTargets = 1;
-	psoDescShadows.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDescShadows.RTVFormats[0] = DXGI_FORMAT_R10G10B10A2_UNORM; // HERE
 	psoDescShadows.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDescShadows.SampleDesc.Count = 1;
 

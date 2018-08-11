@@ -82,6 +82,8 @@ FD3d12Renderer::FD3d12Renderer()
 #define D3D_SAFE_RELEASE(x) if(x) x->Release();
 FD3d12Renderer::~FD3d12Renderer()
 {
+	return;
+
 	delete myDebugDrawer;
 	FTextureManager::GetInstance()->ReleaseTextures();
 	D3D_SAFE_RELEASE(m_device);
@@ -128,11 +130,11 @@ void FD3d12Renderer::CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DE
 {
 	CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 		static_cast<UINT>(m_viewport.Width), static_cast<UINT>(m_viewport.Height), 1, 1,
-		DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		DXGI_FORMAT_R10G10B10A2_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN, // HERE
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 	D3D12_CLEAR_VALUE clear_value;
-	clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clear_value.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	clear_value.Color[0] = 0.0f;
 	clear_value.Color[1] = 0.0f;
 	clear_value.Color[2] = 0.0f;
@@ -145,7 +147,7 @@ void FD3d12Renderer::CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DE
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 	
@@ -556,7 +558,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	swapChainDesc.BufferDesc.Width = screenWidth;
 
 	// Set a regular 32-bit surface for the back buffers.
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM; // HERE
 
 	// Set the usage of the back buffers to be render target outputs.
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -655,11 +657,11 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	{
 		CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 			static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
-			DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			DXGI_FORMAT_R10G10B10A2_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN, // HERE
 			D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 		D3D12_CLEAR_VALUE clear_value;
-		clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		clear_value.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		clear_value.Color[0] = 0.0f;
 		clear_value.Color[1] = 0.0f;
 		clear_value.Color[2] = 0.0f;
@@ -672,7 +674,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		// Describe and create a SRV for the texture.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
@@ -732,7 +734,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	// Create a render target view for the first back buffer.
 	D3D12_RENDER_TARGET_VIEW_DESC desc;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM; // HERE
 	desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	desc.Texture2D.MipSlice = 0;
 	desc.Texture2D.PlaneSlice = 0;
@@ -827,11 +829,11 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	{
 		CD3DX12_RESOURCE_DESC resourceDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 			static_cast<UINT>(screenWidth), static_cast<UINT>(screenHeight), 1, 1,
-			DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			DXGI_FORMAT_R16G16B16A16_FLOAT, 1, 0, D3D12_TEXTURE_LAYOUT_UNKNOWN,
 			D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 		D3D12_CLEAR_VALUE clear_value;
-		clear_value.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		clear_value.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; // HERE
 		clear_value.Color[0] = 0.0f;
 		clear_value.Color[1] = 0.0f;
 		clear_value.Color[2] = 0.0f;
@@ -844,7 +846,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		// Describe and create a SRV for the texture.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
@@ -1607,7 +1609,7 @@ void FD3d12Renderer::RecordShadowPass()
 	UpdatePendingTextures();
 }
 
-void FD3d12Renderer::RecordPostProcesss()
+void FD3d12Renderer::RecordPostProcess()
 {
 	FPROFILE_FUNCTION("RecordPostProc");
 
@@ -1633,8 +1635,10 @@ void FD3d12Renderer::RecordPostProcesss()
 
 	myCurrentPostProcessBufferIdx = 0;
 	// render all post effects while swapping back/forth between scratch - copy result over for next posteffect
-	for (FPostProcessEffect* postEffect : myPostEffects)
+	//for (FPostProcessEffect* postEffect : myPostEffects)
+	for (int i = 0; i < myPostEffects.size() - 1; ++i)
 	{
+		FPostProcessEffect* postEffect = myPostEffects[i];
 		FPROFILE_FUNCTION(postEffect->myDebugName);
 
 		postEffect->RenderAsync(commandList);
@@ -1650,7 +1654,7 @@ void FD3d12Renderer::RecordPostProcesss()
 		}
 
 	}
-
+	/*
 	{
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST));
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
@@ -1658,6 +1662,14 @@ void FD3d12Renderer::RecordPostProcesss()
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	
+	}
+	//*/
+
+	{
+		// last one we render to render target
+		FPostProcessEffect* postEffect = myPostEffects[myPostEffects.size() - 1];
+		FPROFILE_FUNCTION(postEffect->myDebugName);
+		postEffect->RenderAsync(commandList, true);
 	}
 
 	commandList->Close();

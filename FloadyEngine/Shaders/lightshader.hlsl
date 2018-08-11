@@ -69,6 +69,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
 	float4 normals = g_normaltexture.Sample(g_sampler, input.uv);
+	//output.color = float4(normals.xyz, 1);
+	//return output;
 	bool receiveShadows = true;
 	if(normals.w == 1.0f) // w float in normals is used to indicate if this pixel should be shadowculled
 	{
@@ -252,7 +254,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					alpha = myLights.myLights[qh].myColor.w;
 					
 					// light normally
-					output.color += float4(saturate(alpha * 
+					output.color += float4((alpha * 
 					(texel.xyz * DiffuseColor * LightDiffuseColor * diffuseLighting * 0.6)	// Use light diffuse vector as intensity multiplier
 					+ (SpecularColor * LightSpecularColor * specLighting * 0.5) // Use light specular vector as intensity multiplier
 					), texel.w);
@@ -261,11 +263,16 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			}
 		}
 	}
-	float3 AmbientLightColor = float3(1,1,1) * 0.5f;
+	float3 AmbientLightColor = float3(1,1,1) * 1.0f;
 	
 	if(receiveShadows) //TODO: if we are receiving shadows, we receive lighting, tone down the ambient for this (skybox is the only one not receiving shadows atm)
 		AmbientLightColor = float3(1,1,1) * 0.1f;
-		
+	
+//	if(output.color.x > 1.0f || output.color.y > 1.0f || output.color.z > 1.0f)	
+//	{
+//		output.color = float4(0.0f, 1.0f, 0.0f, 0.0f);	
+//		return output;
+//	}
 	output.color += colors * float4(AmbientLightColor, 1);
 
 	return output;	

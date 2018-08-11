@@ -35,6 +35,12 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		
 	output.color = scratchbuff.Sample(g_sampler, input.uv);
 	
+//	if(output.color.x > 1.0f || output.color.y > 1.0f || output.color.z > 1.0f)	
+//	{
+//		output.color = float4(1.0f, 1.0f, 0.0f, 0.0f);	
+//		return output;
+//	}
+	
 	bool doBlur = false;
 
 	float3 dir = float3(0,0,0); // this is the direction across we want to blur after luma edge analysis
@@ -135,6 +141,16 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		//colorFinal += scratchbuff.Sample(g_sampler, input.uv - float2(uvStride.x * dir.x, uvStride.y * dir.y));
 		//output.color = colorFinal / 2.0;
 	}	
-		
+	
+	// tone mapping: gamma correction
+	{
+		float y = 2.2f;
+		float A = 1.0f;
+		output.color = A * pow(output.color, y);
+	}
+	
+	// tone mapping: simple linear clamp
+	// output.color = output.color / (output.color + 1.0f);
+	
 	return output;	
 }

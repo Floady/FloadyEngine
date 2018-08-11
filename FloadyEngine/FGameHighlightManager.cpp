@@ -18,7 +18,7 @@ FGameHighlightManager::FGameHighlightManager()
 	FD3d12Renderer::GetInstance()->CreateRenderTarget(myScratchBuffer, myScratchBufferView);
 	FD3d12Renderer::GetInstance()->CreateConstantBuffer(myProjectionMatrix, myConstantBufferPtrProjMatrix);
 	myProjectionMatrix->SetName(L"HighlightMgrProjectionMatrix");
-	DXGI_FORMAT formats = { DXGI_FORMAT_R8G8B8A8_UNORM };
+	DXGI_FORMAT formats = { DXGI_FORMAT_R10G10B10A2_UNORM }; // HERE
 	myRootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(0,1);
 	myPSO = FD3d12Renderer::GetInstance()->GetPsoObject(1, &formats, "highlightShader.hlsl", myRootSignature, false);
 	myCommandList = FD3d12Renderer::GetInstance()->CreateCommandList();
@@ -91,7 +91,7 @@ FGameHighlightManager::FGameHighlightManager()
 
 
 	std::vector<FPostProcessEffect::BindInfo> resources;
-	resources.push_back(FPostProcessEffect::BindInfo(myScratchBuffer, DXGI_FORMAT_R8G8B8A8_UNORM));
+	resources.push_back(FPostProcessEffect::BindInfo(myScratchBuffer, DXGI_FORMAT_R10G10B10A2_UNORM)); // HERE
 	FD3d12Renderer::GetInstance()->RegisterPostEffect(new FPostProcessEffect(resources, "highlightShaderPost.hlsl", 0, "HighlightPost"));
 	
 	myMutex.Init(FD3d12Renderer::GetInstance()->GetDevice(), "GameHighlightManager");

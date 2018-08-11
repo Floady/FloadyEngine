@@ -41,7 +41,7 @@ public:
 	FPostProcessEffect(const std::vector<BindInfo>& aResourcesToBind, const char* aShaderName, int aNrOfCBV = 0, const char* aDebugName = nullptr);
 	~FPostProcessEffect();
 	void Render();
-	void RenderAsync(ID3D12GraphicsCommandList* aCmdList);
+	void RenderAsync(ID3D12GraphicsCommandList* aCmdList, bool aRenderToBackBuffer = false);
 	void Init(int aPostEffectBufferIdx);
 	void SetShader();
 	void WriteConstBuffer(int i, float* aData, int aSize);
@@ -50,6 +50,7 @@ public:
 protected:
 	ID3D12RootSignature* myRootSignature;
 	ID3D12PipelineState* myPipelineState;
+	ID3D12PipelineState* myPipelineStateRT; // retarded copy for having a different rendertarget format
 	ID3D12GraphicsCommandList* myCommandList;
 	
 	ID3D12Resource* myVertexBuffer;

@@ -33,8 +33,8 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 	
 	// test: tile UVs on x/z plane - but how do we fix y? :p
 	float2 newUV;
-	newUV.x = result.position.x / 5.0f;
-	newUV.y = result.position.z / 5.0f;
+	newUV.x = result.position.x / 10.0f;
+	newUV.y = result.position.z / 10.0f;
 	
 	result.uv = newUV.xy;
 	

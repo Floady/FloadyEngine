@@ -4,7 +4,7 @@
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 
-#define GRAPHICS_DEBUGGING 0 // enable this if you use VS graphics debugger so we use their pix version
+#define GRAPHICS_DEBUGGING 1 // enable this if you use VS graphics debugger so we use their pix version
 
 class FCamera;
 class FDebugDrawer;
@@ -51,7 +51,7 @@ public:
 		Gbuffer_Combined,
 		Gbuffer_count
 	};
-	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM };
+	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R10G10B10A2_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
 	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow", L"GBufferCombined" };
 
 	FD3d12Renderer();
@@ -85,7 +85,7 @@ public:
 	void RecordRenderToGBuffer();
 	void RecordDebugDrawer();
 	void RecordShadowPass();
-	void RecordPostProcesss();
+	void RecordPostProcess();
 	void WaitForRender();
 	void SetRenderPassDependency(ID3D12CommandQueue* aQueue);
 	void SetPostProcessDependency(ID3D12CommandQueue* aQueue);
