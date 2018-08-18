@@ -208,8 +208,8 @@ void FGameTerrain::Update(double aDeltaTime)
 	}
 
 	// bloat visible by tilesize
-	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMax + FVector3(myTileSize, myTileSize, myTileSize));
-	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMin - FVector3(myTileSize, myTileSize, myTileSize));
+	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMax + FVector3(myTileSize, 0, myTileSize));
+	aabb.Grow(FLightManager::GetInstance()->GetVisibleAABB().myMin - FVector3(myTileSize, 0, myTileSize));
 	
 }
 

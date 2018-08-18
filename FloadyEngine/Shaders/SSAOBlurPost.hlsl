@@ -31,22 +31,23 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
 	
-	float2 texelSize = float2(1.0f / 800.0f, 1.0f / 600.0f);  //@todo: feed buffer dimensions here (render window width height, or actually buffer width heights)
+	float2 texelSize = float2(1.0f / 1600.0f, 1.0f / 900.0f);  //@todo: feed buffer dimensions here (render window width height, or actually buffer width heights)
 	
 	float4 blurVal = 0.0f;
-	for( int i = -1; i < 2; i++ )
+	int nrOfSample = 2;
+	for( int i = -nrOfSample; i <= nrOfSample; i++ )
 	{
-		for( int j = -1; j < 2; j++ )
+		for( int j = -nrOfSample; j <= nrOfSample; j++ )
 		{
 			float4 neighbour = scratchbuff.Sample(g_sampler, input.uv + float2(texelSize.x * i, texelSize.y * j));
 			blurVal += neighbour;
 		}
 	}
 	
-	blurVal /= 9;
+	blurVal /= (2*nrOfSample+1)*(2*nrOfSample+1);
 	
 	output.color = blurVal;
-	//output.color = scratchbuff.Sample(g_sampler, input.uv);
+	//output.color *= scratchbuff.Sample(g_sampler, input.uv);
 	output.color *= g_combinedTexture.Sample(g_sampler, input.uv);
 		
 	return output;	

@@ -12,6 +12,7 @@ struct PSOutput
 	float4 color;
 	float4 normal;
 	float depth;
+	float specular;
 };
 
 struct MyData
@@ -69,14 +70,16 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	if(fmod(input.uv.x, 1.0) < bandWidth || fmod(input.uv.y, 1.0) < bandWidth)
 	{
 		output.color = bandColor;
-	}
-	
+	}	
 	else if((fmod(input.uv.x, 1.0) > 1.0 - bandWidth) || (fmod(input.uv.y, 1.0) > 1.0-bandWidth))
 	{
 		output.color = bandColor;
 	}
 	//~band
 	
+	output.specular = 0.0f;
+	if(output.color.x > 0.7f)
+		output.specular = 1.0f;
 	
 	return output;
 }

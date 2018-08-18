@@ -201,6 +201,9 @@ void FMeshManager::LoadMeshObj(const std::string & aPath)
 			if (matId >= 0 && matId < m.myMaterials.size())
 				vertex.normalmatId = m.myMaterials[matId].bump_texname.empty() ? 99 : matId;
 
+			if (matId >= 0 && matId < m.myMaterials.size())
+				vertex.specularMatId = m.myMaterials[matId].specular_texname.empty() ? 99 : matId;
+
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] = static_cast<uint32_t>(obj->myVertices.size());
 				obj->myVertices.push_back(vertex);

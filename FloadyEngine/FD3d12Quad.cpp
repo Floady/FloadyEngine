@@ -46,7 +46,7 @@ void FD3d12Quad::Init()
 		}
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 13, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 14, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 		
 		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
@@ -152,6 +152,11 @@ void FD3d12Quad::Init()
 	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Depth];
 	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle2(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
 	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Depth), &srvDesc, srvHandle2);
+
+	myHeapOffsetBuffers = myManagerClass->GetNextOffset();
+	srvDesc.Format = myManagerClass->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Specular];
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle3(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetBuffers, srvSize);
+	myManagerClass->GetDevice()->CreateShaderResourceView(myManagerClass->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Specular), &srvDesc, srvHandle3);
 
 	for (int i = 0; i < 10; i++)
 	{

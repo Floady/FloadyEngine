@@ -32,16 +32,17 @@ struct MyLightArray
 Texture2D<float4> g_colortexture : register(t0);
 Texture2D<float4> g_normaltexture : register(t1);
 Texture2D<float> g_depthTexture : register(t2);
-Texture2D<float> g_shadowTexture : register(t3);
-Texture2D<float> g_shadowTexture1 : register(t4);
-Texture2D<float> g_shadowTexture2 : register(t5);
-Texture2D<float> g_shadowTexture3 : register(t6);
-Texture2D<float> g_shadowTexture4 : register(t7);
-Texture2D<float> g_shadowTexture5 : register(t8);
-Texture2D<float> g_shadowTexture6 : register(t9);
-Texture2D<float> g_shadowTexture7 : register(t10);
-Texture2D<float> g_shadowTexture8 : register(t11);
-Texture2D<float> g_shadowTexture9 : register(t12);
+Texture2D<float> g_SpecularTexture : register(t3);
+Texture2D<float> g_shadowTexture : register(t4);
+Texture2D<float> g_shadowTexture1 : register(t5);
+Texture2D<float> g_shadowTexture2 : register(t6);
+Texture2D<float> g_shadowTexture3 : register(t7);
+Texture2D<float> g_shadowTexture4 : register(t8);
+Texture2D<float> g_shadowTexture5 : register(t9);
+Texture2D<float> g_shadowTexture6 : register(t10);
+Texture2D<float> g_shadowTexture7 : register(t11);
+Texture2D<float> g_shadowTexture8 : register(t12);
+Texture2D<float> g_shadowTexture9 : register(t13);
 SamplerState g_sampler : register(s0);
 
 ConstantBuffer<MyData> myData : register(b0);
@@ -69,8 +70,11 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	
 	float4 colors = g_colortexture.Sample(g_sampler, input.uv);
 	float4 normals = g_normaltexture.Sample(g_sampler, input.uv);
-	//output.color = float4(normals.xyz, 1);
+	
+	float specularScalar = g_SpecularTexture.Sample(g_sampler, input.uv);
+	//output.color = float4(specularScalar.xxx, 1.0f);
 	//return output;
+	
 	bool receiveShadows = true;
 	if(normals.w == 1.0f) // w float in normals is used to indicate if this pixel should be shadowculled
 	{
@@ -136,21 +140,17 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 						shadowDepth = g_shadowTexture9.Sample(g_sampler, projShadowMapPos.xy);
 															
 					// get neighbor avg
-					if(false)
+					if(qh == 0 && false)
 					{
 						shadowDepth = 0.0f;
-						float2 shadowuvstep = float2(1.0f, 1.0f) / float2(1600.0f, 900.0f); // todo fixed resolution here
-						int nrOfPixelsOut = 2;
+						float2 shadowuvstep = float2(1.0f, 1.0f) / float2(4096, 4096); // todo fixed resolution here
+						int nrOfPixelsOut = 1;
 						[loop]
 						for( int i = -nrOfPixelsOut; i <= nrOfPixelsOut; i++ )
 						{
 							[loop]
 							for( int j = -nrOfPixelsOut; j <= nrOfPixelsOut; j++ )
 							{
-							
-							if(qh == 1)
-								shadowDepth += g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
-							else
 								shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
 							}
 						}
@@ -163,8 +163,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				float3 LightDiffuseColor = float3(0.6,0.6,0.6); // intensity multiplier
 				float3 LightSpecularColor = float3(0.7,0.7,0.7); // intensity multiplier
 				float3 DiffuseColor = float3(1,1,1);
-				float3 SpecularColor = float3(1,1,1);
-				float SpecularPower = 12.0f;
+				float3 SpecularColor = float3(1,1,1) * specularScalar;
+				float SpecularPower = 12.0f * specularScalar;
 
 				// Phong relfection is ambient + light-diffuse + spec highlights.
 				// I = Ia*ka*Oda + fatt*Ip[kd*Od(N.L) + ks(R.V)^n]
@@ -195,7 +195,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 				float specLighting = pow(saturate(dot(h, normals.xyz)), SpecularPower);
 				float4 texel = colors;
 				
-				float shadowBiasParam = 0.001f;
+				float shadowBiasParam = 0.0001;
 				float shadowBias = shadowBiasParam*tan(acos(saturate(dot(normals.xyz, -lightDir)))); // cosTheta is dot( n,l ), clamped between 0 and 1
 				shadowBias = clamp(shadowBias, 0.0f, 0.1f);
 				
@@ -266,7 +266,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	float3 AmbientLightColor = float3(1,1,1) * 1.0f;
 	
 	if(receiveShadows) //TODO: if we are receiving shadows, we receive lighting, tone down the ambient for this (skybox is the only one not receiving shadows atm)
-		AmbientLightColor = float3(1,1,1) * 0.1f;
+		AmbientLightColor = float3(1,1,1) * 0.2f;
 	
 //	if(output.color.x > 1.0f || output.color.y > 1.0f || output.color.z > 1.0f)	
 //	{

@@ -47,12 +47,13 @@ public:
 		Gbuffer_color = 0,
 		Gbuffer_normals,
 		Gbuffer_Depth,
+		Gbuffer_Specular,
 		Gbuffer_Shadow,
 		Gbuffer_Combined,
 		Gbuffer_count
 	};
-	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R10G10B10A2_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
-	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferShadow", L"GBufferCombined" };
+	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R10G10B10A2_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
+	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferSpecular", L"GBufferShadow", L"GBufferCombined" };
 
 	FD3d12Renderer();
 	~FD3d12Renderer();
@@ -106,6 +107,7 @@ public:
 	ID3D12Resource* GetGBufferTarget(int i) { return m_gbuffer[i]; }
 	ID3D12Resource* GetDepthBuffer() { return m_depthStencil; }
 	ID3D12Resource* GetShadowMapBuffer(int i) { return myShadowMap[i]; }
+	int GetShadowMapBufferSize(int i) { return myShadowMapWidth[i]; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetRTVHandle() { return myRenderTargetViewHandle; }
 	D3D12_CPU_DESCRIPTOR_HANDLE& GetPostProcessScratchBufferHandle() { return myPostProcessScratchBufferViews[myCurrentPostProcessBufferIdx]; }
 
@@ -160,10 +162,14 @@ private:
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
 	ID3D12Resource* myShadowMap[10];
+	int myShadowMapWidth[10] = { 4096, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024 };
 
 	ID3D12Resource* myShadowScratchBuff; // to bind as RenderTarget (no need to clear)
 	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffView;
 	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffSRV;
+	ID3D12Resource* myShadowScratchBuff4096;
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffView4096;
+	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffSRV4096;
 
 	ID3D12Resource* m_gbuffer[Gbuffer_count];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_gbufferViews[Gbuffer_count];

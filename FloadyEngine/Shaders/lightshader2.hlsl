@@ -31,7 +31,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
 	
-	float2 uvStride = float2(1.0f/800.0f, 1.0f/600.0f);
+	float2 uvStride = float2(1.0f/1600.0f, 1.0f/900.0f);
 		
 	output.color = scratchbuff.Sample(g_sampler, input.uv);
 	
@@ -92,7 +92,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		currentPixLuma = weights.x*colorM.x + weights.y*colorM.y + weights.z*colorM.z;
 		float contrast = max(maxLuma, currentPixLuma) - min(minLuma, currentPixLuma);
 		float minThreshold = 0.05f;
-		float threshold = 0.5f;
+		float threshold = 0.4f;
 		
 		// this is the early out test - if pixel should get blurred or not, if so - calculate the direction and do a blur pass
 		if(contrast > max(minThreshold, maxLuma * threshold))
@@ -106,7 +106,15 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			
 			// debug draw luma edge detection
 			//output.color = float4(abs(normalizedDir.x), abs(normalizedDir.y), 0.0f, 1.0f);
-			//return output;
+			/*
+			if(normalizedDir.x > 0.8f)
+				output.color = float4(0,0,1,1);
+			else
+				output.color = float4(1,0,0,1);
+				
+			output.color = float4(normalizedDir.xy / 2 + float2(0.5f, 0.5f), 0, 1);
+			return output;
+			//*/
 		}
 		
 	}
@@ -116,25 +124,15 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	{
 		float4 totalColor = float4(0, 0, 0, 0); 
 		const float maxBlurDist = 8.0f;
-		float scale = 10.0f;
-		int extendsX = min(maxBlurDist, abs(normalizedDir.x) * scale);
-		int extendsY = min(maxBlurDist, abs(normalizedDir.y) * scale);
-		int counter = 0;
-		//extendsX = 8;
-		//extendsY = 0;
+		float sharpness = 1.5f;
+		float minDir = min(normalizedDir.x, normalizedDir.y) * sharpness;
+		float2 newDir = normalizedDir.xy * 1.0f/minDir;
+		float scale = 8.0f;
 		
-		[loop]
-		for( int i = -extendsX; i <= extendsX; i++ )
-		{
-			[loop]
-			for( int j = -extendsY; j <= extendsY; j++ )
-			{
-				totalColor += scratchbuff.Sample(g_sampler, input.uv + float2(uvStride.x * i, uvStride.y * j));
-				counter++;
-			}
-		}
+		totalColor += scratchbuff.Sample(g_sampler, input.uv - uvStride * scale * (normalizedDir.xy));
+		totalColor += scratchbuff.Sample(g_sampler, input.uv + uvStride * scale * (normalizedDir.xy));
 		
-		output.color = totalColor / (counter);
+		output.color = totalColor / 2;
 		
 		// TEST
 		//float4 colorFinal = scratchbuff.Sample(g_sampler, input.uv + float2(uvStride.x * dir.x, uvStride.y * dir.y));

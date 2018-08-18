@@ -188,11 +188,11 @@ void FGame::Init()
 
 	// setup post process chain
 	std::vector<FPostProcessEffect::BindInfo> resources;
-	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(0), myRenderer->gbufferFormat[0]));
-	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(1), myRenderer->gbufferFormat[1]));
-	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(2), myRenderer->gbufferFormat[2]));
-	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(3), myRenderer->gbufferFormat[3]));
-	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(4), myRenderer->gbufferFormat[4]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_color), myRenderer->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_color]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_normals), myRenderer->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_normals]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Depth), myRenderer->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Depth]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Shadow), myRenderer->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Shadow]));
+	resources.push_back(FPostProcessEffect::BindInfo(myRenderer->GetGBufferTarget(FD3d12Renderer::GbufferType::Gbuffer_Combined), myRenderer->gbufferFormat[FD3d12Renderer::GbufferType::Gbuffer_Combined]));
 	mySSAO = new FPostProcessEffect(resources, "SSAOShaderPost.hlsl", 1, "SSAO");
 	myBlur = new FPostProcessEffect(resources, "SSAOBlurPost.hlsl", 0, "PostSSAOBlur");
 	myAA = new FPostProcessEffect(resources, "lightshader2.hlsl", 0, "FXAA");

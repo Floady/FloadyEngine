@@ -98,7 +98,7 @@
 	"scaleZ" : 1.0,
 	"canMove" : false,
 	"type" : 1,
-	"tex" : "wood.png",
+	"tex" : "terraintile_diff.png",
 	"terrainSizeX" : 32,
 	"terrainSizeZ" : 32,
 	"tileSize" : 10.0

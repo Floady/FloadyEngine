@@ -7,6 +7,7 @@ struct PSInput
 	float depth : TEXCOORD1;
 	int matId : TEXCOORD3;
 	int normalmatId : TEXCOORD4;
+	int specularmatId : TEXCOORD5;
 };
 
 struct PSOutput
@@ -14,6 +15,7 @@ struct PSOutput
 	float4 color;
 	float4 normal;
 	float depth;
+	float specular;
 };
 
 struct MyData
@@ -26,7 +28,7 @@ ConstantBuffer<MyData> myData : register(b0);
 SamplerState g_sampler : register(s0);
 Texture2D g_texture[96] : register(t0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3, uint InstanceId : SV_InstanceID)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3, uint smatId : TEXCOORD4, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 
@@ -43,6 +45,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : T
 	//result.normal = (result.normal + float4(1, 1, 1,1))/2.0f; // vertex calculated normals
 	result.matId = matId.x;
 	result.normalmatId = nmatId.x;
+	result.specularmatId = smatId.x;
 	return result;
 }
 
@@ -54,6 +57,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	output.normal = input.normal;
 	output.depth	 = input.depth;
 	output.depth = input.position.z;
+	output.specular = 0;
 	
 	int matId = input.matId;
 	
@@ -66,6 +70,11 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 	{
 		normal = g_texture[32 + input.normalmatId].Sample(g_sampler, input.uv);		
 		output.normal = normalize(input.normal + normal);
+	}	
+	
+	if(input.specularmatId != 99)
+	{
+		output.specular = g_texture[64 + input.specularmatId].Sample(g_sampler, input.uv);		
 	}	
 	
 	output.normal = (output.normal + float4(1, 1, 1,1))/2.0f;

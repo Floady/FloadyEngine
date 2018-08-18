@@ -136,6 +136,7 @@ void FGameEntityObjModel::Init(const FJsonObject & anObj)
 
 			vertex.matId = matId;
 			vertex.normalmatId = m.myMaterials[matId].bump_texname.empty() ? 99 : matId;
+			vertex.specularMatId = m.myMaterials[matId].specular_texname.empty() ? 99 : matId;
 
 			//*
 			if (uniqueVertices.count(vertex) == 0) {

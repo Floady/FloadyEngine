@@ -9,6 +9,7 @@
 #include "FGameTerrain.h"
 #include "FRenderMeshComponent.h"
 #include "FJobSystem.h"
+#include "FSkyBox.h"
 
 FGameLevel::FGameLevel(const char * aLevelName)
 {
@@ -73,7 +74,7 @@ void FGameLevel::Update(double aDeltaTime)
 	{
 		entity->Update(aDeltaTime);
 
-	if (dynamic_cast<FGameTerrain*>(entity) == nullptr) //  && cam->IsInFrustum(entity->GetRenderableObject())
+	if (dynamic_cast<FGameTerrain*>(entity) == nullptr && dynamic_cast<FSkyBox*>(entity) == nullptr) //  && cam->IsInFrustum(entity->GetRenderableObject())
 			aabb.Grow(entity->GetRenderableObject()->GetAABB());
 	}
 }
