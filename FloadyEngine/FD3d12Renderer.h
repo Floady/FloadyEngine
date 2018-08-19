@@ -52,6 +52,14 @@ public:
 		Gbuffer_Combined,
 		Gbuffer_count
 	};
+
+	enum ShadowMapType
+	{
+		NrOfCascades = 1, // for directional light 0 (sun)
+		nrOfShadowMapsForLights = 9, // for normal lights
+		Count = 10
+	};
+
 	DXGI_FORMAT gbufferFormat[Gbuffer_count] = { DXGI_FORMAT_R10G10B10A2_UNORM , DXGI_FORMAT_R8G8B8A8_UNORM , DXGI_FORMAT_R32_FLOAT , DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
 	LPCWSTR gbufferFormatName[Gbuffer_count] = { L"GBufferColor" , L"GBufferNormals", L"GBufferDepth", L"GBufferSpecular", L"GBufferShadow", L"GBufferCombined" };
 
@@ -161,8 +169,8 @@ private:
 	ID3D12DescriptorHeap* m_srvHeap; // shader resource view
 	ID3D12DescriptorHeap* m_dsvHeap; //depth stencil view
 	ID3D12Resource* m_depthStencil;
-	ID3D12Resource* myShadowMap[10];
-	int myShadowMapWidth[10] = { 4096, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024 };
+	ID3D12Resource* myShadowMap[ShadowMapType::Count];
+	int myShadowMapWidth[ShadowMapType::Count] = { 4096, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024 };
 
 	ID3D12Resource* myShadowScratchBuff; // to bind as RenderTarget (no need to clear)
 	D3D12_CPU_DESCRIPTOR_HANDLE myShadowScratchBuffView;

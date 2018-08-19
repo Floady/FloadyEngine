@@ -33,16 +33,7 @@ Texture2D<float4> g_colortexture : register(t0);
 Texture2D<float4> g_normaltexture : register(t1);
 Texture2D<float> g_depthTexture : register(t2);
 Texture2D<float> g_SpecularTexture : register(t3);
-Texture2D<float> g_shadowTexture : register(t4);
-Texture2D<float> g_shadowTexture1 : register(t5);
-Texture2D<float> g_shadowTexture2 : register(t6);
-Texture2D<float> g_shadowTexture3 : register(t7);
-Texture2D<float> g_shadowTexture4 : register(t8);
-Texture2D<float> g_shadowTexture5 : register(t9);
-Texture2D<float> g_shadowTexture6 : register(t10);
-Texture2D<float> g_shadowTexture7 : register(t11);
-Texture2D<float> g_shadowTexture8 : register(t12);
-Texture2D<float> g_shadowTexture9 : register(t13);
+Texture2D<float> g_shadowTexture[10] : register(t4);
 SamplerState g_sampler : register(s0);
 
 ConstantBuffer<MyData> myData : register(b0);
@@ -118,27 +109,8 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 					
 					// todo: make this into array based
 				
-					if(qh == 0)
-						shadowDepth = g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 1)
-						shadowDepth = g_shadowTexture1.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 2)
-						shadowDepth = g_shadowTexture2.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 3)
-						shadowDepth = g_shadowTexture3.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 4)
-						shadowDepth = g_shadowTexture4.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 5)
-						shadowDepth = g_shadowTexture5.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 6)
-						shadowDepth = g_shadowTexture6.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 7)
-						shadowDepth = g_shadowTexture7.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 8)
-						shadowDepth = g_shadowTexture8.Sample(g_sampler, projShadowMapPos.xy);
-					if(qh == 9)
-						shadowDepth = g_shadowTexture9.Sample(g_sampler, projShadowMapPos.xy);
-															
+					shadowDepth = g_shadowTexture[qh].Sample(g_sampler, projShadowMapPos.xy);
+							
 					// get neighbor avg
 					if(qh == 0 && false)
 					{
@@ -151,7 +123,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 							[loop]
 							for( int j = -nrOfPixelsOut; j <= nrOfPixelsOut; j++ )
 							{
-								shadowDepth += g_shadowTexture.Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
+								shadowDepth += g_shadowTexture[qh].Sample(g_sampler, projShadowMapPos.xy + float2(shadowuvstep.x * i, -shadowuvstep.y * j));
 							}
 						}
 						
@@ -263,10 +235,12 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 			}
 		}
 	}
-	float3 AmbientLightColor = float3(1,1,1) * 1.0f;
 	
-	if(receiveShadows) //TODO: if we are receiving shadows, we receive lighting, tone down the ambient for this (skybox is the only one not receiving shadows atm)
-		AmbientLightColor = float3(1,1,1) * 0.2f;
+	// fake some ambient lighting since we dont have GI
+	float3 AmbientLightColor = float3(1,1,1) * 0.3f;
+	
+	if(!receiveShadows) // hack: skybox has this set to false, boost ambience to full since it doesnt receive shadows/lighting and should act as 'emissive'
+		AmbientLightColor = float3(1,1,1) * 1.0f;
 	
 //	if(output.color.x > 1.0f || output.color.y > 1.0f || output.color.z > 1.0f)	
 //	{

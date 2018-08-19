@@ -127,7 +127,7 @@ PSOutput PSMain(PSInput input) : SV_TARGET
 		float sharpness = 1.5f;
 		float minDir = min(normalizedDir.x, normalizedDir.y) * sharpness;
 		float2 newDir = normalizedDir.xy * 1.0f/minDir;
-		float scale = 8.0f;
+		float scale = 2.0f;
 		
 		totalColor += scratchbuff.Sample(g_sampler, input.uv - uvStride * scale * (normalizedDir.xy));
 		totalColor += scratchbuff.Sample(g_sampler, input.uv + uvStride * scale * (normalizedDir.xy));

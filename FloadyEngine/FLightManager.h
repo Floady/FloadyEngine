@@ -54,6 +54,7 @@ public:
 
 	void SetLightColor(unsigned int aLightId, FVector3 aColor);
 	void SetLightPos(unsigned int aLightId, FVector3 aPos);
+	void SetLightDir(unsigned int aLightId, FVector3 aDir);
 	void RemoveLight(unsigned int aLightId);
 	Light* GetLight(unsigned int aLightId);
 

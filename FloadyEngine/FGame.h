@@ -84,5 +84,7 @@ private:
 	FJob* myRegenerateNavMeshJob;
 	FJob* myRenderToBuffersJob;
 	FJob* myExecuteCommandlistsJob;
+
+	unsigned int mySunLightIndex;
 };
 

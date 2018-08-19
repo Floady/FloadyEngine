@@ -829,7 +829,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < ShadowMapType::Count; i++)
 	{
 		CD3DX12_RESOURCE_DESC shadowDesc(D3D12_RESOURCE_DIMENSION_TEXTURE2D, 0,
 			myShadowMapWidth[i], myShadowMapWidth[i], 1, 1,

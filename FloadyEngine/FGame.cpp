@@ -120,6 +120,8 @@ FGame::FGame()
 	myRegenerateNavMeshJob = nullptr;
 
 	myRenderJobSys = FJobSystem::GetInstance();
+
+	mySunLightIndex = -1;
 }
 
 FGame::~FGame()
@@ -180,7 +182,7 @@ void FGame::Init()
 
 	// Load level and add a sunlight
 	myLevel = new FGameLevel("Configs//level3.txt");
-	FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 1), FVector3(1.75f, 1.65f, 1.55f), 0.0f);
+	mySunLightIndex = FLightManager::GetInstance()->AddDirectionalLight(FVector3(0, 5, -1), FVector3(0, -1, 0.3), FVector3(1.75f, 1.65f, 1.55f), 0.0f);
 
 	// init navmesh	- old 2d navmesh
 //	FNavMeshManager::GetInstance()->AddBlockingAABB(FVector3(5, 0, 5), FVector3(8, 0, 8));
@@ -257,6 +259,22 @@ bool FGame::Update(double aDeltaTime)
 		FLightManager::GetInstance()->ResetVisibleAABB();
 		FLightManager::GetInstance()->ResetHasMoved();
 		//*/
+
+		static float light_dir = 0.0f;
+		static float light_speed = 0.2f;
+		static bool light_positive = true;
+
+		if (light_dir > 1.0f)
+			light_positive = false;
+		else if (light_dir < -1.0f)
+			light_positive = true;
+
+		if(light_positive)
+			light_dir += aDeltaTime * light_speed;
+		else
+			light_dir -= aDeltaTime * light_speed;
+
+		FLightManager::GetInstance()->SetLightDir(mySunLightIndex, FVector3(0, -1, light_dir));
 		
 		// quit on escape
 		if (myInput->IsKeyDown(VK_ESCAPE))

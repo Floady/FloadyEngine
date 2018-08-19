@@ -88,6 +88,29 @@ void FLightManager::SetLightPos(unsigned int aLightId, FVector3 aPos)
 	}
 }
 
+void FLightManager::SetLightDir(unsigned int aLightId, FVector3 aDir)
+{
+	for (SpotLight& light : mySpotlights)
+	{
+		if (light.myId == aLightId)
+		{
+			light.myDir = aDir;
+			light.myHasMoved = true;
+			return;
+		}
+	}
+
+	for (DirectionalLight& light : myDirectionalLights)
+	{
+		if (light.myId == aLightId)
+		{
+			light.myDir = aDir;
+			light.myHasMoved = true;
+			return;
+		}
+	}
+}
+
 void FLightManager::RemoveLight(unsigned int aLightId)
 {
 	for (std::vector<SpotLight>::iterator it = mySpotlights.begin(); it != mySpotlights.end(); ++it)
@@ -244,10 +267,13 @@ void FLightManager::UpdateViewProjMatrices()
 
 			FVector3 positionOBB;
 			FVector3 dimensions;
+			FVector3 maxVal;
+			FVector3 up = myDirectionalLights[i].myDir.Cross(FVector3(0, 1, 0).Cross(myDirectionalLights[i].myDir)).Normalized();
+			FVector3 right = FVector3(0, 1, 0).Cross(myDirectionalLights[i].myDir).Normalized();
+
 			{
 				float mindepth = 999999;
 				float maxdepth = -999999;
-				FVector3 up = myDirectionalLights[i].myDir.Cross(FVector3(0, 1, 0).Cross(myDirectionalLights[i].myDir)).Normalized();
 				//up = FVector3(0, 1, 0);
 				mindepth = min(mindepth, (up.Dot(myAABBVisibleFromCam.myMax)));
 				mindepth = min(mindepth, (up.Dot(FVector3(myAABBVisibleFromCam.myMin.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMax.z))));
@@ -266,14 +292,14 @@ void FLightManager::UpdateViewProjMatrices()
 				maxdepth = max(maxdepth, (up.Dot(FVector3(myAABBVisibleFromCam.myMax.x, myAABBVisibleFromCam.myMin.y, myAABBVisibleFromCam.myMax.z))));
 				maxdepth = max(maxdepth, (up.Dot(FVector3(myAABBVisibleFromCam.myMin.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMin.z))));
 				maxdepth = max(maxdepth, (up.Dot(FVector3(myAABBVisibleFromCam.myMax.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMin.z))));
-				positionOBB.y = maxdepth;
+				positionOBB.y = mindepth;
 				dimensions.y = maxdepth - mindepth;
+				maxVal.y = maxdepth;
 			}
 
 			{
 				float mindepth = 999999;
 				float maxdepth = -999999;
-				FVector3 right = FVector3(0, 1, 0).Cross(myDirectionalLights[i].myDir).Normalized();
 				//right = FVector3(1, 0, 0);
 				mindepth = min(mindepth, (right.Dot(myAABBVisibleFromCam.myMax)));
 				mindepth = min(mindepth, (right.Dot(FVector3(myAABBVisibleFromCam.myMin.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMax.z))));
@@ -294,6 +320,7 @@ void FLightManager::UpdateViewProjMatrices()
 				maxdepth = max(maxdepth, (right.Dot(FVector3(myAABBVisibleFromCam.myMax.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMin.z))));
 				positionOBB.x = mindepth;
 				dimensions.x = maxdepth - mindepth;
+				maxVal.x = maxdepth;
 			}
 
 			{
@@ -318,22 +345,16 @@ void FLightManager::UpdateViewProjMatrices()
 				maxdepth = max(maxdepth, (myDirectionalLights[i].myDir.Dot(FVector3(myAABBVisibleFromCam.myMax.x, myAABBVisibleFromCam.myMax.y, myAABBVisibleFromCam.myMin.z))));
 				positionOBB.z = mindepth;
 				dimensions.z = maxdepth - mindepth;
+				maxVal.z = maxdepth;
 			}
 
 			FVector3 pos = myAABBVisibleFromCam.myMin + (myAABBVisibleFromCam.myMax - myAABBVisibleFromCam.myMin) / 2;
-			pos += FVector3(0, dimensions.y, -dimensions.z) / 2.0f;
+			pos -= myDirectionalLights[i].myDir * dimensions.z / 2;
 
-			dimensions.z = (myAABBVisibleFromCam.myMax - myAABBVisibleFromCam.myMin).Length() * 1.1f; //@todo: make sure we can cover the entire AABB (this should be able to be calculated from pos - max?
-			FXMVECTOR at = XMVectorSet(0, 0, 1, 1);
-			FXMVECTOR up = XMVectorSet(0, 1, 0, 1);
-
-			XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(PI / 4, 0, 0);
-
-			XMVECTOR vUp = XMVector3Transform(up, mtxRot);
-			XMVECTOR vAt = XMVector3Transform(at, mtxRot);
-
-			FVector3 upVec(XMVectorGetX(vUp), XMVectorGetY(vUp), XMVectorGetZ(vUp));
-			FVector3 atVec(XMVectorGetX(vAt), XMVectorGetY(vAt), XMVectorGetZ(vAt));
+			
+			FVector3 up22 = myDirectionalLights[i].myDir.Cross(FVector3(0, 1, 0).Cross(myDirectionalLights[i].myDir)).Normalized();
+			FVector3 upVec = up22;
+			FVector3 atVec = myDirectionalLights[i].myDir;
 
 			if (!myFreezeDebugInfo)
 			{
@@ -348,27 +369,30 @@ void FLightManager::UpdateViewProjMatrices()
 
 			if (myDoDebugDraw)
 			{
-				debugDrawer->DrawPoint(myDebugPos, 1.0f, FVector3(1, 1, 0));
-				debugDrawer->drawAABB(myDebugPos - FVector3(myDebugDimensions.x / 2, 0, 0), myDebugPos + FVector3(myDebugDimensions.x / 2, -myDebugDimensions.y, myDebugDimensions.z), FVector3(1, 1, 1));
-				debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, FVector3(0, 1, 0));
-				debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
-				debugDrawer->DrawPoint(myDebugMinCam, 1.0f, FVector3(1, 1, 1));
-				debugDrawer->DrawPoint(myDebugMaxCam, 1.0f, FVector3(1, 1, 1));
+				//debugDrawer->DrawPoint(myDebugPos, 1.0f, FVector3(1, 1, 0));
+				//debugDrawer->drawAABB(myDebugPos - FVector3(myDebugDimensions.x / 2, 0, 0), myDebugPos + FVector3(myDebugDimensions.x / 2, -myDebugDimensions.y, myDebugDimensions.z), FVector3(1, 1, 1));
+				//debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, FVector3(0, 1, 0));
+				//debugDrawer->drawLine(myDebugPos, myDebugPos + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
+				//debugDrawer->DrawPoint(myDebugMinCam, 1.0f, FVector3(1, 1, 1));
 				debugDrawer->drawAABB(myDebugAABBVisibleFromCam.myMin, myDebugAABBVisibleFromCam.myMax, FVector3(1, 0, 0));
 			}
 
-			FXMVECTOR eye = XMVectorSet(pos.x, pos.y, pos.z, 1);
+			FXMVECTOR eye = XMVectorSet(myDebugPos.x, myDebugPos.y, myDebugPos.z, 1);
+			XMVECTOR vAt = XMVectorSet(myDebugAtvec.x, myDebugAtvec.y, myDebugAtvec.z, 1);
 			vAt += eye;
+			XMVECTOR vUp = XMVectorSet(myDebugUpvec.x, myDebugUpvec.y, myDebugUpvec.z, 1);
 			XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 			XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(0, 0, 0, 1));
 
 			// combine with stored projection matrix
-			XMMATRIX myProjMatrix = XMMatrixOrthographicLH(dimensions.x, dimensions.y, dimensions.z, 0.001f);
+			XMMATRIX myProjMatrix = XMMatrixOrthographicLH(myDebugDimensions.x, myDebugDimensions.y, myDebugDimensions.z, 0.001f);
 			XMMATRIX  _viewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix);
 			if (myDoDebugDraw)
 			{
 				debugDrawer->drawLine(myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
 				debugDrawer->drawLine(myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f, myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
+				debugDrawer->drawLine(myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f, myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f, FVector3(0, 1, 0));
+				debugDrawer->drawLine(myDebugPos + myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, myDebugPos - myDebugUpvec * myDebugDimensions.y / 2.0f + myDebugAtvec * myDebugDimensions.z, FVector3(0, 1, 0));
 			}
 
 			if (!myFreezeDebugInfo)

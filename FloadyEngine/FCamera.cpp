@@ -82,8 +82,8 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 {
 	if(myOverrideWithLight)
 	{
-		return FLightManager::GetInstance()->GetSpotlightViewProjMatrix(0);
-		//return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
+		//return FLightManager::GetInstance()->GetSpotlightViewProjMatrix(0);
+		return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
 	}
 
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
