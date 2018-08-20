@@ -21,6 +21,8 @@ FPlacingManager::FPlacingManager()
 
 void FPlacingManager::UpdateMousePos(const FVector3& aPos)
 {
+	float errorMargin = 0.5f;
+
 	if (myObject)
 	{
 		// check if aabb fits on navmesh
@@ -31,25 +33,25 @@ void FPlacingManager::UpdateMousePos(const FVector3& aPos)
 		FVector3 delta = FVector3(myObject->GetLocalAABB().myMax.x, 0, myObject->GetLocalAABB().myMax.z);
 		FVector3 point = aPos + delta;
 		FVector3 point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
-		if ((point - point2).SqrLength() > 0.01)
+		if ((point - point2).SqrLength() > errorMargin)
 			myFitsOnNavMesh = false;
 
 		delta = FVector3(myObject->GetLocalAABB().myMin.x, 0, myObject->GetLocalAABB().myMin.z);
 		point = newPos + delta;
 		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
-		if ((point - point2).SqrLength() > 0.01)
+		if ((point - point2).SqrLength() > errorMargin)
 			myFitsOnNavMesh = false;
 
 		delta = FVector3(myObject->GetLocalAABB().myMin.x, 0, myObject->GetLocalAABB().myMax.z);
 		point = newPos + delta;
 		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
-		if ((point - point2).SqrLength() > 0.01)
+		if ((point - point2).SqrLength() > errorMargin)
 			myFitsOnNavMesh = false;
 
 		delta = FVector3(myObject->GetLocalAABB().myMax.x, 0, myObject->GetLocalAABB().myMin.z);
 		point = newPos + delta;
 		point2 = FNavMeshManagerRecast::GetInstance()->GetClosestPointOnNavMesh(point);
-		if ((point - point2).SqrLength() > 0.01)
+		if ((point - point2).SqrLength() > errorMargin)
 			myFitsOnNavMesh = false;
 
 		//

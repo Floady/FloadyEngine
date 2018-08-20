@@ -247,8 +247,8 @@ void FTextureManager::ReloadTextures()
 	//myTextureMutex.WaitFor();
 	//myTextureMutex.Lock();
 
-	LPCWSTR folderFilters[] = { L"Textures//*.png" , L"Textures//sponza//*.png", L"Textures//sponza2//*.tga" };
-	LPCWSTR folderPrefix[] = { L"Textures//" , L"Textures//sponza//" , L"Textures//sponza2//" };
+	LPCWSTR folderFilters[] = { L"Textures//*.png" ,L"Textures//*.jpg" , L"Textures//sponza//*.png", L"Textures//sponza2//*.tga" };
+	LPCWSTR folderPrefix[] = { L"Textures//" ,  L"Textures//" , L"Textures//sponza//" , L"Textures//sponza2//" };
 
 	for (size_t i = 0; i < _countof(folderFilters); i++)
 	{
