@@ -26,7 +26,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : T
 PSOutput PSMain(PSInput input) : SV_TARGET
 {   
 	PSOutput output;
-	float2 uvStride = float2(1.0f/800.0f, 1.0f/600.0f);
+	float2 uvStride = float2(1.0f/1600.0f, 1.0f/900.0f);
 	
 	// Edge detection test 1 - todo should use dot normals :)
 	bool doEdgeDetection = true;

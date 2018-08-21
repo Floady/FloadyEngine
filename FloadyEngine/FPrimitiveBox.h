@@ -43,9 +43,6 @@ public:
 	void SetShader(const char* aFilename) override;
 	virtual void SetPos(const FVector3& aPos) override;
 
-	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return m_vertexBufferView; }
-	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
-	int GetIndicesCount() { return myIndicesCount; }
 	bool IsInitialized() { return myIsInitialized; }
 
 	ID3D12RootSignature* m_rootSignature;

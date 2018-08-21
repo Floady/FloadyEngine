@@ -85,7 +85,7 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 
 		dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myMesh = mesh;
 
-		myPool->myIndicesCount = mesh->myIndicesCount;
+		myPool->myIndicesCount = mesh->myIndicesCount; // TODO: bug mesh isnt loaded yet, indices count will be the placeholder mesh
 		myPool->m_vertexBufferView.BufferLocation = mesh->myVertexBuffer->GetGPUVirtualAddress();
 		myPool->m_vertexBufferView.StrideInBytes = sizeof(FPrimitiveGeometry::Vertex2);
 		myPool->m_vertexBufferView.SizeInBytes = sizeof(FPrimitiveGeometry::Vertex2) * mesh->myVerticesSize;

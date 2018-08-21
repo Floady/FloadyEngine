@@ -31,7 +31,6 @@
 #include "FProfiler.h"
 #include "FNavMeshManagerRecast.h"
 #include "FObjLoader.h"
-#include "FGameEntityObjModel.h"
 #include <cmath>
 #include <cstdlib>
 #include "FBulletPhysics.h"
@@ -354,8 +353,8 @@ bool FGame::Update(double aDeltaTime)
 					if(!wasPlacing)
 					{
 						FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
-						FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 100.0f));
-						FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 100.0f);
+						FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 300.0f));
+						FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 300.0f);
 						if (entity != myPickedEntity)
 						{
 							myHighlightManager->RemoveSelectableObject(myPickedEntity);

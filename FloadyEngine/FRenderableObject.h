@@ -96,6 +96,11 @@ public:
 	virtual bool GetIsVisible() { return myIsVisible; }
 	void SetIsVisible(bool anIsVisible) { myIsVisible = anIsVisible; }
 	ID3D12Resource* GetModelViewMatrix() { return m_ModelProjMatrix; }
+
+	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() { return m_vertexBufferView; }
+	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() { return m_indexBufferView; }
+	int GetIndicesCount() { return myIndicesCount; }
+
 public:
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;

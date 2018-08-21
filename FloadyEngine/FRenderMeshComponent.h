@@ -30,6 +30,11 @@ public:
 	const char* GetTexture();
 	float* GetRotMatrix();
 	const FVector3& GetScale();
+	const FVector3& GetPos();
+
+	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView();
+	const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView();
+	int GetIndicesCount();
 
 protected:
 	FRenderableObject* myGraphicsObject; // for non instances only

@@ -51,6 +51,10 @@ FRenderMeshComponent::FRenderMeshComponent()
 {
 	myMeshInstanceId = 0;
 	myGraphicsObject = nullptr;
+	m_indexBuffer = nullptr;
+	m_vertexBuffer = nullptr;
+	myModelInstanceName = "";
+	myIsInstanced = false;
 }
 
 FRenderMeshComponent::~FRenderMeshComponent()
@@ -325,4 +329,36 @@ const FVector3 & FRenderMeshComponent::GetScale()
 		return myGraphicsObject->GetScale();
 	else
 		return FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId).myScale;
+}
+
+const FVector3 & FRenderMeshComponent::GetPos()
+{
+	if (myGraphicsObject)
+		return myGraphicsObject->GetPos();
+	else
+		return FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId).myPos;
+}
+
+const D3D12_VERTEX_BUFFER_VIEW & FRenderMeshComponent::GetVertexBufferView()
+{
+	if (myGraphicsObject)
+		return myGraphicsObject->GetVertexBufferView();
+	else
+		return FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetVertexBufferView();
+}
+
+const D3D12_INDEX_BUFFER_VIEW & FRenderMeshComponent::GetIndexBufferView()
+{
+	if (myGraphicsObject)
+		return myGraphicsObject->GetIndexBufferView();
+	else
+		return FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetIndexBufferView();
+}
+
+int FRenderMeshComponent::GetIndicesCount()
+{
+	if (myGraphicsObject)
+		return myGraphicsObject->GetIndicesCount();
+	else
+		return FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->GetIndicesCount();
 }

@@ -8,6 +8,7 @@
 #include "FPostProcessEffect.h"
 #include "FPrimitiveBox.h"
 #include "FRenderMeshComponent.h"
+#include "FPrimitiveBoxInstanced.h"
 
 using namespace DirectX;
 
@@ -114,7 +115,7 @@ void FGameHighlightManager::Render()
 	if (myObjects.size() == 1)
 	{
 		entity = myObjects[0]->GetRenderableObject();
-		pos = myObjects[0]->GetPos();
+		pos = entity->GetPos();
 		vecScale = entity->GetScale();
 	}
 
@@ -167,16 +168,10 @@ void FGameHighlightManager::Render()
 	// Record commands.
 	if (entity)
 	{
-		if (FPrimitiveBox* box = dynamic_cast<FPrimitiveBox*>(entity))
-		{
-			if(box->IsInitialized())
-			{
-				myCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				myCommandList->IASetVertexBuffers(0, 1, &box->GetVertexBufferView());
-				myCommandList->IASetIndexBuffer(&box->GetIndexBufferView());
-				myCommandList->DrawIndexedInstanced(box->GetIndicesCount(), 1, 0, 0, 0);
-			}
-		}
+		myCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		myCommandList->IASetVertexBuffers(0, 1, &entity->GetVertexBufferView());
+		myCommandList->IASetIndexBuffer(&entity->GetIndexBufferView());
+		myCommandList->DrawIndexedInstanced(entity->GetIndicesCount(), 1, 0, 0, 0);
 	}
 
 	// Indicate that the back buffer will now be used to present.

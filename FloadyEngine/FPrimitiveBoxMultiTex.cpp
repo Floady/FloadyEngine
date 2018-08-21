@@ -115,6 +115,11 @@ void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshObject& a
 
 	// map all textures to the slots
 	const FObjLoader::FObjMesh& m = anObj.myMeshData;
+	
+	myIndicesCount = anObj.myIndicesCount;
+	m_vertexBufferView = anObj.myVertexBufferView;
+	m_indexBufferView = anObj.myIndexBufferView;
+	
 
 	int matcounter = 0;
 	std::string name;
