@@ -2,10 +2,9 @@
 #include "..\..\FJson\FJsonObject.h"
 #include "..\FDelegate.h"
 #include <vector>
-#include "..\FVector3.h"
+#include "FVector3.h"
 
 class FRenderableObject;
-class btRigidBody;
 
 class FGUIObject
 {

@@ -2,11 +2,11 @@
 #include "FGUIButtonToggle.h"
 #include "FLightManager.h"
 #include "FNavMeshManagerRecast.h"
-#include "FBulletPhysics.h"
 #include "FGame.h"
 #include "FD3d12Renderer.h"
 #include "FProfiler.h"
 #include "FSceneGraph.h"
+#include "FPhysicsWorld.h"
 
 FGameUIPanelDebug::FGameUIPanelDebug()
 {
@@ -24,7 +24,7 @@ FGameUIPanelDebug::FGameUIPanelDebug()
 	AddObject(button2);								
 	pos += offset;
 													
-	FGUIButtonToggle* button3 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FBulletPhysics, &FBulletPhysics::SetDebugDrawEnabled>(FGame::GetInstance()->GetPhysics()));
+	FGUIButtonToggle* button3 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FPhysicsWorld, &FPhysicsWorld::SetDebugDrawEnabled>(FGame::GetInstance()->GetPhysics()));
 	button3->SetDynamicText("Phys debug");			 
 	AddObject(button3);								 
 	pos += offset;
@@ -34,7 +34,7 @@ FGameUIPanelDebug::FGameUIPanelDebug()
 	AddObject(button4);								 
 	pos += offset;
 
-	FGUIButtonToggle* button5 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FBulletPhysics, &FBulletPhysics::SetPaused>(FGame::GetInstance()->GetPhysics()));
+	FGUIButtonToggle* button5 = new FGUIButtonToggle(pos, pos + size, "buttonBlanco.png", FDelegate2<void(bool)>::from<FPhysicsWorld, &FPhysicsWorld::SetPaused>(FGame::GetInstance()->GetPhysics()));
 	button5->SetDynamicText("Pause phys");
 	AddObject(button5);
 	pos += offset;

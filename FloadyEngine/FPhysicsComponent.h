@@ -2,7 +2,7 @@
 #include "FGameEntityComponent.h"
 #include "FVector3.h"
 
-class btRigidBody;
+class FPhysicsObject;
 
 class FPhysicsComponent : public FGameEntityComponent
 {
@@ -23,7 +23,7 @@ public:
 	void Roll(float aRoll);
 	void SetPos(const FVector3& aPos);
 protected:
-	btRigidBody* myPhysicsObject;
+	FPhysicsObject* myPhysicsObject;
 	FVector3 myScale;
 	FVector3 myOffset;
 };

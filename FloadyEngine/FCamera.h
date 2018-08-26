@@ -37,8 +37,7 @@ public:
 	DirectX::XMMATRIX _viewProjMatrix;
 	DirectX::XMMATRIX _viewMatrix;
 	DirectX::XMMATRIX  myProjMatrix;
-	bool SphereInFrustum(DirectX::XMVECTOR pPosition, float radius);
-
+	
 	void SetFreezeDebug(bool aShouldFreeze) { myFreezeDebugInfo = aShouldFreeze; }
 	void SetDebugDrawEnabled(bool anEnabled) { myDoDebugDraw = anEnabled; }
 

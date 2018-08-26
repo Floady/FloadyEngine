@@ -25,26 +25,26 @@ void FMatrix::Init( FVector3& a_Pos, float a_RX, float a_RY, float a_RZ )
 
 void FMatrix::RotateX( float a_RX )
 {
-	float sx = (float)sin( a_RX * PI / 180 );
-	float cx = (float)cos( a_RX * PI / 180 );
+	float sx = (float)sin( a_RX);
+	float cx = (float)cos( a_RX);
 	Identity();
-	cell[5] = cx, cell[6] = sx, cell[9] = -sx, cell[10] = cx;
+	cell[5] = cx, cell[6] = -sx, cell[9] = sx, cell[10] = cx;
 }
 
 void FMatrix::RotateY( float a_RY )
 {
-	float sy = (float)sin( a_RY * PI / 180 );
-	float cy = (float)cos( a_RY * PI / 180 );
+	float sy = (float)sin( a_RY);
+	float cy = (float)cos( a_RY);
 	Identity ();
-	cell[0] = cy, cell[2] = -sy, cell[8] = sy, cell[10] = cy;
+	cell[0] = cy, cell[2] = sy, cell[8] = -sy, cell[10] = cy;
 }
 
 void FMatrix::RotateZ( float a_RZ )
 {
-	float sz = (float)sin( a_RZ * PI / 180 );
-	float cz = (float)cos( a_RZ * PI / 180 );
+	float sz = (float)sin( a_RZ);
+	float cz = (float)cos( a_RZ);
 	Identity ();
-	cell[0] = cz, cell[1] = sz, cell[4] = -sz, cell[5] = cz;
+	cell[0] = cz, cell[1] = -sz, cell[4] = sz, cell[5] = cz;
 }
 
 void FMatrix::Translate( FVector3& a_Pos )

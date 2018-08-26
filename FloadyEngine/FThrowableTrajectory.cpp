@@ -6,7 +6,7 @@
 #include <random>
 #include "FD3d12Renderer.h"
 #include "FDebugDrawer.h"
-#include "FBulletPhysics.h"
+#include "FPhysicsWorld.h"
 #include "FGame.h"
 #include "FGameEntity.h"
 
@@ -250,7 +250,7 @@ bool FThrowableTrajectory::SimulateSegment(
 
 	// replace bullet physics
 	//Core_PhysicsWorld* pPhysics = myWorldModel.GetPhysicsWorld()->GetCorePhysicsWorld();
-	FBulletPhysics* pPhysics = FGame::GetInstance()->GetPhysics();
+	FPhysicsWorld* pPhysics = FGame::GetInstance()->GetPhysics();
 
 	const float stepTime = mySharedParameters.mySimulationStepTime;
 	float pathTime = aInitialTime + stepTime;
@@ -269,7 +269,7 @@ bool FThrowableTrajectory::SimulateSegment(
 
 
 		//*
-		FBulletPhysics::RayCastHit hitResult;
+		FPhysicsWorld::RayCastHit hitResult;
 		bool hasHit = pPhysics->RayCast(lastPosition, currentPosition, hitResult);
 		
 		// Bounce?

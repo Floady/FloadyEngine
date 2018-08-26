@@ -2,7 +2,7 @@
 
 #include "FRenderableObject.h"
 #include <vector>
-#include "btBulletDynamicsCommon.h"
+#include "FIPhysicsDebugDrawer.h"
 
 class FD3d12Renderer;
 struct ID3D12Resource;
@@ -12,7 +12,7 @@ struct ID3D12GraphicsCommandList;
 struct D3D12_VERTEX_BUFFER_VIEW;
 struct D3D12_INDEX_BUFFER_VIEW;
 
-class FDebugDrawer :public FRenderableObject
+class FDebugDrawer :public FRenderableObject, public FIPhysicsDebugDrawer
 {
 public:
 	FDebugDrawer(FD3d12Renderer* aManager);

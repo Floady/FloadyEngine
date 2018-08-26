@@ -19,9 +19,6 @@
     <Filter Include="Game">
       <UniqueIdentifier>{215780ee-8693-4e85-824a-3d19d9866edb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Collision">
-      <UniqueIdentifier>{ba019494-b22c-4123-90ee-0de5434034dc}</UniqueIdentifier>
-    </Filter>
     <Filter Include="GUI">
       <UniqueIdentifier>{881d32c8-7c4f-4ad1-9e49-ab3f48efc576}</UniqueIdentifier>
     </Filter>
@@ -90,9 +87,6 @@
     <ClCompile Include="FJobSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FPrimitiveBox.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FTextureManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -113,9 +107,6 @@
     </ClCompile>
     <ClCompile Include="FSceneGraph.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FBulletPhysics.cpp">
-      <Filter>Collision</Filter>
     </ClCompile>
     <ClCompile Include="FScreenQuad.cpp">
       <Filter>Source Files</Filter>
@@ -140,9 +131,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FUtilities.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FVector3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FPrimitiveBoxColorOverride.cpp">
@@ -202,16 +190,10 @@
     <ClCompile Include="FPlacingManager.cpp">
       <Filter>Game</Filter>
     </ClCompile>
-    <ClCompile Include="FPhysicsDebugDrawer.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
     <ClCompile Include="FGameLevel.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="FGameHighlightManager.cpp">
-      <Filter>Game</Filter>
-    </ClCompile>
-    <ClCompile Include="FGameEntityObjModel.cpp">
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="FGameBuildingManager.cpp">
@@ -261,9 +243,6 @@
     <ClInclude Include="FMatrix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FVector3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -283,9 +262,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FJobSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPrimitiveBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FTextureManager.h">
@@ -308,9 +284,6 @@
     </ClInclude>
     <ClInclude Include="FSceneGraph.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FBulletPhysics.h">
-      <Filter>Collision</Filter>
     </ClInclude>
     <ClInclude Include="FScreenQuad.h">
       <Filter>Header Files</Filter>
@@ -391,16 +364,10 @@
     <ClInclude Include="FSkyBox.h">
       <Filter>Game</Filter>
     </ClInclude>
-    <ClInclude Include="FGameEntityObjModel.h">
-      <Filter>Game</Filter>
-    </ClInclude>
     <ClInclude Include="FGameHighlightManager.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="FGameLevel.h">
-      <Filter>Game</Filter>
-    </ClInclude>
-    <ClInclude Include="FPhysicsDebugDrawer.h">
       <Filter>Game</Filter>
     </ClInclude>
     <ClInclude Include="FPlacingManager.h">

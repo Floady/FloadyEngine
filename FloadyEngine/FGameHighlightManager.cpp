@@ -6,7 +6,6 @@
 #include "FRenderableObject.h"
 #include "FPrimitiveGeometry.h"
 #include "FPostProcessEffect.h"
-#include "FPrimitiveBox.h"
 #include "FRenderMeshComponent.h"
 #include "FPrimitiveBoxInstanced.h"
 

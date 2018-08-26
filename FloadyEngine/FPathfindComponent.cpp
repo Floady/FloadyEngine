@@ -4,6 +4,7 @@
 #include "FNavMeshManagerRecast.h"
 #include "FD3d12Renderer.h"
 #include "FDebugDrawer.h"
+#include "FMatrix.h"
 
 REGISTER_GAMEENTITYCOMPONENT2(FPathfindComponent);
 
@@ -106,11 +107,11 @@ void FPathfindComponent::Update(double aDeltaTime)
 	float newAngle = angleFromDesiredDirection - aDeltaTime * turnSpeed;
 	if(newAngle > 0.01)
 	{
-		btVector3 a =  btVector3(myDesiredDirection.x, myDesiredDirection.y, myDesiredDirection.z);
-		a = a.rotate(btVector3(0,1,0), !isCCW ? 2 * PI - newAngle : newAngle); // rotate over up
-		myDirection.x = a.getX();
-		myDirection.y = a.getY();
-		myDirection.z = a.getZ();
+		// Test
+		FVector3 test = myDesiredDirection;
+		FMatrix m = FMatrix();
+		m.RotateY(!isCCW ? 2 * PI - newAngle : newAngle);
+		myDirection = m.Transform(test);
 	}
 }
 

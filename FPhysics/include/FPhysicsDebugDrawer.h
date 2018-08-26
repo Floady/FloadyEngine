@@ -1,7 +1,8 @@
 #pragma once
-#include <vector>
 #include "FVector3.h"
-#include "btBulletDynamicsCommon.h"
+#include "LinearMath/btVector3.h"
+#include "LinearMath/btIDebugDraw.h"
+#include "FIPhysicsDebugDrawer.h"
 
 class FD3d12Renderer;
 class FDebugDrawer;
@@ -9,7 +10,7 @@ class FDebugDrawer;
 class FPhysicsDebugDrawer : public btIDebugDraw
 {
 public:
-	FPhysicsDebugDrawer(FDebugDrawer* aDebugDrawer);
+	FPhysicsDebugDrawer(FIPhysicsDebugDrawer* aDebugDrawer);
 	~FPhysicsDebugDrawer();
 
 	void	drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override;
@@ -21,6 +22,6 @@ public:
 
 	void	DrawTriangle(const FVector3& aV1, const FVector3& aV2, const FVector3& aV3, const FVector3& aColor);
 private:
-	FDebugDrawer* myDebugDrawer;
+	FIPhysicsDebugDrawer* myDebugDrawer;
 };
 

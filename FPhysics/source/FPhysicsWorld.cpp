@@ -1,21 +1,22 @@
-
-#include "FGameEntity.h"
+#include "FPhysicsWorld.h"
+#include "LinearMath/btAlignedObjectArray.h"
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btVector3.h"
+#include "FIPhysicsDebugDrawer.h"
 #include "FPhysicsDebugDrawer.h"
-#include "FDebugDrawer.h"
-#include "FD3d12Renderer.h"
-#include "FBulletPhysics.h"
-#include "FUtilities.h"
+#include "FPhysicsObject.h"
 
-FBulletPhysics::FBulletPhysics()
+FPhysicsWorld::FPhysicsWorld()
 {
 	myEnabled = false;
 	myDebugDrawEnabled = false;
 	myHasNewNavBlockers = false;
+
+	myRigidBodies = new btAlignedObjectArray<FPhysicsBody>();
+	m_collisionShapes = new btAlignedObjectArray<btCollisionShape*>();
 }
 
-FBulletPhysics::~FBulletPhysics()
+FPhysicsWorld::~FPhysicsWorld()
 {
 	//remove the rigidbodies from the dynamics world and delete them
 
@@ -40,12 +41,12 @@ FBulletPhysics::~FBulletPhysics()
 		}
 	}
 	//delete collision shapes
-	for (int j = 0; j<m_collisionShapes.size(); j++)
+	for (int j = 0; j<m_collisionShapes->size(); j++)
 	{
-		btCollisionShape* shape = m_collisionShapes[j];
+		btCollisionShape* shape = (*m_collisionShapes)[j];
 		delete shape;
 	}
-	m_collisionShapes.clear();
+	m_collisionShapes->clear();
 
 	delete m_dynamicsWorld;
 	m_dynamicsWorld = 0;
@@ -61,9 +62,12 @@ FBulletPhysics::~FBulletPhysics()
 
 	delete m_collisionConfiguration;
 	m_collisionConfiguration = 0;
+
+	delete myRigidBodies;
+	delete m_collisionShapes;
 }
 
-void FBulletPhysics::Init(FD3d12Renderer* aRendererForDebug)
+void FPhysicsWorld::Init(FIPhysicsDebugDrawer* aDebugDrawer)
 {
 	///collision configuration contains default setup for memory, collision setup
 	m_collisionConfiguration = new btDefaultCollisionConfiguration();
@@ -82,11 +86,14 @@ void FBulletPhysics::Init(FD3d12Renderer* aRendererForDebug)
 
 	m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
-	myDebugDrawer = new FPhysicsDebugDrawer(aRendererForDebug->GetDebugDrawer());
-	m_dynamicsWorld->setDebugDrawer(myDebugDrawer);
+	if (aDebugDrawer)
+	{
+		myDebugDrawer = new FPhysicsDebugDrawer(aDebugDrawer);
+		m_dynamicsWorld->setDebugDrawer(myDebugDrawer);
+	}
 }
 
-void FBulletPhysics::Update(double aDeltaTime)
+void FPhysicsWorld::Update(double aDeltaTime)
 {
 	if (myEnabled && m_dynamicsWorld)
 	{
@@ -99,20 +106,20 @@ void FBulletPhysics::Update(double aDeltaTime)
 	}
 }
 
-void FBulletPhysics::SetDebugDrawEnabled(bool anEnabled)
+void FPhysicsWorld::SetDebugDrawEnabled(bool anEnabled)
 {
 	myDebugDrawEnabled = anEnabled;
 }
 
-btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FBulletPhysics::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/, FGameEntity* anEntity /*= nullptr*/)
+FPhysicsObject* FPhysicsWorld::AddObject(float aMass, FVector3 aPos, FVector3 aScale, FPhysicsWorld::CollisionPrimitiveType aPrim, bool aShouldBlockNav /* = false*/, void* anEntity /*= nullptr*/)
 {
 	FVector3 extends = aScale / 2.0f;
 	btCollisionShape* shape;
-	if(aPrim == FBulletPhysics::CollisionPrimitiveType::Box)
+	if (aPrim == FPhysicsWorld::CollisionPrimitiveType::Box)
 		shape = new btBoxShape(btVector3(btScalar(extends.x), btScalar(extends.y), btScalar(extends.z)));
-	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Capsule)
+	else if (aPrim == FPhysicsWorld::CollisionPrimitiveType::Capsule)
 		shape = new btCapsuleShape(extends.x, extends.y / 2.0f);
-	else if (aPrim == FBulletPhysics::CollisionPrimitiveType::Sphere)
+	else if (aPrim == FPhysicsWorld::CollisionPrimitiveType::Sphere)
 	{
 		shape = new btSphereShape(extends.x);
 	}
@@ -120,8 +127,8 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 		shape = new btBoxShape(btVector3(btScalar(extends.x), btScalar(extends.y), btScalar(extends.z)));
 
 	btScalar mass(aMass);
-	
-	m_collisionShapes.push_back(shape);
+
+	m_collisionShapes->push_back(shape);
 
 	btTransform groundTransform;
 	groundTransform.setIdentity();
@@ -142,6 +149,8 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 	btRigidBody::btRigidBodyConstructionInfo cInfo(mass, myMotionState, shape, localInertia);
 
 	btRigidBody* body = new btRigidBody(cInfo);
+	FPhysicsObject* physObject = new FPhysicsObject(body);
+
 	//body->setGravity(btVector3(0, 0, 0));
 	//body->setContactProcessingThreshold(m_defaultContactProcessingThreshold);
 
@@ -151,38 +160,52 @@ btRigidBody* FBulletPhysics::AddObject(float aMass, FVector3 aPos, FVector3 aSca
 #endif
 	body->setUserIndex(-1);
 	m_dynamicsWorld->addRigidBody(body);
-	
-	FBulletPhysics::FPhysicsBody fbody;
-	fbody.myRigidBody = body;
+
+	FPhysicsWorld::FPhysicsBody fbody;
+	fbody.myRigidBody = physObject;
 	fbody.myCollisionEntity = shape;
-	fbody.myGameEntity = anEntity;
+	fbody.myUserData = anEntity;
 	fbody.myShouldBlockNavMesh = aShouldBlockNav;
-	myRigidBodies.push_back(fbody);
+	myRigidBodies->push_back(fbody);
 
 	if (aShouldBlockNav)
 		myHasNewNavBlockers = true;
 
-	return body;
+	return physObject;
 }
 
-void FBulletPhysics::AddTerrain(btRigidBody * aBody, btCollisionShape* aCollisionShape, FGameEntity* anOwner)
+void FPhysicsWorld::AddTerrain(const std::vector<FVector3>& aTriangleList, void * anOwner)
 {
-	FBulletPhysics::FPhysicsBody fbody;
-	fbody.myRigidBody = aBody;
-	fbody.myCollisionEntity = aCollisionShape;
-	fbody.myGameEntity = anOwner;
+	btTriangleMesh* triangleMeshTerrain = new btTriangleMesh();
+	for (int i = 0; i < aTriangleList.size(); i += 3)
+	{
+		btVector3 posA = btVector3(aTriangleList[i].x, aTriangleList[i].y, aTriangleList[i].z);
+		btVector3 posB = btVector3(aTriangleList[i + 1].x, aTriangleList[i + 1].y, aTriangleList[i + 1].z);
+		btVector3 posC = btVector3(aTriangleList[i + 2].x, aTriangleList[i + 2].y, aTriangleList[i + 2].z);
+		triangleMeshTerrain->addTriangle(posA, posB, posC);
+	}
+
+	btCollisionShape* myColShape = new btBvhTriangleMeshShape(triangleMeshTerrain, true);
+	btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+	btRigidBody::btRigidBodyConstructionInfo rigidBodyConstructionInfo(0.0f, motionState, myColShape, btVector3(0, 0, 0));
+	btRigidBody* terrain = new btRigidBody(rigidBodyConstructionInfo);
+
+	FPhysicsWorld::FPhysicsBody fbody;
+	fbody.myRigidBody = new FPhysicsObject(terrain);
+	fbody.myCollisionEntity = myColShape;
+	fbody.myUserData = anOwner;
 	fbody.myShouldBlockNavMesh = false;
-	m_collisionShapes.push_back(aCollisionShape);
-	myRigidBodies.push_back(fbody);
-	m_dynamicsWorld->addRigidBody(aBody);
+	m_collisionShapes->push_back(myColShape);
+	myRigidBodies->push_back(fbody);
+	m_dynamicsWorld->addRigidBody(terrain);
 }
 
-void FBulletPhysics::RemoveObject(btRigidBody * aBody)
+void FPhysicsWorld::RemoveObject(FPhysicsObject * aBody)
 {
 	int idxToRemove = -1;
-	for (int i = 0; i < myRigidBodies.size(); i++)
+	for (int i = 0; i < myRigidBodies->size(); i++)
 	{
-		if (myRigidBodies[i].myRigidBody == aBody)
+		if ((*myRigidBodies)[i].myRigidBody == aBody)
 		{
 			idxToRemove = i;
 			break;
@@ -193,7 +216,7 @@ void FBulletPhysics::RemoveObject(btRigidBody * aBody)
 	{
 		btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[i];
 		btRigidBody* body = btRigidBody::upcast(obj);
-		if(body == aBody)
+		if (body == aBody->GetRigidBody())
 		{
 			m_dynamicsWorld->removeCollisionObject(obj);
 			delete obj;
@@ -203,15 +226,15 @@ void FBulletPhysics::RemoveObject(btRigidBody * aBody)
 
 	if (idxToRemove == -1)
 	{
-		FLOG("Error: removing a body that doesnt exist in RigidBodies?");
+		// todo FLOG("Error: removing a body that doesnt exist in RigidBodies?");
 	}
 	else
 	{
-		myRigidBodies.removeAtIndex(idxToRemove);
+		myRigidBodies->removeAtIndex(idxToRemove);
 	}
 }
 
-FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
+void* FPhysicsWorld::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 {
 	btVector3 start = btVector3(aStart.x, aStart.y, aStart.z);
 	btVector3 end = btVector3(anEnd.x, anEnd.y, anEnd.z);
@@ -220,10 +243,10 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 	m_dynamicsWorld->rayTest(start, end, cb);
 	if (cb.hasHit())
 	{
-		for (int i = 0; i < myRigidBodies.size(); i++)
+		for (int i = 0; i < myRigidBodies->size(); i++)
 		{
-			if (myRigidBodies[i].myCollisionEntity == cb.m_collisionObject->getCollisionShape())
-				return myRigidBodies[i].myGameEntity->GetOwnerEntity();
+			if ((*myRigidBodies)[i].myCollisionEntity == cb.m_collisionObject->getCollisionShape())
+				return (*myRigidBodies)[i].myUserData;
 		}
 	}
 
@@ -237,11 +260,11 @@ FGameEntity * FBulletPhysics::GetFirstEntityHit(FVector3 aStart, FVector3 anEnd)
 	return nullptr;
 }
 
-bool FBulletPhysics::RayCast(FVector3 aStart, FVector3 anEnd, FBulletPhysics::RayCastHit& outHitResult)
+bool FPhysicsWorld::RayCast(FVector3 aStart, FVector3 anEnd, FPhysicsWorld::RayCastHit& outHitResult)
 {
 	btVector3 start = btVector3(aStart.x, aStart.y, aStart.z);
 	btVector3 end = btVector3(anEnd.x, anEnd.y, anEnd.z);
-	
+
 	btCollisionWorld::ClosestRayResultCallback cb(start, end);
 	m_dynamicsWorld->rayTest(start, end, cb);
 	if (cb.hasHit())
@@ -249,13 +272,16 @@ bool FBulletPhysics::RayCast(FVector3 aStart, FVector3 anEnd, FBulletPhysics::Ra
 		outHitResult.myPos = FVector3(cb.m_hitPointWorld.getX(), cb.m_hitPointWorld.getY(), cb.m_hitPointWorld.getZ());
 		outHitResult.myNormal = FVector3(cb.m_hitNormalWorld.getX(), cb.m_hitNormalWorld.getY(), cb.m_hitNormalWorld.getZ());
 
-		myDebugDrawer->drawLine(start, end, btVector3(1, 1, 1));
-		float size = 0.1f;
-		aStart = aStart + (anEnd - aStart).Normalized() * 3.0f;
-		myDebugDrawer->DrawTriangle(aStart + FVector3(-size, 0, -size), aStart + FVector3(-size, 0, size), aStart + FVector3(size, 0, size), FVector3(1, 0, 0));
-		size = 0.5f;
-		myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
-		myDebugDrawer->DrawTriangle(outHitResult.myPos + FVector3(-size, 0, -size), outHitResult.myPos + FVector3(-size, 0, size), outHitResult.myPos + FVector3(size, 0, size), FVector3(0, 0, 1));
+		if (myDebugDrawer)
+		{
+			myDebugDrawer->drawLine(start, end, btVector3(1, 1, 1));
+			float size = 0.1f;
+			aStart = aStart + (anEnd - aStart).Normalized() * 3.0f;
+			myDebugDrawer->DrawTriangle(aStart + FVector3(-size, 0, -size), aStart + FVector3(-size, 0, size), aStart + FVector3(size, 0, size), FVector3(1, 0, 0));
+			size = 0.5f;
+			myDebugDrawer->DrawTriangle(anEnd + FVector3(-size, 0, -size), anEnd + FVector3(-size, 0, size), anEnd + FVector3(size, 0, size), FVector3(0, 1, 0));
+			myDebugDrawer->DrawTriangle(outHitResult.myPos + FVector3(-size, 0, -size), outHitResult.myPos + FVector3(-size, 0, size), outHitResult.myPos + FVector3(size, 0, size), FVector3(0, 0, 1));
+		}
 
 		return true;
 	}
@@ -263,31 +289,31 @@ bool FBulletPhysics::RayCast(FVector3 aStart, FVector3 anEnd, FBulletPhysics::Ra
 	return false;
 }
 
-void FBulletPhysics::SetPaused(bool aPause)
+void FPhysicsWorld::SetPaused(bool aPause)
 {
 	myEnabled = !aPause;
 }
 
-std::vector<FBulletPhysics::AABB> FBulletPhysics::GetAABBs()
+std::vector<FPhysicsWorld::AABB> FPhysicsWorld::GetAABBs()
 {
-	std::vector<FBulletPhysics::AABB> aabbs;
-	
-	for (int i = 0; i < myRigidBodies.size(); i++)
+	std::vector<FPhysicsWorld::AABB> aabbs;
+
+	for (int i = 0; i < myRigidBodies->size(); i++)
 	{
-		FBulletPhysics::AABB aabb;
+		FPhysicsWorld::AABB aabb;
 		btTransform t;
 		btVector3 min;
 		btVector3 max;
-		btTransform trans = myRigidBodies[i].myRigidBody->getWorldTransform();
-		m_collisionShapes[i]->getAabb(trans, min, max);
-		
-		if (!myRigidBodies[i].myShouldBlockNavMesh)
+		btTransform trans = (*myRigidBodies)[i].myRigidBody->GetRigidBody()->getWorldTransform();
+		(*m_collisionShapes)[i]->getAabb(trans, min, max);
+
+		if (!(*myRigidBodies)[i].myShouldBlockNavMesh)
 			continue;
-		
+
 		aabb.myMax = FVector3(max.getX(), max.getY(), max.getZ());
 		aabb.myMin = FVector3(min.getX(), min.getY(), min.getZ());
 		aabbs.push_back(aabb);
 	}
-	
+
 	return aabbs;
 }

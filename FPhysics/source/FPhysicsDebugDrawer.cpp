@@ -1,9 +1,7 @@
 #include "FPhysicsDebugDrawer.h"
-#include "FDebugDrawer.h"
-#include "FProfiler.h"
 
 
-FPhysicsDebugDrawer::FPhysicsDebugDrawer(FDebugDrawer* aDebugDrawer)
+FPhysicsDebugDrawer::FPhysicsDebugDrawer(FIPhysicsDebugDrawer* aDebugDrawer)
 	: btIDebugDraw()
 	, myDebugDrawer(aDebugDrawer)
 {

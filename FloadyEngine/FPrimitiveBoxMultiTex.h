@@ -1,5 +1,4 @@
 #pragma once
-#include "FPrimitiveBox.h"
 #include "FPrimitiveBoxInstanced.h"
 #include "FObjLoader.h"
 

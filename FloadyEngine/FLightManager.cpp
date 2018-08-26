@@ -20,7 +20,7 @@ unsigned int FLightManager::AddSpotlight(FVector3 aPos, FVector3 aDir, float aRa
 	p.myAngle = anAngle * 0.0174533f;// deg -> radian
 	p.myHasMoved = true;
 	mySpotlights.push_back(p);
-	
+
 	return p.myId;
 }
 
@@ -441,11 +441,11 @@ FAABB FLightManager::SpotLight::GetAABB()
 	float sn = sin(theta);
 
 	FVector3 rotated = myDir;
-	rotated.Rotate(theta, 0, theta); 
+	rotated.Rotate22(theta, 0, theta); 
 	
 
 	FVector3 rotated2 = myDir;
-	rotated2.Rotate(-theta, 0, -theta);
+	rotated2.Rotate22(-theta, 0, -theta);
 
 	aabb.Grow(myRange * rotated);
 	aabb.Grow(myRange * rotated2);

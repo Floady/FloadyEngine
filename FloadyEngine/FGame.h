@@ -7,14 +7,13 @@ class FGameLevel;
 class FPlacingManager;
 class FScreenQuad;
 class FGameEntity;
-class FBulletPhysics;
+class FPhysicsWorld;
 class FDynamicText;
 class FD3d12Input;
 class FGameCamera;
 class FTimer;
 class FRenderWindow;
 class FD3d12Renderer;
-class FPrimitiveBox;
 class btRigidBody;
 class F3DPicker;
 class FNavMeshManager;
@@ -39,7 +38,7 @@ public:
 	static FGame* GetInstance() { return ourInstance; }
 	FD3d12Renderer* GetRenderer() { return myRenderer; }
 	FD3d12Input* GetInput() { return myInput; }
-	FBulletPhysics* GetPhysics() { return myPhysics; }
+	FPhysicsWorld* GetPhysics() { return myPhysics; }
 	void ConstructBuilding(const char* aBuildingName);
 	FPlacingManager* GetPlacingManager() { return myPlacingManager; }
 	void ConstructBuilding(FVector3 aPos);
@@ -56,7 +55,7 @@ private:
 	FGameLevel* myLevel;
 	FD3d12Input* myInput;
 	FGameCamera* myCamera;
-	FBulletPhysics* myPhysics;
+	FPhysicsWorld* myPhysics;
 
 	FTimer* myFrameTimer;
 	double myFrameTime;

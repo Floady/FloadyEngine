@@ -7,7 +7,7 @@
 #include "FD3d12Renderer.h"
 #include "FRenderWindow.h"
 #include "FGameCamera.h"
-#include "FPrimitiveBox.h"
+#include "FMeshManager.h"
 #include "FDynamicText.h"
 #include "FGameEntity.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
@@ -33,12 +33,12 @@
 #include "FObjLoader.h"
 #include <cmath>
 #include <cstdlib>
-#include "FBulletPhysics.h"
 #include "FPathfindComponent.h"
 #include "FJobSystem.h"
 #include "FRenderMeshComponent.h"
 #include "FThrowableTrajectory.h"
 #include "FPhysicsComponent.h"
+#include "FPhysicsWorld.h"
 
 FGame* FGame::ourInstance = nullptr;
 
@@ -98,7 +98,7 @@ FGame::FGame()
 	myRenderWindow = new FRenderWindow(someDelegate);
 	myRenderer = FD3d12Renderer::GetInstance();
 	myCamera = new FGameCamera(myInput, 1600, 900);
-	myPhysics = new FBulletPhysics();
+	myPhysics = new FPhysicsWorld();
 	myPicker = new F3DPicker(myCamera, myRenderWindow);
 	ourInstance = this;
 	myIsMouseCaptured = false;
@@ -164,7 +164,7 @@ void FGame::Init()
 		return;
 	}
 	myRenderer->SetCamera(myCamera);
-	myPhysics->Init(myRenderer);
+	myPhysics->Init(myRenderer->GetDebugDrawer()); // todo
 	myPhysics->SetPaused(false);
 	
 	// setup game basic systems
@@ -354,7 +354,7 @@ bool FGame::Update(double aDeltaTime)
 					{
 						FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
 						FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 300.0f));
-						FGameEntity* entity = myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 300.0f);
+						FGameEntity* entity = static_cast<FGameEntity*>(myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 300.0f))->GetOwnerEntity();
 						if (entity != myPickedEntity)
 						{
 							myHighlightManager->RemoveSelectableObject(myPickedEntity);
@@ -542,9 +542,9 @@ void FGame::RenderWorldAsync()
 void FGame::RegenerateNavMesh()
 {
 	// re-init navmesh
-	std::vector<FBulletPhysics::AABB> aabbs = myPhysics->GetAABBs();
+	std::vector<FPhysicsWorld::AABB> aabbs = myPhysics->GetAABBs();
 	FNavMeshManagerRecast::GetInstance()->RemoveAllBlockingAABB();
-	for (FBulletPhysics::AABB& aabb : aabbs)
+	for (FPhysicsWorld::AABB& aabb : aabbs)
 	{
 		FNavMeshManagerRecast::GetInstance()->AddBlockingAABB(aabb.myMin, aabb.myMax);
 	}

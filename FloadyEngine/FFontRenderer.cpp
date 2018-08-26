@@ -8,7 +8,6 @@
 #include <ft2build.h>
 #include <ftglyph.h>
 
-#include "FMatrix.h"
 #include "FVector3.h"
 
 using namespace DirectX;

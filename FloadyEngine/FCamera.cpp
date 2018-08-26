@@ -116,20 +116,6 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 	return ret;
 }
 
-bool FCamera::SphereInFrustum(XMVECTOR pPosition, float radius)
-{
-	for (int i = 0; i < 6; i++)
-	{
-		XMVECTOR v = XMVectorSet(myDebugFrustum[i].myNormal.x, myDebugFrustum[i].myNormal.y, myDebugFrustum[i].myNormal.z, myDebugFrustum[i].myDistance);
-		if (XMPlaneDotCoord(v, pPosition) + radius < 0)
-		{
-			// Outside the frustum, reject it!
-			return FALSE;
-		}
-	}
-	return TRUE;
-}
-
 XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(const XMMATRIX& anObjectMatrix)
 {
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);

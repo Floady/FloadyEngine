@@ -1,7 +1,7 @@
 #include "FVector3.h"
 #include <DirectXMath.h>
 
-void FVector3::Rotate(float anAngleX, float anAngleY, float anAngleZ)
+void FVector3::Rotate22(float anAngleX, float anAngleY, float anAngleZ)
 {
 	DirectX::FXMVECTOR pos = DirectX::XMVectorSet(x, y, z, 1);
 

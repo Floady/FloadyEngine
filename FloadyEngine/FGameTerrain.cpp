@@ -1,8 +1,4 @@
 #include "FGameTerrain.h"
-#include "FBulletPhysics.h"
-#include "BulletDynamics\Dynamics\btRigidBody.h"
-#include "btBulletDynamicsCommon.h"
-#include "LinearMath/btVector3.h"
 #include "FGame.h"
 #include "FNavMeshManagerRecast.h"
 #include "FDebugDrawer.h"
@@ -11,6 +7,7 @@
 #include "FUtilities.h"
 #include "FRenderMeshComponent.h"
 #include "FProfiler.h"
+#include "FPhysicsWorld.h"
 
 using namespace DirectX;
 
@@ -144,24 +141,15 @@ void FGameTerrain::Init(const FJsonObject & anObj)
 
 	FLOG("Terrain made");
 
-	btTriangleMesh* triangleMeshTerrain = new btTriangleMesh();
+	std::vector<FVector3> triangles;
 	for (int i = 0; i < indices.size(); i+=3)
 	{
-		btVector3 posA = btVector3(vertices[indices[i]].position.x, vertices[indices[i]].position.y, vertices[indices[i]].position.z);
-		btVector3 posB = btVector3(vertices[indices[i+1]].position.x, vertices[indices[i+1]].position.y, vertices[indices[i+1]].position.z);
-		btVector3 posC = btVector3(vertices[indices[i+2]].position.x, vertices[indices[i+2]].position.y, vertices[indices[i+2]].position.z);
-		posA += btVector3(myPos.x, myPos.y, myPos.z);
-		posB += btVector3(myPos.x, myPos.y, myPos.z);
-		posC += btVector3(myPos.x, myPos.y, myPos.z);
-		triangleMeshTerrain->addTriangle(posA, posB, posC);
+		triangles.push_back(myPos + FVector3(vertices[indices[i]].position.x, vertices[indices[i]].position.y, vertices[indices[i]].position.z));
+		triangles.push_back(myPos + FVector3(vertices[indices[i + 1]].position.x, vertices[indices[i + 1]].position.y, vertices[indices[i + 1]].position.z));
+		triangles.push_back(myPos + FVector3(vertices[indices[i + 2]].position.x, vertices[indices[i + 2]].position.y, vertices[indices[i + 2]].position.z));
 	}
 
-	// add terrain collision mesh
-	btCollisionShape* myColShape = new btBvhTriangleMeshShape(triangleMeshTerrain, true);
-	btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-	btRigidBody::btRigidBodyConstructionInfo rigidBodyConstructionInfo(0.0f, motionState, myColShape, btVector3(0, 0, 0));
-	myPhysicsObject = new btRigidBody(rigidBodyConstructionInfo);
-	FGame::GetInstance()->GetPhysics()->AddTerrain(myPhysicsObject, myColShape, this);
+	FGame::GetInstance()->GetPhysics()->AddTerrain(triangles, this);
 
 	// send mesh to Recast	
 	FInputMesh mesh;

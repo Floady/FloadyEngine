@@ -89,9 +89,9 @@ void FPlacingManager::SetPlacable(bool anIsCube, FVector3 aScale, FDelegate2<voi
 	ClearPlacable();
 
 	if(anIsCube)
-		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Box);
+		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBoxInstanced::PrimitiveType::Box);
 	else
-		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBox::PrimitiveType::Sphere);
+		myObject = new FPrimitiveBoxColorOverride(FD3d12Renderer::GetInstance(), FVector3(0, 0, 0), aScale, FPrimitiveBoxInstanced::PrimitiveType::Sphere);
 
 	myObject->SetShader("placeable_deferred.hlsl");
 	if(aTex)

@@ -1,15 +1,15 @@
 #pragma once
-#include "FPrimitiveBox.h"
+#include "FPrimitiveBoxInstanced.h"
 
 struct ID3D12Resource;
 class FD3d12Renderer;
 
-class FPrimitiveBoxColorOverride : public FPrimitiveBox
+class FPrimitiveBoxColorOverride : public FPrimitiveBoxInstanced
 {
 public:
 	void Init() override;
 	void SetColor(FVector3 aColor);
-	FPrimitiveBoxColorOverride(FD3d12Renderer* aRenderer, FVector3 aPos, FVector3 aScale, FPrimitiveBox::PrimitiveType aType);
+	FPrimitiveBoxColorOverride(FD3d12Renderer* aRenderer, FVector3 aPos, FVector3 aScale, FPrimitiveBoxInstanced::PrimitiveType aType);
 	~FPrimitiveBoxColorOverride();
 
 protected:

@@ -4,7 +4,6 @@
 #include "FGUIManager.h"
 
 class FScreenQuad;
-class btRigidBody;
 class FDynamicText;
 
 class FGUIButton : public FGUIObject

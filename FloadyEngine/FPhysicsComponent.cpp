@@ -1,8 +1,9 @@
 #include "FPhysicsComponent.h"
 #include "FGame.h"
-#include "FBulletPhysics.h"
 #include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FUtilities.h"
+#include "FPhysicsWorld.h"
+#include "FPhysicsObject.h"
 
 
 REGISTER_GAMEENTITYCOMPONENT2(FPhysicsComponent);
@@ -47,7 +48,7 @@ void FPhysicsComponent::Init(const FJsonObject & anObj)
 	bool canMove = anObj.GetItem("canMove").GetAs<bool>();
 
 	int type = anObj.GetItem("type").GetAs<int>();
-	FBulletPhysics::CollisionPrimitiveType primType = type ? FBulletPhysics::CollisionPrimitiveType::Sphere : FBulletPhysics::CollisionPrimitiveType::Box;
+	FPhysicsWorld::CollisionPrimitiveType primType = type ? FPhysicsWorld::CollisionPrimitiveType::Sphere : FPhysicsWorld::CollisionPrimitiveType::Box;
 
 	myPhysicsObject = FGame::GetInstance()->GetPhysics()->AddObject(mass, pos + myOffset, myScale, primType, isNavBlocking, myOwner);
 }
@@ -62,67 +63,36 @@ void FPhysicsComponent::PostPhysicsUpdate()
 
 FVector3 FPhysicsComponent::GetPos()
 {
-	btVector3 boxPhysPos = myPhysicsObject->getWorldTransform().getOrigin();
-	float m[16];
-	myPhysicsObject->getWorldTransform().getOpenGLMatrix(m);
-
-	// kill translation - we store it seperately
-	m[12] = 0;
-	m[13] = 0;
-	m[14] = 0;
-
-	//myGraphicsObject->SetRotMatrix(m);
-	return FVector3(boxPhysPos.getX(), boxPhysPos.getY(), boxPhysPos.getZ());
+	return myPhysicsObject->GetPos();
 }
 
 void FPhysicsComponent::GetTransform(float* aMatrix)
 {
-	btQuaternion rot = myPhysicsObject->getWorldTransform().getRotation();
-	btMatrix3x3 mat(rot);
-	mat = mat.inverse();
-	int idx = 0;
-	for (int i = 0; i < 3; i++)
-	{
-		btVector3 row = mat.getRow(i);
-		aMatrix[idx + 0] = row.x();
-		aMatrix[idx + 1] = row.y();
-		aMatrix[idx + 2] = row.z();
-		aMatrix[idx + 3] = 0.0f;
-		
-		idx += 4;
-	}
-	aMatrix[idx + 0] = 0.0f;
-	aMatrix[idx + 1] = 0.0f;
-	aMatrix[idx + 2] = 0.0f;
-	aMatrix[idx + 3] = 1.0f;
+	myPhysicsObject->GetTransform(aMatrix);
 }
 
 void FPhysicsComponent::SetYaw(float aYaw)
 {
-	btQuaternion rot(btVector3(0, 1, 0), aYaw);
-	myPhysicsObject->getWorldTransform().setRotation(rot);
+	myPhysicsObject->SetYaw(aYaw);
 }
 
 void FPhysicsComponent::Yaw(float aYaw)
 {
-	btQuaternion rot(btVector3(0, 1, 0), aYaw);
-	myPhysicsObject->getWorldTransform().setRotation(myPhysicsObject->getWorldTransform().getRotation() * rot);
+	myPhysicsObject->Yaw(aYaw);
 }
 
 void FPhysicsComponent::SetRoll(float aRoll)
 {
-	btQuaternion rot(btVector3(1, 0, 0), aRoll);
-	myPhysicsObject->getWorldTransform().setRotation(rot);
+	myPhysicsObject->SetRoll(aRoll);
 }
 
 void FPhysicsComponent::Roll(float aRoll)
 {
-	btQuaternion rot(btVector3(1, 0, 0), aRoll);
-	myPhysicsObject->getWorldTransform().setRotation(myPhysicsObject->getWorldTransform().getRotation() * rot);
+	myPhysicsObject->Roll(aRoll);
 }
 
 void FPhysicsComponent::SetPos(const FVector3 & aPos)
 {
 	if (myPhysicsObject)
-		myPhysicsObject->getWorldTransform().setOrigin(btVector3(aPos.x + myOffset.x, aPos.y + myOffset.y, aPos.z + myOffset.z));
+		myPhysicsObject->SetPos(myOffset + aPos);
 }

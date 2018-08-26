@@ -1,5 +1,4 @@
 #pragma once
-#include "LinearMath/btAlignedObjectArray.h"
 #include <vector>
 #include "FVector3.h"
 
@@ -9,13 +8,15 @@ class btCollisionDispatcher;
 class btConstraintSolver;
 class btDefaultCollisionConfiguration;
 class btCollisionShape;
-class btRigidBody;
-class FDebugDrawer;
-class FD3d12Renderer;
-class FGameEntity;
+class FPhysicsObject;
+class FIPhysicsDebugDrawer;
 class FPhysicsDebugDrawer;
+class btRigidBody;
 
-class FBulletPhysics
+template <class T>
+class btAlignedObjectArray;
+
+class FPhysicsWorld
 {
 public:
 
@@ -39,23 +40,23 @@ public:
 		Sphere
 	};
 
-	FBulletPhysics();
-	~FBulletPhysics();
-	void Init(FD3d12Renderer* aRendererForDebug);
+	FPhysicsWorld();
+	~FPhysicsWorld();
+	void Init(FIPhysicsDebugDrawer* aRendererForDebug = nullptr);
 	void Update(double aDeltaTime);
 	void SetDebugDrawEnabled(bool anEnabled);
-	btRigidBody* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false, FGameEntity* anEntity = nullptr);
-	void AddTerrain(btRigidBody* aBody, btCollisionShape* aCollisionShape, FGameEntity* anOwner);
-	void RemoveObject(btRigidBody* aBody);
+	FPhysicsObject* AddObject(float aMass, FVector3 aPos, FVector3 aScale, CollisionPrimitiveType aPrim = CollisionPrimitiveType::Default, bool aShouldBlockNav = false, void* anEntity = nullptr);
+	void AddTerrain(const std::vector<FVector3>& aTriangleList, void* anOwner);
+	void RemoveObject(FPhysicsObject* aBody);
 	FPhysicsDebugDrawer* GetDebugDrawer() { return myDebugDrawer; }
-	FGameEntity* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);
+	void* GetFirstEntityHit(FVector3 aStart, FVector3 anEnd);
 	void SetPaused(bool aPause);
 	void TogglePaused() { myEnabled = !myEnabled; }
 	bool RayCast(FVector3 aStart, FVector3 anEnd, RayCastHit& outHitResult);
 	bool HasNewNavBlockers() const { return myHasNewNavBlockers; }
 	void ResetHasNewNavBlockers() { myHasNewNavBlockers = false; }
 
-	std::vector<FBulletPhysics::AABB> GetAABBs();
+	std::vector<FPhysicsWorld::AABB> GetAABBs();
 private:
 	btBroadphaseInterface*	m_broadphase;
 	btCollisionDispatcher*	m_dispatcher;
@@ -63,16 +64,16 @@ private:
 	btDefaultCollisionConfiguration* m_collisionConfiguration;
 	btDiscreteDynamicsWorld* m_dynamicsWorld;
 	FPhysicsDebugDrawer* myDebugDrawer;
-	btAlignedObjectArray<btCollisionShape*>	m_collisionShapes;
+	btAlignedObjectArray<btCollisionShape*>*	m_collisionShapes;
 	bool myEnabled;
 	struct FPhysicsBody
 	{
-		btRigidBody* myRigidBody;
+		FPhysicsObject* myRigidBody; // mem leaks?
 		bool myShouldBlockNavMesh; // should this be generic flags?
-		FGameEntity* myGameEntity;
+		void* myUserData; // myGameEntity
 		btCollisionShape* myCollisionEntity;
 	};
-	btAlignedObjectArray<FPhysicsBody>	myRigidBodies;
+	btAlignedObjectArray<FPhysicsBody>*	myRigidBodies;
 	bool myDebugDrawEnabled;
 	bool myHasNewNavBlockers;
 };

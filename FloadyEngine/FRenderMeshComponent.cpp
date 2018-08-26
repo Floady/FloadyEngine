@@ -3,7 +3,6 @@
 #include "FDebugDrawer.h"
 #include "FCamera.h"
 #include "FLightManager.h"
-#include "FPrimitiveBox.h"
 #include "FGameEntity.h"
 #include "FProfiler.h"
 #include "FUtilities.h"

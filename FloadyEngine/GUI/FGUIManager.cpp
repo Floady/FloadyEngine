@@ -1,9 +1,6 @@
 #include "..\FGame.h"
 #include "..\FD3d12Input.h"
 #include "..\FD3d12Renderer.h"
-#include "..\FPrimitiveBox.h"
-#include "..\FBulletPhysics.h"
-#include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FGUIManager.h"
 #include "..\FScreenQuad.h"
 

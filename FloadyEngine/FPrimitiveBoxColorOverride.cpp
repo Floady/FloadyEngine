@@ -16,7 +16,6 @@
 
 void FPrimitiveBoxColorOverride::Init()
 {
-	//FPrimitiveBox::Init();
 	HRESULT hr;
 	{
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -78,7 +77,7 @@ void FPrimitiveBoxColorOverride::Init()
 
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBox, &FPrimitiveBox::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBoxInstanced, &FPrimitiveBoxInstanced::SetShader>(this));
 
 	// Create vertex + index buffer
 
@@ -140,8 +139,8 @@ void FPrimitiveBoxColorOverride::SetColor(FVector3 aColor)
 	memcpy(myConstantBufferPtr2, &constData[0], sizeof(float) * 4);
 }
 
-FPrimitiveBoxColorOverride::FPrimitiveBoxColorOverride(FD3d12Renderer* aRenderer, FVector3 aPos, FVector3 aScale, FPrimitiveBox::PrimitiveType aType)
-	: FPrimitiveBox(aRenderer, aPos, aScale, aType)
+FPrimitiveBoxColorOverride::FPrimitiveBoxColorOverride(FD3d12Renderer* aRenderer, FVector3 aPos, FVector3 aScale, FPrimitiveBoxInstanced::PrimitiveType aType)
+	: FPrimitiveBoxInstanced(aRenderer, aPos, aScale, aType)
 {
 	myConstantBufferPtr2 = nullptr;
 
