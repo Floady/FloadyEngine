@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <map>
-#include <DirectXMath.h>
 #include "FPrimitiveBoxInstanced.h"
 
 class FPrimitiveBoxInstanced;

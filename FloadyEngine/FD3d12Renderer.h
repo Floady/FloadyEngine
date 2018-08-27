@@ -1,6 +1,5 @@
 #pragma once
 #include <d3d12.h>
-#include <dxgi1_4.h>
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 
@@ -10,6 +9,8 @@ class FCamera;
 class FDebugDrawer;
 class FPostProcessEffect;
 class FJobSystem;
+
+struct IDXGISwapChain3;
 
 class FD3d12Renderer
 {

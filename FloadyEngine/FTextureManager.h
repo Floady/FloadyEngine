@@ -1,9 +1,7 @@
 #pragma once
 
-#include <png.h>
 #include <Windows.h>
 #include <map>
-#include <vector>
 
 #include "FD3d12Renderer.h"
 

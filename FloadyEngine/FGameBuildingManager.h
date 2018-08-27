@@ -1,9 +1,8 @@
 #pragma once
-#include <vector>
-#include <tchar.h>
-#include <stdio.h>
-#include "FGameBuilding.h"
+#include <string>
 #include <map>
+
+class FGameBuildingBlueprint;
 
 class FGameBuildingManager
 {

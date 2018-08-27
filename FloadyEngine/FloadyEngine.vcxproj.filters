@@ -57,9 +57,6 @@
     <ClCompile Include="FD3d12Input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FD3d12Triangle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FD3d12Quad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -226,9 +223,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3d12Triangle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="d3dx12.h">

@@ -1,6 +1,5 @@
 #include "FPhysicsComponent.h"
 #include "FGame.h"
-#include "BulletDynamics\Dynamics\btRigidBody.h"
 #include "FUtilities.h"
 #include "FPhysicsWorld.h"
 #include "FPhysicsObject.h"

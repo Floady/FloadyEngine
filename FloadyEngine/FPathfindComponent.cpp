@@ -8,7 +8,7 @@
 
 REGISTER_GAMEENTITYCOMPONENT2(FPathfindComponent);
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 
 FPathfindComponent::FPathfindComponent()
 {

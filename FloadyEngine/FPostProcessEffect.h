@@ -2,8 +2,6 @@
 #include <d3d12.h>
 #include <vector>
 
-#include <d3d12.h>
-#include <dxgi1_4.h>
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 

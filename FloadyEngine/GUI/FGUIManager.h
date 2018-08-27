@@ -1,6 +1,4 @@
 #pragma once
-#include "..\..\FJson\FJsonObject.h"
-#include "..\FDelegate.h"
 #include <vector>
 #include "FVector3.h"
 

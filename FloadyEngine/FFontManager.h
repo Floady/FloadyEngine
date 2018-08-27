@@ -2,8 +2,6 @@
 
 #include <ft2build.h>
 #include <DirectXMath.h>
-#include <dxgi1_4.h>
-#include "d3dx12.h"
 #include <ftglyph.h>
 #include "FD3d12Renderer.h"
 #include <vector>

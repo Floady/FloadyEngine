@@ -1,6 +1,6 @@
 #include "FGameBuildingManager.h"
 #include "FUtilities.h"
-
+#include "FGameBuilding.h"
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>

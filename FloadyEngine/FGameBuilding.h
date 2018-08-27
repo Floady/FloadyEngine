@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 #include "FGameEntity.h"
-#include "FGameEntityFactory.h"
 
 class FJsonObject;
 class FGameBuildingBlueprint;

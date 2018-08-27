@@ -1,4 +1,5 @@
 #include "FTextureManager.h"
+#include <png.h>
 #include <windows.h>
 #include <tchar.h>
 #include <stdlib.h>

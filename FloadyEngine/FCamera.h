@@ -3,7 +3,6 @@
 #include "FVector3.h"
 #include <DirectXMath.h>
 
-
 struct FPlane
 {
 	FVector3 myNormal;
