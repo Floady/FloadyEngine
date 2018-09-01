@@ -63,9 +63,6 @@
     <ClCompile Include="FFontRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FMatrix.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -232,9 +229,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FFontRenderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FMatrix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FCamera.h">

@@ -352,7 +352,9 @@ bool FGame::Update(double aDeltaTime)
 					{
 						FVector3 pickPosNear = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 0.0f));
 						FVector3 pickPosFar = myPicker->UnProject(FVector3(windowMouseX, windowMouseY, 300.0f));
-						FGameEntity* entity = static_cast<FGameEntity*>(myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 300.0f))->GetOwnerEntity();
+						FGameEntity* hitEnt = static_cast<FGameEntity*>(myPhysics->GetFirstEntityHit(pickPosNear, pickPosNear + (pickPosFar - pickPosNear).Normalized() * 300.0f));
+						FGameEntity* entity = hitEnt ? hitEnt->GetOwnerEntity() : nullptr;
+
 						if (entity != myPickedEntity)
 						{
 							myHighlightManager->RemoveSelectableObject(myPickedEntity);

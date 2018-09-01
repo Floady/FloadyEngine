@@ -3,12 +3,10 @@
 #include "stdio.h"
 #include "windows.h"
 #include "math.h"
+#include "FMath.h"
 #include <emmintrin.h>
 #include <xmmintrin.h>
 #include <smmintrin.h>
-
-#define PI				3.14159265358979323846264338327950288419716939937510582097494459072381640628620899862803482534211706798f
-#define DEGTORAD		PI / 180.0f
 
 #define NONVECTORIZED 0
 

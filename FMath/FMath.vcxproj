@@ -19,9 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\FMath.h" />
+    <ClInclude Include="include\FMatrix.h" />
+    <ClInclude Include="include\FVector2.h" />
     <ClInclude Include="Include\FVector3.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\FMatrix.cpp" />
     <ClCompile Include="source\FVector3.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

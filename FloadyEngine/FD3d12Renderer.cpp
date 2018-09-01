@@ -1,7 +1,6 @@
 #include <dxgi1_4.h>
 #include "FD3d12Renderer.h"
 #include "FD3d12Quad.h"
-#include "FFontRenderer.h"
 #include "FCamera.h"
 #include "FShaderManager.h"
 #include "FFontManager.h"
@@ -970,6 +969,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	// Init resources for managers, they record in cmd list and execute alltogether
 	{
 		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.-,", this, m_commandList);
+		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 20, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.-,", this, m_commandList);
 
 		FPrimitiveGeometry::InitD3DResources(m_device, m_commandList);
 

@@ -5,6 +5,7 @@
 #include "FCamera.h"
 #include <vector>
 
+#pragma optimize("", off)
 
 using namespace DirectX;
 
@@ -69,14 +70,6 @@ std::vector<UINT8> FFontManager::GenerateTextureData(const FT_Face& aFace, const
 
 FFontManager::FFontManager()
 {
-	myFontMap[FFontManager::FFONT_TYPE::Arial] = "C:/Windows/Fonts/arial.ttf";
-
-	FT_Error error = FT_Init_FreeType(&myLibrary);
-
-	for (size_t i = 0; i < FFontManager::FFONT_TYPE::Count; i++)
-	{
-		error = FT_New_Face(myLibrary, myFontMap[i], 0, &myFontFaces[i]);
-	}
 }
 
 FFontManager::~FFontManager()
@@ -95,7 +88,7 @@ const FFontManager::FFont& FFontManager::GetFont(FFontManager::FFONT_TYPE aType,
 {
 	for (size_t i = 0; i < myFonts.size(); i++)
 	{
-		if (myFonts[i].myType == aType && myFonts[i].mySize == aSize)
+		if (myFonts[i].myType == aType && myFonts[i].myTexData.mySize == aSize)
 		{
 			return myFonts[i];
 		}
@@ -106,72 +99,25 @@ const FFontManager::FFont& FFontManager::GetFont(FFontManager::FFONT_TYPE aType,
 
 void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const char * aSupportedChars, FD3d12Renderer * aManager, ID3D12GraphicsCommandList* aCommandList)
 {
-	FFont newFont;
-	newFont.myType = aType;
-	newFont.mySize = aSize;
-	newFont.myCharacters = aSupportedChars;
+	//TEST todo
+	FFont2* a = new FFont2();
+	a->Load("C:/Windows/Fonts/arial.ttf");
 
-	unsigned int TextureWidth = 0;
-	unsigned int TextureHeight = 0;
-	int wordLength = static_cast<int>(strlen(aSupportedChars));
-	int largestBearing = 0;
-	int texWidth = 0;
-	int texHeight = 0;
-
-	// setup uv buffer
-	unsigned int allSupportedLength = static_cast<unsigned int>(strlen(aSupportedChars));
-	newFont.myUVs.resize(allSupportedLength + 1);
-
-	newFont.myUVs[0].x = 0;
-	newFont.myUVs[0].y = 0;
-
-	FT_Error error;
-
-	error = FT_Set_Char_Size(myFontFaces[aType], 0, aSize * 32, 1200, 1080);
-
-	// calculate buffer dimensions
-	for (unsigned int i = 0; i < allSupportedLength; i++)
-	{
-		error = FT_Load_Char(myFontFaces[aType], aSupportedChars[i], 0);
-		const char* errorString = getErrorMessage(error);
-		
-		int glyphWidth = (myFontFaces[aType]->glyph->advance.x >> 6) - (myFontFaces[aType]->glyph)->bitmap_left;
-		texWidth += glyphWidth;
-		int glyphHeight = (myFontFaces[aType]->glyph->metrics.height >> 6);
-
-		largestBearing = max(largestBearing, myFontFaces[aType]->glyph->metrics.horiBearingY >> 6);
-		texHeight = max(texHeight, glyphHeight);
-
-		newFont.myUVs[i + 1].x = static_cast<float>(texWidth);
-		newFont.myUVs[i + 1].y = static_cast<float>(glyphHeight);
-	}
-
-	TextureWidth = texWidth;
-	TextureHeight = texHeight + 1; // some sizes require + 1 here in the past.. 
-
-	// scale UVs
-	for (unsigned int i = 0; i < allSupportedLength + 1; i++)
-	{
-		newFont.myUVs[i].x /= TextureWidth;
-		newFont.myUVs[i].y /= TextureHeight;
-	}
-
-	newFont.myHeight = TextureHeight;
-	newFont.myWidth = TextureWidth;
-	
-	std::vector<UINT8> texture = GenerateTextureData(myFontFaces[aType], aSupportedChars, newFont.myWidth, newFont.myHeight, wordLength, largestBearing);
+	FFont2::TextureData texture = a->GetTextureData(aSize, aSupportedChars);
 	
 	// Describe and create a Texture2D.
 	D3D12_RESOURCE_DESC textureDesc = {};
 	textureDesc.MipLevels = 1;
 	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	textureDesc.Width = TextureWidth;
-	textureDesc.Height = TextureHeight;
+	textureDesc.Width = texture.myTextureWidth;
+	textureDesc.Height = texture.myTextureHeight;
 	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	textureDesc.DepthOrArraySize = 1;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	ID3D12Resource* renderTex = nullptr;
 
 	HRESULT hr = aManager->GetDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -179,10 +125,10 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 		&textureDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
-		IID_PPV_ARGS(&newFont.myTexture));
+		IID_PPV_ARGS(&renderTex));
 
 	// these indices are also wrong -> need to be global for upload heap? get from device i guess
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(newFont.myTexture, 0, 1);
+	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(renderTex, 0, 1);
 
 	ID3D12Resource* textureUploadHeap;
 
@@ -197,13 +143,13 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 
 
 	D3D12_SUBRESOURCE_DATA textureData = {};
-	textureData.pData = &texture[0];
-	textureData.RowPitch = TextureWidth * TexturePixelSize;
-	textureData.SlicePitch = textureData.RowPitch * TextureHeight;
+	textureData.pData = &texture.myPixels[0];
+	textureData.RowPitch = texture.myTextureWidth * TexturePixelSize;
+	textureData.SlicePitch = textureData.RowPitch * texture.myTextureHeight;
 
-	UpdateSubresources(aCommandList, newFont.myTexture, textureUploadHeap, 0, 0, 1, &textureData);
+	UpdateSubresources(aCommandList, renderTex, textureUploadHeap, 0, 0, 1, &textureData);
 
-	aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(newFont.myTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	aCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTex, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -217,19 +163,22 @@ void FFontManager::InitFont(FFontManager::FFONT_TYPE aType, int aSize, const cha
 
 	UINT myHeapOffsetText = aManager->GetNextOffset();
 	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(aManager->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-	aManager->GetDevice()->CreateShaderResourceView(newFont.myTexture, &srvDesc, srvHandle0);
+	aManager->GetDevice()->CreateShaderResourceView(renderTex, &srvDesc, srvHandle0);
 
-	myFonts.push_back(newFont);
+	FFont newFont2;
+	newFont2.myTexData = texture;
+	newFont2.myFontData = a;
+	newFont2.myType = aType;
+	newFont2.myTexture = renderTex;
+
+	myFonts.push_back(newFont2);
 }
 
 static FFontManager::FWordInfo wordInfo;
 
 const FFontManager::FWordInfo& FFontManager::GetUVsForWord(const FFontManager::FFont& aFont, const char* aWord, float& aWidthOut, float& aHeightOut, bool aUseKerning)
 {
-	unsigned int TextureWidth = 0;
-	unsigned int TextureHeight = 0;
 	size_t wordLength = strlen(aWord);
-	int largestBearing = 0;
 	int texWidth = 0;
 	int texHeight = 0;
 
@@ -244,29 +193,29 @@ const FFontManager::FWordInfo& FFontManager::GetUVsForWord(const FFontManager::F
 	FT_UInt prev;
 	FT_Error error;
 
-	FT_Bool hasKerning = FT_HAS_KERNING(myFontFaces[aFont.myType]);
+	FT_Bool hasKerning = FT_HAS_KERNING(aFont.myFontData->myFontFace);
 		
 	// calculate kerning values and string dimension
 	for (int i = 0; i < wordLength; i++)
 	{
-		error = FT_Load_Char(myFontFaces[aFont.myType], aWord[i], 0);
+		error = FT_Load_Char(aFont.myFontData->myFontFace, aWord[i], 0);
 		const char* errorString = getErrorMessage(error);
 		
-		int glyphWidth = (myFontFaces[aFont.myType]->glyph->advance.x >> 6) - (myFontFaces[aFont.myType]->glyph)->bitmap_left;
+		int glyphWidth = (aFont.myFontData->myFontFace->glyph->advance.x >> 6) - (aFont.myFontData->myFontFace->glyph)->bitmap_left;
 
 		// kerning
 		if (hasKerning && aUseKerning && i > 0)
 		{
-			prev = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i - 1]);
-			FT_UInt next = FT_Get_Char_Index(myFontFaces[aFont.myType], aWord[i]);
+			prev = FT_Get_Char_Index(aFont.myFontData->myFontFace, aWord[i - 1]);
+			FT_UInt next = FT_Get_Char_Index(aFont.myFontData->myFontFace, aWord[i]);
 			FT_Vector delta;
-			FT_Error a = FT_Get_Kerning(myFontFaces[aFont.myType], prev, next, FT_KERNING_DEFAULT, &delta);
+			FT_Error a = FT_Get_Kerning(aFont.myFontData->myFontFace, prev, next, FT_KERNING_DEFAULT, &delta);
 			texWidth += delta.x >> 6;
 			wordInfo.myKerningOffset[i - 1] = static_cast<float>((delta.x >> 6));
 		}
 
 		texWidth += glyphWidth;
-		int glyphHeight = (myFontFaces[aFont.myType]->glyph->metrics.height >> 6);
+		int glyphHeight = (aFont.myFontData->myFontFace->glyph->metrics.height >> 6);
 		texHeight = max(texHeight, glyphHeight);
 		
 		wordInfo.myDimensions[i].x = static_cast<float>(glyphWidth);
@@ -283,19 +232,19 @@ const FFontManager::FWordInfo& FFontManager::GetUVsForWord(const FFontManager::F
 		int charIdx = 0; // should be an invalid char so you can see its missing
 
 		// lookup char idx in all char set
-		for (int j = 0; j < strlen(aFont.myCharacters); j++)
+		for (int j = 0; j < strlen(aFont.myTexData.myCharacters); j++)
 		{
-			if (aFont.myCharacters[j] == aWord[i])
+			if (aFont.myTexData.myCharacters[j] == aWord[i])
 			{
 				charIdx = j;
 				break;
 			}
 		}
 
-		wordInfo.myUVTL[i].x = aFont.myUVs[charIdx].x;
-		wordInfo.myUVTL[i].y = aFont.myUVs[charIdx].y;
-		wordInfo.myUVBR[i].x = aFont.myUVs[charIdx + 1].x;
-		wordInfo.myUVBR[i].y = aFont.myUVs[charIdx + 1].y;
+		wordInfo.myUVTL[i].x = aFont.myTexData.myUVs[charIdx].x;
+		wordInfo.myUVTL[i].y = aFont.myTexData.myUVs[charIdx].y;
+		wordInfo.myUVBR[i].x = aFont.myTexData.myUVs[charIdx + 1].x;
+		wordInfo.myUVBR[i].y = aFont.myTexData.myUVs[charIdx + 1].y;
 	}
 
 	return wordInfo;

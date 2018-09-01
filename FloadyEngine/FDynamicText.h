@@ -4,6 +4,7 @@
 #include "FVector3.h"
 #include "FPrimitiveGeometry.h"
 #include "FRenderableObject.h"
+#include "FFont2.h"
 
 class FCamera;
 class FD3d12Renderer;
@@ -64,5 +65,9 @@ private:
 	float myHeight;
 	
 	FD3d12Renderer::GPUMutex myMutex;
+
+
+	FFont2* myFont;
+	FFont2::TextureData myTexData;
 };
 
