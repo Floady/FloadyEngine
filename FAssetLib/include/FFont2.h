@@ -27,7 +27,7 @@ public:
 			int myTexHeight;
 		};
 
-		FWordInfo GetUVsForWord(const char* aWord);
+		FWordInfo GetUVsForWord(const char* aWord) const;
 
 		std::vector<UINT8> myPixels;
 		std::vector<FVector2> myUVs;

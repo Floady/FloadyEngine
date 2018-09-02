@@ -5,6 +5,7 @@
 #include <vector>
 #include "FPrimitiveGeometry.h"
 #include "fobjloader.h"
+#include "F3DModel.h"
 
 class FJobSystem;
 
@@ -49,6 +50,7 @@ public:
 		std::string myFileName;
 		LoadState myLoadState;
 		FDelegate2<void(const FMeshManager::FMeshObject&)> myCallBack;
+		F3DModel myModel;
 	};
 
 	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FMeshManager::FMeshObject&)> aCB = FDelegate2<void(const FMeshManager::FMeshObject&)>::FDelegate2());

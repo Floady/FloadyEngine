@@ -75,7 +75,6 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 		// assume its a model
 		myPool = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), FVector3(10, 0, 10), FVector3(1, 1, 1), FPrimitiveBoxInstanced::PrimitiveType::Sphere, myNrOfInstancesPerPool);
 		FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myObjMesh;
-		FObjLoader objLoader;
 		std::string path = "models/";
 		path.append(aMeshName);
 

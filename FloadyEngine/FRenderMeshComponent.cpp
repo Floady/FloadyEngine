@@ -139,7 +139,6 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		{
 			myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBoxInstanced::PrimitiveType::Sphere, 1);
 			FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
-			FObjLoader objLoader;
 			string path = "models/";
 			path.append(myModelInstanceName);
 

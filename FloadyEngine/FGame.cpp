@@ -28,7 +28,6 @@
 #include "FGameLevel.h"
 #include "FProfiler.h"
 #include "FNavMeshManagerRecast.h"
-#include "FObjLoader.h"
 #include <cmath>
 #include <cstdlib>
 #include "FPathfindComponent.h"

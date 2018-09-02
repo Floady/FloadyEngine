@@ -3,8 +3,6 @@
 #include <ftglyph.h>
 #include <vector>
 
-#pragma optimize("", off)
-
 class FFont2_FreeTypeLoader
 {
 public:
@@ -196,7 +194,7 @@ FFont2::TextureData FFont2::GetTextureData(int aSize, const char * aSupportedCha
 	return texData;
 }
 
-FFont2::TextureData::FWordInfo FFont2::TextureData::GetUVsForWord(const char * aWord)
+FFont2::TextureData::FWordInfo FFont2::TextureData::GetUVsForWord(const char * aWord) const
 {
 	size_t wordLength = strlen(aWord);
 	int texWidth = 0;

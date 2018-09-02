@@ -23,12 +23,14 @@
     <ClInclude Include="include\FAsset.h" />
     <ClInclude Include="include\FFont2.h" />
     <ClInclude Include="include\FImage.h" />
+    <ClInclude Include="include\FObjLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\F3DModel.cpp" />
     <ClCompile Include="source\FAsset.cpp" />
     <ClCompile Include="source\FFont2.cpp" />
     <ClCompile Include="source\FImage.cpp" />
+    <ClCompile Include="source\FObjLoader.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A58A3C8F-1891-4566-8F0C-54B398938A44}</ProjectGuid>
@@ -118,17 +120,17 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>include;$(SolutionDir)\FMath\include;$(SolutionDir)\Extern\freetype-2.3.5\include;$(SolutionDir)\Extern\freetype-2.3.5\include\freetype</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;$(SolutionDir)\FMath\include;$(SolutionDir)\Extern\freetype-2.3.5\include;$(SolutionDir)\Extern\freetype-2.3.5\include\freetype;$(SolutionDir)\Extern\FreeImage\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>FMath.lib;freetype27.lib</AdditionalDependencies>
+      <AdditionalDependencies>FMath.lib;freetype27.lib;FreeImage.lib</AdditionalDependencies>
     </Lib>
     <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)\FMath\lib\$(Platform)\$(Configuration);$(SolutionDir)\Extern\freetype-2.3.5\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\FMath\lib\$(Platform)\$(Configuration);$(SolutionDir)\Extern\freetype-2.3.5\lib\x64;$(SolutionDir)\Extern\FreeImage\lib\x64\$(Configuration)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

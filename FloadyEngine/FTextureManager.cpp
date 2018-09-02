@@ -1,5 +1,4 @@
 #include "FTextureManager.h"
-#include <png.h>
 #include <windows.h>
 #include <tchar.h>
 #include <stdlib.h>
@@ -9,8 +8,8 @@
 #include <vector>
 #include <stdio.h>
 #include "FUtilities.h"
-#include "FreeImage.h"
 #include "FProfiler.h"
+#include "FImage.h"
 
 static std::string ourFallbackTextureName = "reserved_fallback.reserved";
 //#pragma optimize("", off)
@@ -90,155 +89,6 @@ UINT8* FTextureManager::GenerateCheckerBoard()
 
 FTextureManager* FTextureManager::ourInstance = nullptr;
 
-int width, height;
-int fi_width, fi_height;
-png_byte color_type;
-png_byte bit_depth;
-png_bytep* row_pointers;
-UINT8* transformedBytes = nullptr;
-UINT8* transformedBytes2 = nullptr;
-void read_png_file(const char *filename) {
-	FILE *fp;
-	
-	fopen_s(&fp, filename, "rb");
-
-	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png) abort();
-
-	png_infop info = png_create_info_struct(png);
-	if (!info) abort();
-
-	if (setjmp(png_jmpbuf(png))) abort();
-
-	png_init_io(png, fp);
-
-	png_read_info(png, info);
-
-	width = png_get_image_width(png, info);
-	height = png_get_image_height(png, info);
-	color_type = png_get_color_type(png, info);
-	bit_depth = png_get_bit_depth(png, info);
-
-	// Read any color_type into 8bit depth, RGBA format.
-	// See http://www.libpng.org/pub/png/libpng-manual.txt
-
-	if (bit_depth == 16)
-		png_set_strip_16(png);
-
-	if (color_type == PNG_COLOR_TYPE_PALETTE)
-		png_set_palette_to_rgb(png);
-
-	// PNG_COLOR_TYPE_GRAY_ALPHA is always 8 or 16bit depth.
-	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-		png_set_expand_gray_1_2_4_to_8(png);
-
-	if (png_get_valid(png, info, PNG_INFO_tRNS))
-		png_set_tRNS_to_alpha(png);
-
-	// These color_type don't have an alpha channel then fill it with 0xff.
-	if (color_type == PNG_COLOR_TYPE_RGB ||
-		color_type == PNG_COLOR_TYPE_GRAY ||
-		color_type == PNG_COLOR_TYPE_PALETTE)
-		png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
-
-	if (color_type == PNG_COLOR_TYPE_GRAY ||
-		color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-		png_set_gray_to_rgb(png);
-
-	png_read_update_info(png, info);
-
-	row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
-	size_t rowcounter = png_get_rowbytes(png, info);
-	for (int y = 0; y < height; y++) {
-		//row_pointers[y] = (png_byte*)malloc(rowcounter);
-		row_pointers[y] = (png_byte*)png_malloc(png, png_get_rowbytes(png, info));
-	}
-
-	png_read_image(png, row_pointers);
-	const int texpixelsize = 4;
-	int texsize = 4096 * 4096 * texpixelsize;// height * width * texpixelsize; //Todo: crash if buffer is smaller
-	transformedBytes = (UINT8*)malloc(texsize);
-
-	for (size_t i = 0; i < height; i++)
-	{
-		png_byte* rowdata = row_pointers[i];
-		for (size_t j = 0; j < width*texpixelsize; j += texpixelsize)
-		{
-			transformedBytes[i * height*texpixelsize + j]		= rowdata[j];
-			transformedBytes[i * height*texpixelsize + j + 1]	= rowdata[j + 1];
-			transformedBytes[i * height*texpixelsize + j + 2]	= rowdata[j + 2];
-			transformedBytes[i * height*texpixelsize + j + 3]	= rowdata[j + 3];
-		}
-	}
-
-	fclose(fp);
-}
-
-
-bool LoadTexture(const char* filename)
-{
-	//image format
-	FREE_IMAGE_FORMAT fif = FIF_UNKNOWN;
-	//pointer to the image, once loaded
-	FIBITMAP *dib(0);
-	//pointer to the image data
-	BYTE* bits = 0;
-
-	//image width and height
-	unsigned int width(0), height(0);
-
-	//check the file signature and deduce its format
-	fif = FreeImage_GetFileType(filename, 0);
-	//if still unknown, try to guess the file format from the file extension
-	if (fif == FIF_UNKNOWN)
-		fif = FreeImage_GetFIFFromFilename(filename);
-	//if still unkown, return failure
-	if (fif == FIF_UNKNOWN)
-		return false;
-
-	//check that the plugin has reading capabilities and load the file
-	if (FreeImage_FIFSupportsReading(fif))
-		dib = FreeImage_Load(fif, filename);
-	//if the image failed to load, return failure
-	if (!dib)
-		return false;
-
-	//retrieve the image data
-	bits = FreeImage_GetBits(dib);
-	//get the image width and height
-	width = FreeImage_GetWidth(dib);
-	height = FreeImage_GetHeight(dib);
-	//if this somehow one of these failed (they shouldn't), return failure
-	if ((bits == 0) || (width == 0) || (height == 0))
-		return false;
-
-	// make tex?
-	const int texpixelsize = 4;
-	int texsize = width * height * 4;
-	transformedBytes2 = (UINT8*)malloc(texsize);
-	fi_width = width;
-	fi_height = height;
-
-	for (size_t j = 0; j < height; j++)
-	{
-		for (size_t i = 0; i < width; i++)
-		{
-			tagRGBQUAD val;
-			FreeImage_GetPixelColor(dib, i, (height-j), &val);
-			transformedBytes2[(j * width + i)*texpixelsize] = val.rgbRed;
-			transformedBytes2[(j * width + i)*texpixelsize + 1] = val.rgbGreen;
-			transformedBytes2[(j * width + i)*texpixelsize + 2] = val.rgbBlue;
-			transformedBytes2[(j * width + i)*texpixelsize + 3] = 255;
-		}
-	}
-
-	//Free FreeImage's copy of the data
-	FreeImage_Unload(dib);
-
-	//return success
-	return true;
-}
-
 void FTextureManager::ReloadTextures()
 {
 	HANDLE hFind;
@@ -264,27 +114,17 @@ void FTextureManager::ReloadTextures()
 				std::string cStrFilename = ConvertFromUtf16ToUtf8(mywstring);
 				std::string cStrFilenameConcat = ConvertFromUtf16ToUtf8(concatted_stdstr);
 
-				if(true)
 				{
+					FImage* image = new FImage();
 					{
 					//	FPROFILE_FUNCTION("FAssetImg Load");
-
-						if (!LoadTexture(cStrFilenameConcat.c_str()))
-							FLOG("Failed loading: %ws", data.cFileName);
+						image->Load(cStrFilenameConcat.c_str());
 					}
-					myTextures[cStrFilename].myWidth = fi_width;
-					myTextures[cStrFilename].myHeight = fi_height;
-					myTextures[cStrFilename].myRawPixelData = transformedBytes2;
-//					FLOG("Taking load data from FreeImage for: %ws", data.cFileName);
-				}
-				else
-				{
-					read_png_file(cStrFilenameConcat.c_str());
 
-					myTextures[cStrFilename].myWidth = width;
-					myTextures[cStrFilename].myHeight = height;
-					myTextures[cStrFilename].myRawPixelData = transformedBytes;
-//					FLOG("Taking load data from libPNG straight for: %ws", data.cFileName);
+					myTextures[cStrFilename].myWidth = image->GetWidth();
+					myTextures[cStrFilename].myHeight = image->GetHeight();
+					myTextures[cStrFilename].myRawPixelData = image->GetPixelData();
+//					FLOG("Taking load data from FreeImage for: %ws", data.cFileName);
 				}
 
 				myTextures[cStrFilename].myD3DResource = nullptr;	// will be filled later (init with device) this way you can pre-empt png loading while device is being made
@@ -327,50 +167,6 @@ ID3D12Resource * FTextureManager::GetTextureD3D(const char * aTextureName) const
 	return GetTextureD3D(std::string(aTextureName));
 }
 
-void write_png_file(char *filename) 
-{
-	FILE *fp;
-	fopen_s(&fp, filename, "wb");
-	if (!fp) abort();
-
-	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png) abort();
-
-	png_infop info = png_create_info_struct(png);
-	if (!info) abort();
-
-	if (setjmp(png_jmpbuf(png))) abort();
-
-	png_init_io(png, fp);
-
-	// Output is 8bit depth, RGBA format.
-	png_set_IHDR(
-		png,
-		info,
-		width, height,
-		8,
-		PNG_COLOR_TYPE_RGBA,
-		PNG_INTERLACE_NONE,
-		PNG_COMPRESSION_TYPE_DEFAULT,
-		PNG_FILTER_TYPE_DEFAULT
-	);
-	png_write_info(png, info);
-
-	// To remove the alpha channel for PNG_COLOR_TYPE_RGB format,
-	// Use png_set_filler().
-	//png_set_filler(png, 0, PNG_FILLER_AFTER);
-
-	png_write_image(png, row_pointers);
-	png_write_end(png, NULL);
-
-	for (int y = 0; y < height; y++) {
-		free(row_pointers[y]);
-	}
-	free(row_pointers);
-
-	fclose(fp);
-}
-
 FTextureManager::FTextureManager()
 {
 //	HANDLE hFind;
@@ -383,7 +179,6 @@ FTextureManager::FTextureManager()
 	myTextures[ourFallbackTextureName].myD3DResource = nullptr;
 	
 	myInitializedD3D = false;
-	FreeImage_Initialise();
 
 	myTextureMutex.Init();
 }

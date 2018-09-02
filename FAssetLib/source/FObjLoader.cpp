@@ -3,7 +3,6 @@
 //
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "FObjLoader.h"
-#include "FPrimitiveGeometry.h"
 
 #include <cassert>
 #include <cstdio>
@@ -30,8 +29,7 @@ extern "C" {
 #endif
 #endif
 
-#include "FUtilities.h"
-
+#define FLOG (void)
 
 class timerutil {
 public:

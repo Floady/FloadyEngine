@@ -7,6 +7,9 @@
 #include <unordered_map>
 #include "FJobSystem.h"
 #include "FUtilities.h"
+#include "F3DModel.h"
+
+#pragma optimize("", off)
 
 void hash_combine23(size_t &seed, size_t hash)
 {
@@ -158,6 +161,9 @@ void FMeshManager::LoadMeshObj(const std::string & aPath)
 	std::string path = "";
 	path.append(model);
 	objLoader.LoadObj(path.c_str(), m, "models/", true);
+
+	//F3DModel* testObj = new F3DModel();
+	loadMeshObj.myModel.Load(path.c_str());
 
 	std::unordered_map<FPrimitiveGeometry::Vertex2, uint32_t> uniqueVertices = {};
 

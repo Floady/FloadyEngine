@@ -60,9 +60,6 @@
     <ClCompile Include="FD3d12Quad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FFontRenderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -128,9 +125,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FPrimitiveBoxColorOverride.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FObjLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FPrimitiveBoxMultiTex.cpp">
@@ -228,9 +222,6 @@
     <ClInclude Include="FD3d12Quad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FFontRenderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -299,9 +290,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FPrimitiveBoxColorOverride.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FObjLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FPrimitiveBoxMultiTex.h">

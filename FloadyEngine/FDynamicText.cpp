@@ -6,6 +6,7 @@
 
 #include "FDelegate.h"
 #include "FFontManager.h"
+#include "FFont2.h"
 #include "FJobSystem.h"
 
 // probably wanna pull some things out here, and call init + populatecmdlist with a deferred bool so the renderer controls it from the scenegraphqueue
@@ -39,10 +40,6 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 	myHeight = aHeight;
 
 	myMutex.Init(aManager->GetDevice(), "FDynamicTest");
-	
-	myFont = new FFont2();
-	myFont->Load("C:/Windows/Fonts/arial.ttf");
-	myTexData = myFont->GetTextureData(45, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.-,");	
 }
 
 FDynamicText::~FDynamicText()
@@ -163,7 +160,7 @@ void FDynamicText::Init()
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				
-		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20, "-abcdefghijklmnopqrtsuvwxyz123456789.0");
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20);
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
 		myManagerClass->GetDevice()->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
@@ -444,7 +441,8 @@ void FDynamicText::SetText(const char * aNewText)
 	// Create the vertex buffer.
 	{
 		float texWidth, texHeight;
-		FFont2::TextureData::FWordInfo wordInfo = myTexData.GetUVsForWord(myText);
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20);
+		FFont2::TextureData::FWordInfo wordInfo = font.myTexData.GetUVsForWord(myText);
 
 		texWidth = static_cast<float>(wordInfo.myTexWidth);
 		texHeight = static_cast<float>(wordInfo.myTexHeight);
