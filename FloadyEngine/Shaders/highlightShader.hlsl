@@ -8,11 +8,11 @@ struct PSInput
 
 float4x4 g_offset : register(b0);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
+PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 {
 	PSInput result;
 
-	result.position = position;
+	result.position = float4(position, 1);
 	result.position = mul(result.position, g_offset);
 	result.uv = uv;
 

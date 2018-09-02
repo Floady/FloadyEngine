@@ -85,7 +85,7 @@ float3 getNormalViewSpace(in float2 uv)
 	return normalize(n);
 }
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD)
 {
 	PSInput result;
 	result.position = float4(position.xyz, 1);

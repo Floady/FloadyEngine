@@ -34,12 +34,12 @@ public:
 		FVertex(const FVertex& anOther)
 		{
 			position.x = anOther.position.x; position.y = anOther.position.y; position.z = anOther.position.z;
-			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = -1; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			myDiffuseMatId = 0;
-			myNormalMatId = 0;
-			mySpecularMatId = 0;
+			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = anOther.normal.z; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
+			position.w = anOther.position.w;
+			normal.w = anOther.normal.w;
+			myDiffuseMatId = anOther.myDiffuseMatId;
+			myNormalMatId = anOther.myNormalMatId;
+			mySpecularMatId = anOther.mySpecularMatId;
 		}
 
 		FVertex(float x, float y, float z, float nx, float ny, float nz, float u, float v)
@@ -54,7 +54,7 @@ public:
 		}
 
 		bool operator==(const FVertex& other) const {
-			return position.x == other.position.x
+			bool isEqual = position.x == other.position.x
 				&& position.y == other.position.y
 				&& position.z == other.position.z
 				&& normal.x == other.normal.x
@@ -65,6 +65,9 @@ public:
 				&& myDiffuseMatId == other.myDiffuseMatId
 				&& myNormalMatId == other.myNormalMatId
 				&& mySpecularMatId == other.mySpecularMatId;
+
+			//isEqual ? OutputDebugStringA("is equal\n") : OutputDebugStringA("is not equal\n");
+			return isEqual;
 		}
 
 		FVector3 position;

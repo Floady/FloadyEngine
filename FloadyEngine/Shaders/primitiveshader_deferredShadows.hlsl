@@ -23,10 +23,10 @@ struct InstanceData
 ConstantBuffer<MyData> myData : register(b0);
 ConstantBuffer<InstanceData> myInstanceData : register(b1);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
-	result.position = position;
+	result.position = float4(position, 1);
 	result.position = mul(result.position, myData.myViewMatrixInstanced[InstanceId]);
 	result.position = mul(result.position, myData.myLightProjMatrix[myInstanceData.myLightId]); // todo: send light transform id 
 	return result;

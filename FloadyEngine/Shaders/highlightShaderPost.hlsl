@@ -15,7 +15,7 @@ Texture2D<float4> g_combinedTexture : register(t1);
 
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD)
 {
 	PSInput result;
 	result.position = float4(position.xyz, 1);

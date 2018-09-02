@@ -1,6 +1,7 @@
 #pragma once
 #include <DirectXMath.h>
 #include "FD3d12Renderer.h"
+#include "F3DModel.h"
 
 class FPrimitiveGeometry
 {
@@ -11,20 +12,12 @@ public:
 		{
 			position.x = 0; position.y = 0; position.z = 0;
 			normal.x = 0; normal.y = 0; normal.z = -1; uv.x = 0; uv.y = 0;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			uv.z = 0.0f;
-			uv.w = 0.0f;
 		}
 
 		Vertex(float x, float y, float z, float nx, float ny, float nz, float u, float v)
 		{
 			position.x = x; position.y = y; position.z = z; 
 			normal.x = nx; normal.y = ny; normal.z = nz; uv.x = u; uv.y = v;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			uv.z = 0.0f;
-			uv.w = 0.0f;
 		}
 
 		bool operator==(const Vertex& other) const {
@@ -38,9 +31,9 @@ public:
 				&& uv.y == other.uv.y;
 		}
 
-		DirectX::XMFLOAT4 position;
-		DirectX::XMFLOAT4 normal;
-		DirectX::XMFLOAT4 uv;
+		DirectX::XMFLOAT3 position;
+		DirectX::XMFLOAT3 normal;
+		DirectX::XMFLOAT2 uv;
 	};
 
 	struct Vertex2
@@ -49,10 +42,6 @@ public:
 		{
 			position.x = 0; position.y = 0; position.z = 0;
 			normal.x = 0; normal.y = 0; normal.z = -1; uv.x = 0; uv.y = 0;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			uv.z = 0.0f;
-			uv.w = 0.0f;
 			matId = 0;
 			normalmatId = 0;
 			specularMatId = 0;
@@ -61,24 +50,25 @@ public:
 		Vertex2(const Vertex& anOther)
 		{
 			position.x = anOther.position.x; position.y = anOther.position.y; position.z = anOther.position.z;
-			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = -1; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			uv.z = 0.0f;
-			uv.w = 0.0f;
+			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = anOther.normal.z; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
 			matId = 0;
 			normalmatId = 0;
 			specularMatId = 0;
+		}
+
+		Vertex2(const F3DModel::FVertex& anOther)
+		{
+			position.x = anOther.position.x; position.y = anOther.position.y; position.z = anOther.position.z;
+			normal.x = anOther.normal.x; normal.y = anOther.normal.y; normal.z = anOther.normal.z; uv.x = anOther.uv.x; uv.y = anOther.uv.y;
+			matId = anOther.myDiffuseMatId;
+			normalmatId = anOther.myNormalMatId;
+			specularMatId = anOther.mySpecularMatId;
 		}
 
 		Vertex2(float x, float y, float z, float nx, float ny, float nz, float u, float v)
 		{
 			position.x = x; position.y = y; position.z = z;
 			normal.x = nx; normal.y = ny; normal.z = nz; uv.x = u; uv.y = v;
-			position.w = 1.0f;
-			normal.w = 1.0f;
-			uv.z = 0.0f;
-			uv.w = 0.0f;
 			matId = 0;
 			normalmatId = 0;
 			specularMatId = 0;
@@ -98,9 +88,9 @@ public:
 				&& specularMatId == other.specularMatId;
 		}
 
-		DirectX::XMFLOAT4 position;
-		DirectX::XMFLOAT4 normal;
-		DirectX::XMFLOAT4 uv;
+		DirectX::XMFLOAT3 position;
+		DirectX::XMFLOAT3 normal;
+		DirectX::XMFLOAT2 uv;
 		unsigned int matId;
 		unsigned int normalmatId;
 		unsigned int specularMatId;

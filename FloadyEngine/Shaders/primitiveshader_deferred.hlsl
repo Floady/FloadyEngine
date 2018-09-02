@@ -24,7 +24,7 @@ ConstantBuffer<MyData> myData : register(b0);
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 
@@ -34,7 +34,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 uv : T
 	result.depth    = (result.position.z);
 	
 	result.uv = uv;
-	result.normal = normal;
+	result.normal = float4(normal, 1);
 	result.normal.w = 0.0f;
 	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform[InstanceId]);
 	result.normal.xyz = normalize(result.normal.xyz);

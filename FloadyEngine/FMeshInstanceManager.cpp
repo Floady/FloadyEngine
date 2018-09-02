@@ -74,13 +74,11 @@ FMeshInstanceManager::MeshPool::MeshPool(const std::string & aMeshName)
 	{
 		// assume its a model
 		myPool = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), FVector3(10, 0, 10), FVector3(1, 1, 1), FPrimitiveBoxInstanced::PrimitiveType::Sphere, myNrOfInstancesPerPool);
-		FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myObjMesh;
 		std::string path = "models/";
 		path.append(aMeshName);
 
 		// todo change this to a mesh load object so its clear when tis alive and dead
-		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)));
-		m = mesh->myMeshData;
+		FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshLoadObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)));
 
 		dynamic_cast<FPrimitiveBoxMultiTex*>(myPool)->myMesh = mesh;
 

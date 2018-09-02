@@ -2,7 +2,6 @@
 #include "FD3d12Renderer.h"
 #include "FRenderableObject.h"
 #include "FPrimitiveGeometry.h"
-#include "FObjLoader.h"
 #include "FProfiler.h"
 #include <unordered_map>
 #include "FJobSystem.h"
@@ -10,33 +9,6 @@
 #include "F3DModel.h"
 
 #pragma optimize("", off)
-
-void hash_combine23(size_t &seed, size_t hash)
-{
-	hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
-	seed ^= hash;
-}
-
-namespace std {
-	template<> struct hash<FPrimitiveGeometry::Vertex2> {
-		size_t operator()(FPrimitiveGeometry::Vertex2 const& vertex) const {
-
-			size_t seed = 0;
-			seed += vertex.matId;
-			hash<float> hasher;
-			hash_combine23(seed, hasher(vertex.position.x));
-			hash_combine23(seed, hasher(vertex.position.y));
-			hash_combine23(seed, hasher(vertex.position.z));
-			hash_combine23(seed, hasher(vertex.normal.x));
-			hash_combine23(seed, hasher(vertex.normal.y));
-			hash_combine23(seed, hasher(vertex.normal.z));
-			hash_combine23(seed, hasher(vertex.uv.x));
-			hash_combine23(seed, hasher(vertex.uv.y));
-			return seed;
-		}
-	};
-
-}
 
 FMeshManager* FMeshManager::ourInstance = nullptr;
 
@@ -69,7 +41,24 @@ void FMeshManager::InitLoadedMeshesD3D()
 			FMeshLoadObject& loadMeshObj = myPendingLoadMeshes[aPath];
 			FMeshObject* obj = loadMeshObj.myObject;
 
-			int nrOfIndices = item.second.myIndices.size();
+			//* // TEST copy CPU vertex data from loadObj to GPU struct
+			
+			obj->myVertices.clear();
+			for (size_t i = 0; i < loadMeshObj.myModel.myVertices.size(); i++)
+			{
+				obj->myVertices.push_back(FPrimitiveGeometry::Vertex2(loadMeshObj.myModel.myVertices[i]));
+			}
+
+			obj->myIndices.clear();
+			for (size_t i = 0; i < loadMeshObj.myModel.myIndices.size(); i++)
+			{
+				obj->myIndices.push_back(loadMeshObj.myModel.myIndices[i]);
+			}
+
+			//*/
+
+
+			int nrOfIndices = obj->myIndices.size();
 			HRESULT hr = FD3d12Renderer::GetInstance()->GetDevice()->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 				D3D12_HEAP_FLAG_NONE,
@@ -116,7 +105,7 @@ void FMeshManager::InitLoadedMeshesD3D()
 				}
 
 				const UINT indexBufferSize = sizeof(int) * nrOfIndices;
-				memcpy(obj->myIndexDataBegin, &item.second.myIndices[0], indexBufferSize);
+				memcpy(obj->myIndexDataBegin, &obj->myIndices[0], indexBufferSize);
 			}
 		
 			FMeshObject* obj2 = myMeshes[aPath];
@@ -132,7 +121,7 @@ void FMeshManager::InitLoadedMeshesD3D()
 			obj2->myVerticesSize = obj->myVertices.size();
 			
 			if(loadMeshObj.myCallBack)
-				loadMeshObj.myCallBack(*loadMeshObj.myObject);
+				loadMeshObj.myCallBack(loadMeshObj);
 
 			FLOG("Mesh Done %s", aPath.c_str());
 			item.second.myLoadState = FMeshLoadObject::LoadState::Done;
@@ -154,71 +143,11 @@ void FMeshManager::LoadMeshObj(const std::string & aPath)
 	FMeshObject* obj = loadMeshObj.myObject;
 	obj->myVertices.clear();
 
-	FObjLoader::FObjMesh& m = obj->myMeshData;
-	FObjLoader objLoader;
-
 	std::string model = aPath;
 	std::string path = "";
 	path.append(model);
-	objLoader.LoadObj(path.c_str(), m, "models/", true);
 
-	//F3DModel* testObj = new F3DModel();
 	loadMeshObj.myModel.Load(path.c_str());
-
-	std::unordered_map<FPrimitiveGeometry::Vertex2, uint32_t> uniqueVertices = {};
-
-	std::vector<int>& indices = loadMeshObj.myIndices;
-	for (const auto& shape : m.myShapes)
-	{
-		int idx2 = 0;
-		int matId = 999;
-
-		if (shape.mesh.material_ids.size() > 0)
-			matId = shape.mesh.material_ids[0];
-
-		for (const auto& index : shape.mesh.indices)
-		{
-			if ((idx2 % 3) == 0)
-			{
-				matId = shape.mesh.material_ids[idx2 / 3];
-			}
-			idx2++;
-
-			FPrimitiveGeometry::Vertex2 vertex;
-
-			vertex.position.x = m.myAttributes.vertices[3 * index.vertex_index + 0];
-			vertex.position.y = m.myAttributes.vertices[3 * index.vertex_index + 1];
-			vertex.position.z = m.myAttributes.vertices[3 * index.vertex_index + 2];
-
-			if (m.myAttributes.normals.size() > 0)
-			{
-				vertex.normal.x = m.myAttributes.normals[3 * index.normal_index + 0];
-				vertex.normal.y = m.myAttributes.normals[3 * index.normal_index + 1];
-				vertex.normal.z = m.myAttributes.normals[3 * index.normal_index + 2];
-			}
-
-			if (m.myAttributes.texcoords.size() > 0)
-			{
-				vertex.uv.x = m.myAttributes.texcoords[2 * index.texcoord_index + 0];
-				vertex.uv.y = 1.0f - m.myAttributes.texcoords[2 * index.texcoord_index + 1];
-			}
-
-			vertex.matId = matId == -1 ? 0 : matId;
-			if (matId >= 0 && matId < m.myMaterials.size())
-				vertex.normalmatId = m.myMaterials[matId].bump_texname.empty() ? 99 : matId;
-
-			if (matId >= 0 && matId < m.myMaterials.size())
-				vertex.specularMatId = m.myMaterials[matId].specular_texname.empty() ? 99 : matId;
-
-			if (uniqueVertices.count(vertex) == 0) {
-				uniqueVertices[vertex] = static_cast<uint32_t>(obj->myVertices.size());
-				obj->myVertices.push_back(vertex);
-			}
-
-			indices.push_back(uniqueVertices[vertex]);
-		}
-	}
-
 	loadMeshObj.myLoadState = FMeshLoadObject::LoadState::Finished;
 }
 
@@ -239,7 +168,7 @@ FMeshManager* FMeshManager::GetInstance()
 	return ourInstance;
 }
 
-FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDelegate2<void(const FMeshManager::FMeshObject&)> aCB)
+FMeshManager::FMeshObject* FMeshManager::GetMesh(const std::string & aPath, FDelegate2<void(const FMeshManager::FMeshLoadObject&)> aCB)
 {
 	//FPROFILE_FUNCTION("Load mesh");
 

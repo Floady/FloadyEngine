@@ -8,7 +8,6 @@
 #include "FUtilities.h"
 #include "FPrimitiveBoxMultiTex.h"
 #include "FPrimitiveGeometry.h"
-#include "FObjLoader.h"
 #include "FMeshManager.h"
 #include <unordered_map>
 #include "FGame.h"
@@ -138,13 +137,11 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		else
 		{
 			myGraphicsObject = new FPrimitiveBoxMultiTex(FD3d12Renderer::GetInstance(), pos, scale, FPrimitiveBoxInstanced::PrimitiveType::Sphere, 1);
-			FObjLoader::FObjMesh& m = dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myObjMesh;
 			string path = "models/";
 			path.append(myModelInstanceName);
 
-			FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)));
-			m = mesh->myMeshData;
-
+			FMeshManager::FMeshObject* mesh = FMeshManager::GetInstance()->GetMesh(path, FDelegate2<void(const FMeshManager::FMeshLoadObject&)>::from<FPrimitiveBoxMultiTex, &FPrimitiveBoxMultiTex::ObjectLoadingDone>(dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)));
+			
 			dynamic_cast<FPrimitiveBoxMultiTex*>(myGraphicsObject)->myMesh = mesh;
 
 			myGraphicsObject->myIndicesCount = mesh->myIndicesCount;

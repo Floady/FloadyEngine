@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include "FPrimitiveGeometry.h"
-#include "fobjloader.h"
 #include "F3DModel.h"
 
 class FJobSystem;
@@ -18,7 +17,7 @@ public:
 	~FMeshManager();
 	static FMeshManager* GetInstance();
 
-	struct FMeshObject
+	struct FMeshObject 
 	{
 		FMeshObject();
 		~FMeshObject();
@@ -31,7 +30,7 @@ public:
 		D3D12_VERTEX_BUFFER_VIEW myVertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW myIndexBufferView;
 		std::vector<FPrimitiveGeometry::Vertex2> myVertices;
-		FObjLoader::FObjMesh myMeshData;
+		std::vector<int> myIndices;
 	};
 
 	struct FMeshLoadObject
@@ -45,15 +44,15 @@ public:
 		};
 		FMeshLoadObject() { myLoadState = None; myObject = nullptr; }
 		void Load();
-		FMeshObject* myObject;
-		std::vector<int> myIndices;
+
 		std::string myFileName;
 		LoadState myLoadState;
-		FDelegate2<void(const FMeshManager::FMeshObject&)> myCallBack;
-		F3DModel myModel;
+		FDelegate2<void(const FMeshManager::FMeshLoadObject&)> myCallBack;
+		F3DModel myModel; // CPU representation
+		FMeshObject* myObject; // GPU representation
 	};
 
-	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FMeshManager::FMeshObject&)> aCB = FDelegate2<void(const FMeshManager::FMeshObject&)>::FDelegate2());
+	FMeshObject* GetMesh(const std::string& aPath, FDelegate2<void(const FMeshManager::FMeshLoadObject&)> aCB = FDelegate2<void(const FMeshManager::FMeshLoadObject&)>::FDelegate2());
 
 private:
 	std::map<std::string, FMeshObject*> myMeshes;

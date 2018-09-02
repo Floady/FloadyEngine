@@ -2,7 +2,6 @@
 #include "FObjLoader.h"
 #include <unordered_map>
 
-
 void hash_combine(size_t &seed, size_t hash)
 {
 	hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -14,8 +13,9 @@ namespace std {
 		size_t operator()(F3DModel::FVertex const& vertex) const {
 
 			size_t seed = 0;
-			seed += vertex.myDiffuseMatId;
 			hash<float> hasher;
+			hash<int> hasher2;
+			hash_combine(seed, hasher2(vertex.myDiffuseMatId));
 			hash_combine(seed, hasher(vertex.position.x));
 			hash_combine(seed, hasher(vertex.position.y));
 			hash_combine(seed, hasher(vertex.position.z));
@@ -24,6 +24,8 @@ namespace std {
 			hash_combine(seed, hasher(vertex.normal.z));
 			hash_combine(seed, hasher(vertex.uv.x));
 			hash_combine(seed, hasher(vertex.uv.y));
+			hash_combine(seed, hasher2(vertex.myNormalMatId));
+			hash_combine(seed, hasher2(vertex.mySpecularMatId));
 			return seed;
 		}
 	};
@@ -39,7 +41,7 @@ bool F3DModel::Load(const char * aPath)
 	//
 
 	std::unordered_map<FVertex, uint32_t> uniqueVertices = {};
-
+	myVertices.reserve(1000000);
 	for (const auto& shape : m.myShapes)
 	{
 		int idx2 = 0;
@@ -82,7 +84,9 @@ bool F3DModel::Load(const char * aPath)
 			if (matId >= 0 && matId < m.myMaterials.size())
 				vertex.mySpecularMatId = m.myMaterials[matId].specular_texname.empty() ? 99 : matId;
 
-			if (uniqueVertices.count(vertex) == 0) {
+			
+			if (uniqueVertices.count(vertex) == 0)
+			{
 				uniqueVertices[vertex] = static_cast<uint32_t>(myVertices.size());
 				myVertices.push_back(vertex);
 			}

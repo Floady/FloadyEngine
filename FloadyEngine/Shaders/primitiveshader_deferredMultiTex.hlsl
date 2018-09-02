@@ -28,7 +28,7 @@ ConstantBuffer<MyData> myData : register(b0);
 SamplerState g_sampler : register(s0);
 Texture2D g_texture[96] : register(t0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3, uint smatId : TEXCOORD4, uint InstanceId : SV_InstanceID)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD1, uint matId : TEXCOORD2, uint nmatId : TEXCOORD3, uint smatId : TEXCOORD4, uint InstanceId : SV_InstanceID)
 {
 	PSInput result;
 
@@ -38,8 +38,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float4 uv : T
 	result.depth    = (result.position.z);
 	
 	result.uv = uv;
-	result.normal = normal;
-	result.normal.w = 0.0f;
+	result.normal = float4(normal.xyz, 1);
 	result.normal.xyz = mul(result.normal, (const float3x3)myData.g_transform[InstanceId]);
 	result.normal = normalize(result.normal);
 	//result.normal = (result.normal + float4(1, 1, 1,1))/2.0f; // vertex calculated normals

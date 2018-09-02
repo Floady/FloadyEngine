@@ -188,7 +188,7 @@ void FGameTerrain::Update(double aDeltaTime)
 
 	for (int i = 0; i < vertices.size(); i++)
 	{
-		DirectX::XMFLOAT4& vtx = vertices[i].position;
+		DirectX::XMFLOAT3& vtx = vertices[i].position;
 		if (cam->IsInFrustum(vtx.x, vtx.y, vtx.z))
 		{
 			aabb.Grow(vtx.x, vtx.y, vtx.z);

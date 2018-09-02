@@ -10,11 +10,11 @@ float4x4 g_offset : register(b0);
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
+PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 {
 	PSInput result;
 
-	float4 newPos = position;
+	float4 newPos = float4(position.xyz, 1);
 	result.position = mul(newPos, g_offset);
 	//result.position.z = 0.5f; // set temp test depth?
 	//result.position.w = 0.5f; // set temp test depth?

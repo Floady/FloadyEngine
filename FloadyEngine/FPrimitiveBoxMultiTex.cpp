@@ -12,7 +12,6 @@
 #include "FPrimitiveGeometry.h"
 #include "FProfiler.h"
 
-#include "FObjLoader.h"
 #include "FUtilities.h"
 
 void FPrimitiveBoxMultiTex::Init()
@@ -108,55 +107,56 @@ void FPrimitiveBoxMultiTex::Init()
 	}
 }
 
-void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshObject& anObj)
+void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshLoadObject& anObj)
 {
 	FLOG("ObgjectLOadingDone called");
 
-	// map all textures to the slots
-	const FObjLoader::FObjMesh& m = anObj.myMeshData;
-	
-	myIndicesCount = anObj.myIndicesCount;
-	m_vertexBufferView = anObj.myVertexBufferView;
-	m_indexBufferView = anObj.myIndexBufferView;
+	// update GPU buffers
+	myIndicesCount = anObj.myObject->myIndicesCount;
+	m_vertexBufferView = anObj.myObject->myVertexBufferView;
+	m_indexBufferView = anObj.myObject->myIndexBufferView;
 	
 
-	int matcounter = 0;
+	// map all textures to the slots	
 	std::string name;
-	for (size_t i = 0; i < m.myMaterials.size(); i++)
+	for (size_t i = 0; i < anObj.myModel.myMaterials.size(); i++)
 	{
-		const tinyobj::material_t& mat = m.myMaterials[i];
+		const F3DModel::FMaterial& mat = anObj.myModel.myMaterials[i];
 
-		if (!mat.diffuse_texname.empty())
+		if (!mat.myDiffuseTexture.empty())
 		{
-			name = mat.diffuse_texname.substr(mat.diffuse_texname.find('\\') + 1, mat.diffuse_texname.length());
+			name = mat.myDiffuseTexture.substr(mat.myDiffuseTexture.find('\\') + 1, mat.myDiffuseTexture.length());
 		}
 
 		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i);
 	}
 
-	for (size_t i = 0; i < m.myMaterials.size(); i++)
+	for (size_t i = 0; i < anObj.myModel.myMaterials.size(); i++)
 	{
-		const tinyobj::material_t& mat = m.myMaterials[i];
-		if (!mat.bump_texname.empty())
+		const F3DModel::FMaterial& mat = anObj.myModel.myMaterials[i];
+
+		if (!mat.myNormalTexture.empty())
 		{
-			name = mat.bump_texname.substr(mat.bump_texname.find('\\') + 1, mat.bump_texname.length());
+			name = mat.myNormalTexture.substr(mat.myNormalTexture.find('\\') + 1, mat.myNormalTexture.length());
 		}
 
 		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + 32);
 	}
 
-	for (size_t i = 0; i < m.myMaterials.size(); i++)
+	for (size_t i = 0; i < anObj.myModel.myMaterials.size(); i++)
 	{
-		const tinyobj::material_t& mat = m.myMaterials[i];
-		if (!mat.specular_texname.empty())
+		const F3DModel::FMaterial& mat = anObj.myModel.myMaterials[i];
+
+		if (!mat.mySpecularTexture.empty())
 		{
-			name = mat.specular_texname.substr(mat.specular_texname.find('\\') + 1, mat.specular_texname.length());
+			name = mat.mySpecularTexture.substr(mat.mySpecularTexture.find('\\') + 1, mat.mySpecularTexture.length());
 		}
 
 		FD3d12Renderer::GetInstance()->BindTextureToSlot(name, myTexOffset + i + 64);
 	}
 
-	for (const FPrimitiveGeometry::Vertex2& vert : anObj.myVertices)
+	// update AABB with latest vertex info
+	for (const FPrimitiveGeometry::Vertex2& vert : anObj.myObject->myVertices)
 	{
 		myAABB.myMax.x = max(myAABB.myMax.x, vert.position.x * GetScale().x);
 		myAABB.myMax.y = max(myAABB.myMax.y, vert.position.y * GetScale().y);
