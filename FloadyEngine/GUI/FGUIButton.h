@@ -1,5 +1,5 @@
 #pragma once
-#include "..\FDelegate.h"
+#include "FDelegate.h"
 #include "FGUIManager.h"
 
 class FScreenQuad;

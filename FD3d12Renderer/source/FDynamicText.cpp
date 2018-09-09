@@ -1,18 +1,22 @@
-#include "FScreenQuad.h"
+#include "FDynamicText.h"
 #include "d3dx12.h"
 #include "FD3d12Renderer.h"
+#include "FRenderableObject.h"
+#include <DirectXMath.h>
 #include "FCamera.h"
 #include <vector>
-#include "FTextureManager.h"
 
 #include "FDelegate.h"
+#include "FFontManager.h"
+#include "FFont2.h"
 #include "FJobSystem.h"
 
 // probably wanna pull some things out here, and call init + populatecmdlist with a deferred bool so the renderer controls it from the scenegraphqueue
 // object is placed in queue so is not in control of when it is drawn
+
 using namespace DirectX;
 
-FScreenQuad::FScreenQuad(FD3d12Renderer* aManager, FVector3 aPos, const char* aTexture, float aWidth, float aHeight, bool aUseKerning, bool anIs2D)
+FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* aText, float aWidth, float aHeight, bool aUseKerning, bool anIs2D)
 {
 	myManagerClass = aManager;
 	myUseKerning = aUseKerning;
@@ -21,12 +25,13 @@ FScreenQuad::FScreenQuad(FD3d12Renderer* aManager, FVector3 aPos, const char* aT
 
 	m_ModelProjMatrix = nullptr;
 	m_vertexBuffer = nullptr;
-
+	
 	myPos.x = aPos.x;
 	myPos.y = aPos.y;
 	myPos.z = aPos.z;
 
-	myText[0] = '\0';
+	memcpy(myText, aText, strlen(aText));
+	myText[strlen(aText)] = '\0';
 
 	m_pipelineState = nullptr;
 	m_commandList = nullptr;
@@ -35,43 +40,28 @@ FScreenQuad::FScreenQuad(FD3d12Renderer* aManager, FVector3 aPos, const char* aT
 
 	myWidth = aWidth;
 	myHeight = aHeight;
-	myTexName = aTexture;
 
-	SetUVOffset(FVector3(0, 0, 0), FVector3(1, 1, 0));
+	myMutex.Init(aManager->GetDevice(), "FDynamicTest");
 }
 
-FScreenQuad::~FScreenQuad()
+FDynamicText::~FDynamicText()
 {
 	myManagerClass->GetShaderManager().UnregisterForHotReload(this);
 
-	if (m_pipelineState)
-		m_pipelineState->Release();
-
-	if (m_commandList)
-		m_commandList->Release();
-
-	if (m_ModelProjMatrix)
-		m_ModelProjMatrix->Release();
-
-	if (m_vertexBuffer)
-		m_vertexBuffer->Release();
-
-	if (m_rootSignature)
-		m_rootSignature->Release();
 }
 
-void FScreenQuad::Init()
+void FDynamicText::Init()
 {
 	firstFrame = true;
-
+	
 	HRESULT hr;
 	{
 		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(1, 1);
-		m_rootSignature->SetName(L"FScreenQuad");
+		m_rootSignature->SetName(L"FDynamicText");
 	}
 
 	SetShader();
-	myManagerClass->GetShaderManager().RegisterForHotReload(myShaderName, this, FDelegate2<void()>::from<FScreenQuad, &FScreenQuad::SetShader>(this));
+	myManagerClass->GetShaderManager().RegisterForHotReload(myShaderName, this, FDelegate2<void()>::from<FDynamicText, &FDynamicText::SetShader>(this));
 
 	// Create the vertex buffer.
 	{
@@ -121,9 +111,9 @@ void FScreenQuad::Init()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetCBV, srvSize);
 		myManagerClass->GetDevice()->CreateConstantBufferView(cbvDesc, cbvHandle0);
 	}
-
+	
 	// create SRV to global font texture
-	{
+	{		
 		// Describe and create a SRV for the texture.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -133,11 +123,12 @@ void FScreenQuad::Init()
 
 		// Get the size of the memory location for the render target view descriptors.
 		unsigned int srvSize = myManagerClass->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
+				
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20);
 		myHeapOffsetText = myManagerClass->GetNextOffset();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(myManagerClass->GetSRVHeap()->GetCPUDescriptorHandleForHeapStart(), myHeapOffsetText, srvSize);
-		myManagerClass->GetDevice()->CreateShaderResourceView(FTextureManager::GetInstance()->GetTextureD3D(myTexName.c_str()), &srvDesc, srvHandle0);
-
+		myManagerClass->GetDevice()->CreateShaderResourceView(font.myTexture, &srvDesc, srvHandle0);
+		
 		m_commandList->Close();
 
 		// do we need this?
@@ -145,10 +136,14 @@ void FScreenQuad::Init()
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
+	// wait for cmdlist to be done before returning
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
+
 	skipNextRender = false;
 }
 
-void FScreenQuad::Render()
+void FDynamicText::Render()
 {
 	if (skipNextRender)
 	{
@@ -165,7 +160,7 @@ void FScreenQuad::Render()
 	myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
-void FScreenQuad::PopulateCommandList()
+void FDynamicText::PopulateCommandList()
 {
 	HRESULT hr;
 	hr = m_commandList->Reset(myManagerClass->GetCommandAllocator(), m_pipelineState);
@@ -237,10 +232,9 @@ void FScreenQuad::PopulateCommandList()
 	m_commandList->RSSetViewports(1, &myManagerClass->GetViewPort());
 	m_commandList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
-	// Indicate that the back buffer will be used as a render target.
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
-	if (myIsDeferred)
+	if(myIsDeferred)
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { myManagerClass->GetGBufferHandle(0), myManagerClass->GetGBufferHandle(1), myManagerClass->GetGBufferHandle(2) , myManagerClass->GetGBufferHandle(3) };
 		if (myIs2D)
@@ -260,7 +254,7 @@ void FScreenQuad::PopulateCommandList()
 	// Record commands.
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->DrawInstanced(6, 1, 0, 0);
+	m_commandList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
@@ -275,7 +269,7 @@ void FScreenQuad::PopulateCommandList()
 	hr = m_commandList->Close();
 }
 
-void FScreenQuad::PopulateCommandListAsync()
+void FDynamicText::PopulateCommandListAsync()
 {
 	if (skipNextRender)
 	{
@@ -288,7 +282,7 @@ void FScreenQuad::PopulateCommandListAsync()
 
 	ID3D12GraphicsCommandList* cmdList = myManagerClass->GetCommandListForWorkerThread(FJobSystem::ourThreadIdx);
 	cmdList->SetPipelineState(m_pipelineState);
-
+	
 	if (myIsDeferred)
 	{
 		// copy modelviewproj data to gpu
@@ -357,7 +351,6 @@ void FScreenQuad::PopulateCommandListAsync()
 	cmdList->RSSetViewports(1, &myManagerClass->GetViewPort());
 	cmdList->RSSetScissorRects(1, &myManagerClass->GetScissorRect());
 
-	// Indicate that the back buffer will be used as a render target.
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHeap = myManagerClass->GetDSVHandle();
 
 	if (myIsDeferred)
@@ -380,9 +373,9 @@ void FScreenQuad::PopulateCommandListAsync()
 	// Record commands.
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	cmdList->DrawInstanced(6, 1, 0, 0);
+	cmdList->DrawInstanced(6 * myWordLength, 1, 0, 0);
 
-	if(!myIs2D)
+	if (!myIs2D)
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 	if (myIsDeferred)
@@ -394,7 +387,7 @@ void FScreenQuad::PopulateCommandListAsync()
 	}
 }
 
-void FScreenQuad::SetText(const char * aNewText)
+void FDynamicText::SetText(const char * aNewText)
 {
 	if (!pVertexDataBegin)
 		return;
@@ -403,7 +396,7 @@ void FScreenQuad::SetText(const char * aNewText)
 	myWordLength = static_cast<UINT>(strlen(aNewText));
 	memcpy(&myText, aNewText, myWordLength);
 	myText[myWordLength] = 0;
-	const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * 6;
+	const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
 	const float finalWidth = myWidth;
@@ -411,6 +404,15 @@ void FScreenQuad::SetText(const char * aNewText)
 
 	// Create the vertex buffer.
 	{
+		float texWidth, texHeight;
+		const FFontManager::FFont& font = FFontManager::GetInstance()->GetFont(FFontManager::FFONT_TYPE::Arial, 20);
+		FFont2::TextureData::FWordInfo wordInfo = font.myTexData.GetUVsForWord(myText);
+
+		texWidth = static_cast<float>(wordInfo.myTexWidth);
+		texHeight = static_cast<float>(wordInfo.myTexHeight);
+
+		float scaleFactorWidth = finalWidth / (texWidth);
+		float scaleFactorHeight = finalHeight / (texHeight);
 
 		const float quadZ = 0.0f;
 		FPrimitiveGeometry::Vertex uvTL;
@@ -421,44 +423,55 @@ void FScreenQuad::SetText(const char * aNewText)
 		uvBR.uv.x = 1;
 		uvBR.uv.y = 1;
 
-		FPrimitiveGeometry::Vertex* triangleVertices = new FPrimitiveGeometry::Vertex[6];
+		myTriangleVertices.reserve(myWordLength * 6);
 		float xoffset = 0.0f;
 
 		int vtxIdx = 0;
-		for (size_t i = 0; i < 1; i++)
+		for (size_t i = 0; i < myWordLength; i++)
 		{
 			// set uv's
-			uvTL.uv.x = myUVTL.x;
-			uvTL.uv.y = myUVTL.y;
-			uvBR.uv.x = myUVBR.x;
-			uvBR.uv.y = myUVBR.y;
+			uvTL.uv.y = 0;
+			uvTL.uv.x = wordInfo.myUVTL[i].x;
+			uvBR.uv.x = wordInfo.myUVBR[i].x;
+			uvBR.uv.y = 1;
+
+			//why do we scale? should it be uniform or viewport? - viewproj matrix should handle viewport already
+			float halfGlyphWidth = wordInfo.myDimensions[i].x / 2.0f;
+			float glyphHeight = texHeight;
+			halfGlyphWidth = halfGlyphWidth * scaleFactorWidth;
+			glyphHeight = glyphHeight * scaleFactorHeight;
+
+			xoffset += halfGlyphWidth; // move half
+			//xoffset += wordInfo.myKerningOffset[i] * scaleFactorWidth; // todo fix this with the scaling .. :) did an attempt, but current font has no kerning to double check with
 
 			// draw quad
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(0, myHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(myWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(0, 0, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y);
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, 0, quadZ, 0, 0, -1, uvTL.uv.x, uvBR.uv.y));
 
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(0, myHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(myWidth, myHeight, quadZ, 0, 0, -1, uvBR.uv.x, uvTL.uv.y);
-			triangleVertices[vtxIdx++] = FPrimitiveGeometry::Vertex(myWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y);
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset - halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvTL.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, glyphHeight, quadZ, 0, 0, -1, uvBR.uv.x, uvTL.uv.y));
+			myTriangleVertices.push_back(FPrimitiveGeometry::Vertex(xoffset + halfGlyphWidth, 0, quadZ, 0, 0, -1, uvBR.uv.x, uvBR.uv.y));
 
+			xoffset += halfGlyphWidth; // move half
+			//xoffset += 0.1; //custom spacing
 		}
 
-		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * 6;
-		memcpy(pVertexDataBegin, &triangleVertices[0], vertexBufferSize);
+		const UINT vertexBufferSize = sizeof(FPrimitiveGeometry::Vertex) * myWordLength * 6;
+		memcpy(pVertexDataBegin, &myTriangleVertices[0], vertexBufferSize);
 
-		delete[] triangleVertices;
+		myTriangleVertices.clear();
 	}
 }
 
-void FScreenQuad::SetShader()
-{
+void FDynamicText::SetShader()
+{	
 	skipNextRender = true;
 
 	// get shader ptr + layouts
 	FShaderManager::FShader shader = myManagerClass->GetShaderManager().GetShader(myShaderName);
 
-	if (m_pipelineState)
+	if(m_pipelineState)
 		m_pipelineState->Release();
 
 	if (m_commandList)
@@ -473,13 +486,13 @@ void FScreenQuad::SetShader()
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	if (myIs2D)
+	if(myIs2D)
 		psoDesc.DepthStencilState.DepthEnable = FALSE;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	if (myIsDeferred)
+	
+	if(myIsDeferred)
 	{
 		psoDesc.NumRenderTargets = myManagerClass->Gbuffer_Combined;
 		for (size_t i = 0; i < myManagerClass->Gbuffer_Combined; i++)
@@ -497,7 +510,7 @@ void FScreenQuad::SetShader()
 	psoDesc.SampleDesc.Count = 1;
 
 	// enable alpha blend for 2d (non-deferred) - deferred has flickering, should fix it - and then only do alpha test (on/off) not blend
-	if (!myIsDeferred)
+	if(!myIsDeferred)
 	{
 		psoDesc.BlendState.RenderTarget[0] =
 		{
@@ -509,9 +522,9 @@ void FScreenQuad::SetShader()
 		};
 	}
 	HRESULT hr = myManagerClass->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
-
+	
 	hr = myManagerClass->GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, myManagerClass->GetCommandAllocator(), m_pipelineState, IID_PPV_ARGS(&m_commandList));
-	m_commandList->SetName(L"FScreenQuad");
+	m_commandList->SetName(L"FDynamicText");
 	if (!firstFrame)
 	{
 		m_commandList->Close();
@@ -519,12 +532,8 @@ void FScreenQuad::SetShader()
 		myManagerClass->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	}
 
-	firstFrame = false;
-}
+	myMutex.Signal(myManagerClass->GetCommandQueue());
+	myMutex.WaitFor();
 
-void FScreenQuad::SetUVOffset(const FVector3& aTL, const FVector3& aBR)
-{
-	myUVTL = aTL;
-	myUVBR = aBR;
-	SetText(myTexName.c_str());
+	firstFrame = false;
 }

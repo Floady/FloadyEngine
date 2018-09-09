@@ -205,7 +205,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include;$(SolutionDir)\FCommon\include</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -215,8 +215,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.16299.0\um\x64;$(ProjectDir)\libpng1628\lib\x64\Release;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>FAssetLib.lib;FMath.lib;FPhysics.lib;libpng16.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.16299.0\um\x64;$(ProjectDir)\libpng1628\lib\x64\Release;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\;$(SolutionDir)\FCommon\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>FCommon.lib;FAssetLib.lib;FMath.lib;FPhysics.lib;libpng16.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -253,7 +253,6 @@
     <ClCompile Include="FPrimitiveBoxInstanced.cpp" />
     <ClCompile Include="FPrimitiveBoxMultiTex.cpp" />
     <ClCompile Include="FRenderMeshComponent.cpp" />
-    <ClCompile Include="FProfiler.cpp" />
     <ClCompile Include="FRenderableObject.cpp" />
     <ClCompile Include="FRenderWindow.cpp" />
     <ClCompile Include="FD3d12Input.cpp" />
@@ -262,7 +261,6 @@
     <ClCompile Include="FFontManager.cpp" />
     <ClCompile Include="FGame.cpp" />
     <ClCompile Include="FGameCamera.cpp" />
-    <ClCompile Include="FJobSystem.cpp" />
     <ClCompile Include="FLightManager.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
     <ClCompile Include="FPrimitiveGeometry.cpp" />
@@ -272,8 +270,6 @@
     <ClCompile Include="FSkyBox.cpp" />
     <ClCompile Include="FTextureManager.cpp" />
     <ClCompile Include="FThrowableTrajectory.cpp" />
-    <ClCompile Include="FTimer.cpp" />
-    <ClCompile Include="FUtilities.cpp" />
     <ClCompile Include="GUI\FGUIButton.cpp" />
     <ClCompile Include="GUI\FGUIManager.cpp" />
     <ClCompile Include="FPrimitiveBoxColorOverride.cpp" />
@@ -310,17 +306,14 @@
     <ClInclude Include="FPrimitiveBoxInstanced.h" />
     <ClInclude Include="FPrimitiveBoxMultiTex.h" />
     <ClInclude Include="FRenderMeshComponent.h" />
-    <ClInclude Include="FProfiler.h" />
     <ClInclude Include="FRenderableObject.h" />
     <ClInclude Include="FRenderWindow.h" />
     <ClInclude Include="FD3d12Input.h" />
     <ClInclude Include="FD3d12Renderer.h" />
-    <ClInclude Include="FDelegate.h" />
     <ClInclude Include="FDynamicText.h" />
     <ClInclude Include="FFontManager.h" />
     <ClInclude Include="FGame.h" />
     <ClInclude Include="FGameCamera.h" />
-    <ClInclude Include="FJobSystem.h" />
     <ClInclude Include="FLightManager.h" />
     <ClInclude Include="FPrimitiveGeometry.h" />
     <ClInclude Include="FSceneGraph.h" />
@@ -329,8 +322,6 @@
     <ClInclude Include="FSkyBox.h" />
     <ClInclude Include="FTextureManager.h" />
     <ClInclude Include="FThrowableTrajectory.h" />
-    <ClInclude Include="FTimer.h" />
-    <ClInclude Include="FUtilities.h" />
     <ClInclude Include="GUI\FGUIButton.h" />
     <ClInclude Include="GUI\FGUIManager.h" />
     <ClInclude Include="FPrimitiveBoxColorOverride.h" />

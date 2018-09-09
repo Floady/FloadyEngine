@@ -3,8 +3,6 @@
 #include <map>
 #include <vector>
 
-class FDynamicText;
-
 class FProfiler
 {
 public:
@@ -15,8 +13,7 @@ public:
 	void AddTiming(const char* aName, double aTime);
 	void StartFrame();
 	void SetPause(bool aPaused) { myIsPaused = aPaused; }
-	void Render();
-	void SetVisible(bool aVisible);
+	void SetVisible(bool aVisible) { myIsVisible = aVisible; }
 
 protected:
 	static FProfiler* ourInstance;
@@ -38,7 +35,6 @@ private:
 
 	FProfiler();
 	std::map<const char*, TimerInfo> myTimings;
-	std::vector<FDynamicText*> myLabels;
 	unsigned int myCurrentFrame;
 	bool myIsPaused;
 	bool myIsVisible;

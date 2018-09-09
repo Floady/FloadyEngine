@@ -63,9 +63,6 @@
     <ClCompile Include="FCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FTimer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FDynamicText.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -73,9 +70,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FFontManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FJobSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FTextureManager.cpp">
@@ -115,13 +109,7 @@
     <ClCompile Include="FPostProcessEffect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FProfiler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FNavMeshManagerRecast.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FPrimitiveBoxColorOverride.cpp">
@@ -225,22 +213,13 @@
     <ClInclude Include="FCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FTimer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FDynamicText.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FShaderManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FDelegate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FFontManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FJobSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FTextureManager.h">
@@ -280,13 +259,7 @@
     <ClInclude Include="FPostProcessEffect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FProfiler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FNavMeshManagerRecast.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FPrimitiveBoxColorOverride.h">

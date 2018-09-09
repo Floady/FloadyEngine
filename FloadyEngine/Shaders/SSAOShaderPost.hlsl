@@ -19,6 +19,7 @@ struct MyData
 	float4x4 g_InvViewMatrix;
 };
 
+MyData constData : register(b0);
 Texture2D<float4> g_colortexture : register(t0);
 Texture2D<float4> g_normaltexture : register(t1);
 Texture2D<float> g_depthTexture : register(t2);
@@ -26,7 +27,6 @@ Texture2D<float> g_shadowTexture : register(t3);
 Texture2D<float4> g_combinedTexture : register(t4);
 Texture2D<float4> scratchbuff : register(t5);
 SamplerState g_sampler : register(s0);
-MyData constData : register(b0);
 
 float3 getPosition(in float2 uv)
 {	

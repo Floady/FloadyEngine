@@ -8,6 +8,7 @@
 #include "FPrimitiveGeometry.h"
 #include "FDebugDrawer.h"
 #include "FProfiler.h"
+#include "FCamera.h"
 
 using namespace DirectX;
 

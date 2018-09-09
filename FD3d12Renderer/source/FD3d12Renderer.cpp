@@ -16,6 +16,7 @@
 #include "FUtilities.h"
 
 //#define VERBOSE_RENDER_LOG(x, ...) FLOG(x, __VA_ARGS__)
+
 #define VERBOSE_RENDER_LOG(x, ...)
 //#pragma optimize("", off)
 
@@ -53,14 +54,14 @@ FD3d12Renderer::FD3d12Renderer()
 
 	m_depthStencil = 0;
 	m_dsvHeap = 0;
-	
+
 	myInt = 0;
 
 	FProfiler::GetInstance();
 
 	//*
 	myRenderJobSys = FJobSystem::GetInstance();
-	myRenderJobSys->QueueJob((FDelegate2<void ()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)), true);	
+	myRenderJobSys->QueueJob((FDelegate2<void()>(FTextureManager::GetInstance(), &FTextureManager::ReloadTextures)), true);
 	/*/
 
 	FTextureManager::GetInstance()->ReloadTextures();
@@ -108,7 +109,7 @@ FD3d12Renderer::~FD3d12Renderer()
 	{
 		D3D_SAFE_RELEASE(m_backBufferRenderTarget[i]);
 	}
-	
+
 	for (int i = 0; i < 2; i++)
 	{
 		D3D_SAFE_RELEASE(myPostProcessScratchBuffers[i]);
@@ -146,7 +147,7 @@ void FD3d12Renderer::CreateRenderTarget(ID3D12Resource*& aResource, D3D12_CPU_DE
 	srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	
+
 	int renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	aHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
 	m_device->CreateRenderTargetView(aResource, NULL, aHandle);
@@ -363,7 +364,7 @@ ID3D12RootSignature* FD3d12Renderer::GetRootSignature(int aNumberOfSamplers, int
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDesc;
 	rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	
+
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
 	// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
@@ -422,14 +423,14 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	// Note: Not all cards support full DirectX 12, this feature level may need to be reduced on some cards to 12.0.
 	featureLevel = D3D_FEATURE_LEVEL_11_0;
 	{
-//#ifdef _DEBUG
+		//#ifdef _DEBUG
 		ID3D12Debug* debugController;
 		result = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
 		if (SUCCEEDED(result))
 		{
 			debugController->EnableDebugLayer();
 		}
-//#endif
+		//#endif
 	}
 
 	// Create the Direct3D 12 device.
@@ -556,7 +557,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	// Set a regular 32-bit surface for the back buffers.
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM; // HERE
 
-	// Set the usage of the back buffers to be render target outputs.
+																	 // Set the usage of the back buffers to be render target outputs.
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 
 	// Set the swap effect to discard the previous buffer contents after swapping.
@@ -637,7 +638,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	myCurrentRTVHeapOffset = 2; // offset for backbuffers
 
-	// Get the size of the memory location for the render target view descriptors.
+								// Get the size of the memory location for the render target view descriptors.
 	renderTargetViewDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -818,7 +819,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	D3D12_CPU_DESCRIPTOR_HANDLE depth_handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateDepthStencilView(m_depthStencil, &dsvDesc, depth_handle);
 	m_depthStencil->SetName(L"m_depthStencil");
-	
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = gbufferFormat[Gbuffer_Depth];
@@ -837,7 +838,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 			IID_PPV_ARGS(&myShadowMap[i]));
 		assert(result == S_OK && "CREATING THE SHADOW MAP FAILED");
 
-		myShadowMapViewHandle[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1+i, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
+		myShadowMapViewHandle[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 1 + i, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
 		m_device->CreateDepthStencilView(myShadowMap[i], &dsvDesc, myShadowMapViewHandle[i]); // you cna bind these straight into the gbuffer handles (currently we rebind the gbuffer views to these resources and leave the 2 targets unused
 		wchar_t* buff = new wchar_t[20];
 		wsprintf(buff, L"shadow map %i", i);
@@ -846,11 +847,11 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	//	m_gbufferViewsSRV[Gbuffer_Depth] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_device->CreateShaderResourceView(m_depthStencil, &srvDesc, m_gbufferViewsSRV[Gbuffer_Depth]); // Depth tex has better precision than my custom one :(
-	//m_device->CreateShaderResourceView(myShadowMap[0], &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]);
-	//	myCurrentHeapOffset++;
-		// ~ SETUP DSV
+																									//m_device->CreateShaderResourceView(myShadowMap[0], &srvDesc, m_gbufferViewsSRV[Gbuffer_Shadow]);
+																									//	myCurrentHeapOffset++;
+																									// ~ SETUP DSV
 
-	// SETUP PostProcess scratch Buffers
+																									// SETUP PostProcess scratch Buffers
 	myCurrentPostProcessBufferIdx = 0;
 
 	//*
@@ -881,7 +882,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 		myPostProcessScratchBufferViews[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(), myCurrentRTVHeapOffset, renderTargetViewDescriptorSize);
 		m_device->CreateRenderTargetView(myPostProcessScratchBuffers[i], NULL, myPostProcessScratchBufferViews[i]);
-		
+
 		myCurrentRTVHeapOffset++;
 		assert(result == S_OK && "CREATING PostProcess scratch buffer FAILED");
 	}
@@ -889,7 +890,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 
 	// command allocators for worker threads
 	int nrWorkerThreads = myRenderJobSys->GetNrWorkerThreadsShort();
-	int nrOfThreads =  nrWorkerThreads + 1; // workers + main
+	int nrOfThreads = nrWorkerThreads + 1; // workers + main
 	m_workerThreadCmdAllocators = new ID3D12CommandAllocator*[nrOfThreads];
 	m_workerThreadCmdLists = new ID3D12GraphicsCommandList*[nrOfThreads];
 	for (int i = 0; i < nrOfThreads; i++)
@@ -911,7 +912,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		return false;
 	}
 	m_commandList->SetName(L"D3DClass cmd list");
-	
+
 	// Initially we need to close the command list during initialization as it is created in a recording state.
 	result = m_commandList->Close();
 	if (FAILED(result))
@@ -927,7 +928,7 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 		result = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerThreadCmdAllocators[i], NULL, __uuidof(ID3D12GraphicsCommandList), (void**)&m_workerThreadCmdLists[i]);
 
 		m_workerThreadCmdLists[i]->SetName(L"WorkerThread CmdList");
-		
+
 		if (FAILED(result))
 		{
 			return false;
@@ -963,13 +964,13 @@ bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bo
 	result = m_commandList->Reset(GetCommandAllocator(), m_pipelineState); // how do we deal with this.. passing commandlist around?
 
 
-	// Init resources for managers, they record in cmd list and execute alltogether
+																		   // Init resources for managers, they record in cmd list and execute alltogether
 	{
 		FFontManager::GetInstance()->InitFont(FFontManager::FFONT_TYPE::Arial, 16, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890 {}:.-,", this, m_commandList);
 
 		FPrimitiveGeometry::InitD3DResources(m_device, m_commandList);
 
-	//	FJobSystem::GetInstance()->WaitForAllJobs();
+		//	FJobSystem::GetInstance()->WaitForAllJobs();
 
 		FTextureManager::GetInstance()->InitD3DResources(m_device, m_commandList);
 
@@ -1017,7 +1018,7 @@ bool FD3d12Renderer::Render()
 			postEffect->Init(i);
 			i = i == 0 ? 1 : 0;
 		}
-		
+
 		firstFrame = false;
 	}
 	else
@@ -1055,7 +1056,7 @@ bool FD3d12Renderer::Render()
 			ID3D12CommandList* ppCommandLists[] = { myRenderToGBufferCmdList };
 			VERBOSE_RENDER_LOG("Execute RenderToGBuffer");
 			GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-			
+
 			VERBOSE_RENDER_LOG("Finished RenderToGBuffer");
 			myPostProcessGpuMtx.Signal(GetCommandQueue());
 			myPostProcessGpuMtx.WaitFor();
@@ -1202,13 +1203,13 @@ bool FD3d12Renderer::RenderPostEffects()
 		FPROFILE_FUNCTION("FD3d12 PostEffect");
 
 		PIXBeginEvent(m_commandQueue, 0, L"PostEffects");
-		
+
 		ID3D12CommandList* ppCommandLists[] = { myPostProcessCmdList };
 		GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 		/*
 		myPostProcessGpuMtx.Signal(GetCommandQueue());
 		myPostProcessGpuMtx.WaitFor();
-*/
+		*/
 		PIXEndEvent(m_commandQueue);
 	}
 
@@ -1287,7 +1288,7 @@ bool FD3d12Renderer::RenderPostEffects()
 	}
 
 	// wait for cmdlists to be done
-	
+
 	//myTestMutex.Signal(GetCommandQueue());
 	//myTestMutex.WaitFor();
 
@@ -1412,7 +1413,7 @@ void FD3d12Renderer::RecordClearBuffers()
 	color[2] = 0.0;
 	color[3] = 1.0;
 
-	CD3DX12_RESOURCE_BARRIER barriersBefore[] = 
+	CD3DX12_RESOURCE_BARRIER barriersBefore[] =
 	{
 		CD3DX12_RESOURCE_BARRIER::Transition(m_backBufferRenderTarget[m_bufferIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
 		CD3DX12_RESOURCE_BARRIER::Transition(GetGBufferTarget(0), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),
@@ -1433,7 +1434,7 @@ void FD3d12Renderer::RecordClearBuffers()
 		CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[8], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
 		CD3DX12_RESOURCE_BARRIER::Transition(myShadowMap[9], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE)
 	};
-	
+
 	myClearBuffersCmdList->ResourceBarrier(_countof(barriersBefore), barriersBefore);
 
 	myClearBuffersCmdList->ClearRenderTargetView(myRenderTargetViewHandle, color, 0, NULL);
@@ -1698,12 +1699,12 @@ void FD3d12Renderer::RecordPostProcess()
 	}
 	/*
 	{
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST));
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
-		commandList->CopyResource(GetRenderTarget(), myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-	
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+	commandList->CopyResource(GetRenderTarget(), myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx]);
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(FD3d12Renderer::GetInstance()->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myPostProcessScratchBuffers[myCurrentPostProcessBufferIdx], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
 	}
 	//*/
 
@@ -1763,7 +1764,7 @@ void FD3d12Renderer::GPUMutex::Reset()
 
 FD3d12Renderer::GPUMutex::~GPUMutex()
 {
-	if(myFence)
+	if (myFence)
 		myFence->Release();
 
 	if (myFenceEvent)
@@ -1774,7 +1775,7 @@ void FD3d12Renderer::GPUMutex::Init(ID3D12Device * aDevice, const char* aDebugNa
 {
 	HRESULT result = aDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&myFence);
 	myFenceEvent = CreateEventEx(NULL, FALSE, FALSE, EVENT_ALL_ACCESS);
-																	 // you bind a value to the event
+	// you bind a value to the event
 	// Signal sets a value to the fence, which triggers the event that is bound to that value
 	// the WaitFor waits until the fenceEvent happens (which is a value + fence binding)
 	// so for now we can use 1 since all fence objects are unique, replace with 1 fence + n fenceEvents with unique values
@@ -1786,7 +1787,7 @@ void FD3d12Renderer::GPUMutex::Init(ID3D12Device * aDevice, const char* aDebugNa
 
 void FD3d12Renderer::GPUMutex::Signal(ID3D12CommandQueue * aCmdQueue)
 {
-	if(myCmdQueue)
+	if (myCmdQueue)
 		WaitFor();
 
 	PIXBeginEvent(aCmdQueue, 0, myDebugName);
@@ -1794,7 +1795,7 @@ void FD3d12Renderer::GPUMutex::Signal(ID3D12CommandQueue * aCmdQueue)
 	myFenceValue = InterlockedIncrement(&FD3d12Renderer::GetInstance()->m_fenceValue);
 	HRESULT result = aCmdQueue->Signal(myFence, myFenceValue);
 	PIXEndEvent(aCmdQueue);
-//	FLOG("%d %s mutex signalled: %d",FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
+	//	FLOG("%d %s mutex signalled: %d",FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
 }
 
 void FD3d12Renderer::GPUMutex::WaitFor()
@@ -1825,7 +1826,7 @@ void FD3d12Renderer::GPUMutex::WaitFor()
 		completedValAfter = myFence->GetCompletedValue();
 	}
 
-//	FLOG("%d %s mutex waitfor completed: %d", FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
+	//	FLOG("%d %s mutex waitfor completed: %d", FJobSystem::ourThreadIdx, myDebugName, myFenceValue);
 	PIXEndEvent(myCmdQueue);
 }
 

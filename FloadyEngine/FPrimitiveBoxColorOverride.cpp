@@ -2,7 +2,6 @@
 #include "FVector3.h"
 #include "d3dx12.h"
 #include "FD3d12Renderer.h"
-#include "FCamera.h"
 #include <vector>
 
 #include "FDelegate.h"
@@ -67,6 +66,8 @@ void FPrimitiveBoxColorOverride::Init()
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC  rootSignatureDescShadows;
 		rootSignatureDescShadows.Init_1_1(_countof(rootParametersShadow), rootParametersShadow, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+		// TODO this one doesnt map shadows correctly (2 CBVs)
 
 		ID3DBlob* signatureShadows;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDescShadows, featureData.HighestVersion, &signatureShadows, &error);

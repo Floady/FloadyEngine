@@ -2,9 +2,12 @@
 #include "d3dx12.h"
 #include "D3dCompiler.h"
 #include "FD3d12Renderer.h"
+#include "FCamera.h"
 #include <vector>
 
 #pragma optimize("", off)
+
+using namespace DirectX;
 
 FFontManager* myInstance = nullptr;
 

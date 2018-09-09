@@ -178,6 +178,7 @@ void FPrimitiveBoxInstanced::Init()
 		ID3DBlob* error;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
 		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
+		//m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(1, 1);
 		m_rootSignature->SetName(L"PrimitiveBoxInstanced");
 
 		// shadow root sig
@@ -194,6 +195,8 @@ void FPrimitiveBoxInstanced::Init()
 		ID3DBlob* signatureShadows;
 		hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDescShadows, featureData.HighestVersion, &signatureShadows, &error);
 		hr = myManagerClass->GetDevice()->CreateRootSignature(0, signatureShadows->GetBufferPointer(), signatureShadows->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatureShadows));
+
+		//m_rootSignatureShadows = FD3d12Renderer::GetInstance()->GetRootSignature(0, 1);
 		m_rootSignatureShadows->SetName(L"PrimitiveBoxInstancedShadow");
 	}
 

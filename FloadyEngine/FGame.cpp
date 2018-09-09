@@ -475,7 +475,7 @@ bool FGame::Update(double aDeltaTime)
 
 	{
 		FPROFILE_FUNCTION_CUSTOM("Profiler", 0xFFFFAAAA);
-		FProfiler::GetInstance()->Render();
+//		FProfiler::GetInstance()->Render();
 		FProfiler::GetInstance()->StartFrame();
 	}
 

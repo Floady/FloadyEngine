@@ -2,7 +2,6 @@
 #include "FVector3.h"
 #include "d3dx12.h"
 #include "FD3d12Renderer.h"
-#include "FCamera.h"
 #include <vector>
 
 #include "FDelegate.h"
@@ -109,7 +108,7 @@ void FPrimitiveBoxMultiTex::Init()
 
 void FPrimitiveBoxMultiTex::ObjectLoadingDone(const FMeshManager::FMeshLoadObject& anObj)
 {
-	FLOG("ObgjectLOadingDone called");
+	FLOG("ObjectLoadingDone called");
 
 	// update GPU buffers
 	myIndicesCount = anObj.myObject->myIndicesCount;
