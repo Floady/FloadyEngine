@@ -37,9 +37,13 @@
 #include "FPhysicsComponent.h"
 #include "FPhysicsWorld.h"
 
+#include "FIMGUI.h"
+
 FGame* FGame::ourInstance = nullptr;
 
 FD3d12Renderer::FMutex myMutex;
+
+FIMGUI* ourIMGUI = nullptr;
 
 void * operator new(std::size_t n) throw(std::bad_alloc)
 {
@@ -202,6 +206,8 @@ void FGame::Init()
 
 	// set UI to in game for now
 	myGameUIManager->SetState(FGameUIManager::GuiState::InGame);
+
+	ourIMGUI = new FIMGUI();
 }
 
 bool FGame::Update(double aDeltaTime)
@@ -211,6 +217,8 @@ bool FGame::Update(double aDeltaTime)
 	FVector3 dir = FVector3(0.6, 1, 1); dir.Normalize();
 	FVector3 lastPos = startPos;
 	static float trajectoryVelocity = 10.0f;
+
+	FPROFILE_MARKER("StartFrame");
 
 	FJob* clearBufferJob = nullptr;
 	FD3d12Renderer::GetInstance()->InitFrame();
@@ -303,6 +311,10 @@ bool FGame::Update(double aDeltaTime)
 		if (myInput->IsKeyDown(VK_F6))
 		{
 			myGameUIManager->SetState(FGameUIManager::GuiState::No_UI);
+		}
+		if (myInput->IsKeyDown(VK_F7))
+		{
+			myGameUIManager->SetState(FGameUIManager::GuiState::Profiler);
 		}
 		static FVector3 vNavEnd;
 		static FVector3 vNavStart;
@@ -440,23 +452,23 @@ bool FGame::Update(double aDeltaTime)
 
 		// update SSAO buffers
 		float constData[80];
-		memcpy(&constData[0], myCamera->GetInvViewProjMatrix().m, 16 * sizeof(float));
+		memcpy(&constData[0], myCamera->GetInvViewProjMatrix2().cell, 16 * sizeof(float));
 
-		DirectX::XMFLOAT4X4 projMatrix;
-		XMStoreFloat4x4(&projMatrix, XMMatrixTranspose(myCamera->myProjMatrix));
-		memcpy(&constData[16], projMatrix.m, 16 * sizeof(float));
+		FMatrix projMatrix = myCamera->GetProjMatrix();
+		projMatrix.Transpose();
+		memcpy(&constData[16], projMatrix.cell, 16 * sizeof(float));
+		
+		FMatrix invProjMatrix = myCamera->GetProjMatrix();
+		invProjMatrix.Transpose(); invProjMatrix.Invert2();
+		memcpy(&constData[32], invProjMatrix.cell, 16 * sizeof(float));
 
-		DirectX::XMFLOAT4X4 invProjMatrix;
-		XMStoreFloat4x4(&invProjMatrix, XMMatrixTranspose(XMMatrixInverse(nullptr, myCamera->myProjMatrix)));
-		memcpy(&constData[32], invProjMatrix.m, 16 * sizeof(float));
+		FMatrix viewMtx = myCamera->GetViewMatrix();
+		viewMtx.Transpose();
+		memcpy(&constData[48], viewMtx.cell, 16 * sizeof(float));
 
-		DirectX::XMFLOAT4X4 viewMtx;
-		XMStoreFloat4x4(&viewMtx, XMMatrixTranspose(myCamera->_viewMatrix));
-		memcpy(&constData[48], viewMtx.m, 16 * sizeof(float));
-
-		DirectX::XMFLOAT4X4 invViewMtx;
-		XMStoreFloat4x4(&invViewMtx, XMMatrixTranspose(XMMatrixInverse(nullptr, myCamera->_viewMatrix)));
-		memcpy(&constData[64], invViewMtx.m, 16 * sizeof(float));
+		FMatrix invViewMtx = myCamera->GetViewMatrix();
+		invViewMtx.Transpose(); invViewMtx.Invert2();
+		memcpy(&constData[64], invViewMtx.cell, 16 * sizeof(float));
 
 		mySSAO->WriteConstBuffer(0, &constData[0], 80 * sizeof(float));
 
@@ -482,6 +494,7 @@ bool FGame::Update(double aDeltaTime)
 	myMutex.Lock();
 
 	FD3d12Renderer::GetInstance()->WaitForRender();
+	
 	myExecuteCommandlistsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderAsync)));
 	myRenderPostEffectsJob = myRenderJobSys->QueueJob((FDelegate2<void()>(this, &FGame::RenderPostEffectsAsync)), false, myExecuteCommandlistsJob);
 
@@ -499,6 +512,10 @@ bool FGame::Update(double aDeltaTime)
 			myRenderJobSys->WaitForAllJobs();
 			myRenderJobSys->ResetQueue();
 		}
+
+		ourIMGUI->Update();
+		//FD3d12Renderer::GetInstance()->WaitForRender();
+		myRenderer->Present();
 
 		{
 			FPROFILE_FUNCTION_CUSTOM("WaitForRender", 0xFFFFAAAA);

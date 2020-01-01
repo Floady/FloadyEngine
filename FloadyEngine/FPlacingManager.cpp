@@ -11,8 +11,6 @@
 #include "FUtilities.h"
 #include "FSceneGraph.h"
 
-using namespace DirectX;
-
 FPlacingManager::FPlacingManager()
 {
 	myObject = nullptr;

@@ -14,20 +14,21 @@ class FVector3
 {
 public:
 	inline FVector3() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {}
-	inline FVector3(float a_X, float a_Y, float a_Z) : x(a_X), y(a_Y), z(a_Z), w(0) {}
+	inline FVector3(float aX, float aY, float aZ) : x(aX), y(aY), z(aZ), w(0) {}
+	inline FVector3(float aX, float aY, float aZ, float aW) : x(aX), y(aY), z(aZ), w(aW) {}
 	inline FVector3(__m128 vec) : xyz(vec) {}
-	FVector3(const FVector3& other) : x(other.x), y(other.y), z(other.z) {  }
-	FVector3(FVector3&& other) : x(other.x), y(other.y), z(other.z) {  }
-	FVector3& operator=(FVector3&& other) { x = other.x; y = other.y; z = other.z; return *this; }
-	//FVector3& operator=(FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
-	FVector3& operator=(const FVector3& other) { x = other.x; y = other.y; z = other.z; return *this; }
+	FVector3(const FVector3& anOther) : x(anOther.x), y(anOther.y), z(anOther.z) {  }
+	FVector3(FVector3&& anOther) : x(anOther.x), y(anOther.y), z(anOther.z) {  }
+	FVector3& operator=(FVector3&& anOther) { x = anOther.x; y = anOther.y; z = anOther.z; return *this; }
+	//FVector3& operator=(FVector3& anOther) { x = anOther.x; y = anOther.y; z = anOther.z; return *this; }
+	FVector3& operator=(const FVector3& anOther) { x = anOther.x; y = anOther.y; z = anOther.z; return *this; }
 	void Rotate22(float anAngleX, float anAngleY, float anAngleZ);
 
-	void Set(float a_X, float a_Y, float a_Z)
+	void Set(float aX, float aY, float aZ)
 	{
-		x = a_X;
-		y = a_Y;
-		z = a_Z;
+		x = aX;
+		y = aY;
+		z = aZ;
 	}
 	void Normalize()
 	{
@@ -73,12 +74,12 @@ public:
 #endif
 	}
 
-	float Dot(const FVector3& a_V) const
+	float Dot(const FVector3& aV) const
 	{
 #if NONVECTORIZED
-		return x * a_V.x + y * a_V.y + z * a_V.z;
+		return x * aV.x + y * aV.y + z * aV.z;
 #else
-		__m128 a = _mm_dp_ps(xyz, a_V.xyz, 0x7F);
+		__m128 a = _mm_dp_ps(xyz, aV.xyz, 0x7F);
 		return a.m128_f32[0];
 #endif
 	}
@@ -98,39 +99,39 @@ public:
 #endif
 	}
 
-	inline void operator+=(const FVector3& a_V)
+	inline void operator+=(const FVector3& aV)
 	{
 #if NONVECTORIZED
-		x += a_V.x; y += a_V.y; z += a_V.z;
+		x += aV.x; y += aV.y; z += aV.z;
 #else
-		xyz = _mm_add_ps(xyz, a_V.xyz);
+		xyz = _mm_add_ps(xyz, aV.xyz);
 #endif
 	}
 
-	inline void operator+=(FVector3* a_V)
+	inline void operator+=(FVector3* aV)
 	{
 #if NONVECTORIZED
-		x += a_V->x; y += a_V->y; z += a_V->z;
+		x += aV->x; y += aV->y; z += aV->z;
 #else
-		xyz = _mm_add_ps(xyz, a_V->xyz);
+		xyz = _mm_add_ps(xyz, aV->xyz);
 #endif
 	}
 
-	void operator-=(const FVector3& a_V)
+	void operator-=(const FVector3& aV)
 	{
 #if NONVECTORIZED
-		x -= a_V.x; y -= a_V.y; z -= a_V.z;
+		x -= aV.x; y -= aV.y; z -= aV.z;
 #else
-		xyz = _mm_sub_ps(xyz, a_V.xyz);
+		xyz = _mm_sub_ps(xyz, aV.xyz);
 #endif
 	}
 
-	void operator-=(FVector3* a_V)
+	void operator-=(FVector3* aV)
 	{
 #if NONVECTORIZED
-		x -= a_V->x; y -= a_V->y; z -= a_V->z;
+		x -= aV->x; y -= aV->y; z -= aV->z;
 #else
-		xyz = _mm_sub_ps(xyz, a_V->xyz);
+		xyz = _mm_sub_ps(xyz, aV->xyz);
 #endif
 	}
 
@@ -144,27 +145,27 @@ public:
 #endif
 	}
 
-	void operator*=(const FVector3& a_V)
+	void operator*=(const FVector3& aV)
 	{
 #if NONVECTORIZED
-		x *= a_V.x; y *= a_V.y; z *= a_V.z;
+		x *= aV.x; y *= aV.y; z *= aV.z;
 #else
-		xyz = _mm_mul_ps(xyz, a_V.xyz);
+		xyz = _mm_mul_ps(xyz, aV.xyz);
 #endif
 	}
 
-	void operator*=(FVector3* a_V)
+	void operator*=(FVector3* aV)
 	{
 #if NONVECTORIZED
-		x *= a_V->x; y *= a_V->y; z *= a_V->z;
+		x *= aV->x; y *= aV->y; z *= aV->z;
 #else
-		xyz = _mm_mul_ps(xyz, a_V->xyz);
+		xyz = _mm_mul_ps(xyz, aV->xyz);
 #endif
 	}
 
-	float& operator[](int a_N)
+	float& operator[](int aN)
 	{
-		return cell[a_N];
+		return cell[aN];
 	}
 
 	FVector3 operator-() const

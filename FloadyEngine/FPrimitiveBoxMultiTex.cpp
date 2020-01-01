@@ -13,6 +13,8 @@
 
 #include "FUtilities.h"
 
+#define NUMBER_OF_TEXTURES 96
+
 void FPrimitiveBoxMultiTex::Init()
 {
 	HRESULT hr;
@@ -28,7 +30,7 @@ void FPrimitiveBoxMultiTex::Init()
 		}
 
 		// get root sig with 32 SRV's
-		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(96, 1);
+		m_rootSignature = FD3d12Renderer::GetInstance()->GetRootSignature(NUMBER_OF_TEXTURES, 1);
 		m_rootSignature->SetName(L"PrimitiveBoxMultiTex");
 
 		//*
@@ -100,7 +102,7 @@ void FPrimitiveBoxMultiTex::Init()
 	myManagerClass->GetShaderManager().RegisterForHotReload(shaderfilename, this, FDelegate2<void()>::from<FPrimitiveBoxInstanced, &FPrimitiveBoxInstanced::SetShader>(this));
 	
 	myTexOffset = FD3d12Renderer::GetInstance()->BindTexture("");
-	for (size_t i = 0; i < 95; i++) // 63 + 1 = 64 :^)
+	for (size_t i = 0; i < NUMBER_OF_TEXTURES-1; i++) // 63 + 1 = 64 :^)
 	{
 		FD3d12Renderer::GetInstance()->BindTexture("");
 	}

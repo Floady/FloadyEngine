@@ -5,10 +5,6 @@
 #include "FCamera.h"
 #include <vector>
 
-#pragma optimize("", off)
-
-using namespace DirectX;
-
 FFontManager* myInstance = nullptr;
 
 static const UINT TexturePixelSize = 4;	// The number of bytes used to represent a pixel in the texture.

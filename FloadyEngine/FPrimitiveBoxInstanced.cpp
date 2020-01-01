@@ -15,8 +15,6 @@
 
 //#pragma optimize("", off)
 
-using namespace DirectX;
-
 bool ourShouldRecalc = false;
 
 FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector3 aPos, FVector3 aScale, FPrimitiveBoxInstanced::PrimitiveType aType, unsigned int aNrOfInstances)
@@ -66,17 +64,9 @@ FPrimitiveBoxInstanced::FPrimitiveBoxInstanced(FD3d12Renderer* aManager, FVector
 
 	myType = aType;
 
-	XMMATRIX mtxRot = XMMatrixIdentity();
-	XMFLOAT4X4 m;
-	XMStoreFloat4x4(&m, mtxRot);
+	FMatrix rotMatrix;
 
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			myRotMatrix[i * 4 + j] = m.m[i][j];
-		}
-	}
+	memcpy(myRotMatrix, rotMatrix.cell, sizeof(float) * 16);
 
 	myIsInitialized = false;
 
@@ -432,17 +422,19 @@ void FPrimitiveBoxInstanced::RecalcModelMatrix()
 	// todo this is only for non instanced ones
 	if (myIsMatrixDirty)
 	{
-		XMFLOAT4X4 m = XMFLOAT4X4(myRotMatrix);
-		XMMATRIX mtxRot = XMLoadFloat4x4(&m);
-		XMMATRIX scale = XMMatrixScaling(myScale.x, myScale.y, myScale.z);
-		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(myPos.x, myPos.y, myPos.z, 1));
-		offset = scale * mtxRot * offset;
-
-		offset = XMMatrixTranspose(offset);
-		XMFLOAT4X4 result;
-		XMStoreFloat4x4(&result, offset);
-		memcpy(myModelMatrix[0].myModelMatrix, result.m, sizeof(float) * 16);
 		myIsMatrixDirty = false;
+
+		FMatrix scaleMatrix;
+		scaleMatrix.cell[FMatrix::SX] = myScale.x;
+		scaleMatrix.cell[FMatrix::SY] = myScale.y;
+		scaleMatrix.cell[FMatrix::SZ] = myScale.z;
+		FMatrix rotMatrix;
+		memcpy(rotMatrix.cell, myRotMatrix, sizeof(float) * 16);
+		rotMatrix.Invert2();
+		rotMatrix.SetTranslation(myPos);
+		rotMatrix.Concatenate(scaleMatrix);
+
+		memcpy(myModelMatrix[0].myModelMatrix, rotMatrix.cell, sizeof(float) * 16);
 	}
 
 	myIsGPUConstantDataDirty = true;
@@ -468,7 +460,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	if (myIsGPUConstantDataDirty || ourShouldRecalc)
 	{
 		float constData[256 * 16] = { 0.0f };
-		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(0, 0, 0).cell, sizeof(float) * 16);
 		unsigned int offset = 16;
 		for (size_t i = 0; i < myNrOfInstances; i++)
 		{
@@ -484,7 +476,7 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	else
 	{
 		float constData[16];
-		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+		memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(0, 0, 0).cell, sizeof(float) * 16);
 		memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 16);
 	}
 
@@ -494,16 +486,16 @@ void FPrimitiveBoxInstanced::UpdateConstBuffers()
 	const std::vector<FLightManager::DirectionalLight>& dirLights = FLightManager::GetInstance()->GetDirectionalLights();
 	for (size_t i = 0; i < dirLights.size(); i++)
 	{
-		const XMFLOAT4X4& m = dirLights[i].myViewProjMatrix;
-		memcpy(&constData[offsetInConstData], m.m, sizeof(XMFLOAT4X4));
+		const FMatrix& m = dirLights[i].GetViewProjMatrix2();
+		memcpy(&constData[offsetInConstData], m.cell, sizeof(float) * 16);
 		offsetInConstData += 16;
 	}
 
 	const std::vector<FLightManager::SpotLight>& spotlights = FLightManager::GetInstance()->GetSpotlights();
 	for (size_t i = 0; i < spotlights.size(); i++)
 	{
-		const XMFLOAT4X4& m = spotlights[i].myViewProjMatrix;
-		memcpy(&constData[offsetInConstData], m.m, sizeof(XMFLOAT4X4));
+		const FMatrix& m = spotlights[i].GetViewProjMatrix2();
+		memcpy(&constData[offsetInConstData], m.cell, sizeof(float) * 16);
 		offsetInConstData += 16;
 	}
 

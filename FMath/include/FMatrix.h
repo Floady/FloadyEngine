@@ -16,15 +16,17 @@ public:
 	FMatrix();
 	float& operator [] ( int a_N ) { return cell[a_N]; }
 	void Identity();
-	void Init( FVector3& a_Pos, float a_RX, float a_RY, float a_RZ );
+	void Init(const FVector3& a_Pos, float a_RX, float a_RY, float a_RZ );
 	void RotateX( float a_RX );
 	void RotateY( float a_RY );
 	void RotateZ( float a_RZ );
-	void Translate( FVector3& a_Pos );
-	void SetTranslation( FVector3& a_Pos );
-	void Concatenate( FMatrix& m2 );
-	FVector3 Transform( FVector3& v );
+	void Translate(const FVector3& a_Pos );
+	void SetTranslation( const FVector3& a_Pos );
+	void Concatenate(const FMatrix& m2 );
+	FVector3 Transform( const FVector3& v );
+	void Multiply(float v);
 	void Invert();
+	void Invert2();
 	void Transpose();
 //private:
 	float cell[16];

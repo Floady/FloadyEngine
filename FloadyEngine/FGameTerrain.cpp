@@ -9,8 +9,6 @@
 #include "FProfiler.h"
 #include "FPhysicsWorld.h"
 
-using namespace DirectX;
-
 REGISTER_GAMEENTITY2(FGameTerrain);
 
 FGameTerrain::FGameTerrain() : FGameEntity()
@@ -188,7 +186,7 @@ void FGameTerrain::Update(double aDeltaTime)
 
 	for (int i = 0; i < vertices.size(); i++)
 	{
-		DirectX::XMFLOAT3& vtx = vertices[i].position;
+		FPrimitiveGeometry::float3& vtx = vertices[i].position;
 		if (cam->IsInFrustum(vtx.x, vtx.y, vtx.z))
 		{
 			aabb.Grow(vtx.x, vtx.y, vtx.z);

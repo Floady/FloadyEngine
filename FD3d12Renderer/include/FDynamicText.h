@@ -23,6 +23,7 @@ public:
 	void PopulateCommandListInternalShadows(ID3D12GraphicsCommandList* aCmdList) override {}
 	void PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdList) override {}
 	void SetText(const char* aNewText);
+	void SetFitToWidth(bool aFitToWidth);
 	void SetShader();
 
 	// dont care for text - could use it to change font
@@ -62,6 +63,8 @@ private:
 
 	float myWidth;
 	float myHeight;
+
+	bool myFitToWidth;
 	
 	FD3d12Renderer::GPUMutex myMutex;
 };

@@ -15,6 +15,8 @@
 #include "FDelegate.h"
 #include "FUtilities.h"
 
+#include "FIMGUI.h"
+
 //#define VERBOSE_RENDER_LOG(x, ...) FLOG(x, __VA_ARGS__)
 
 #define VERBOSE_RENDER_LOG(x, ...)
@@ -56,6 +58,7 @@ FD3d12Renderer::FD3d12Renderer()
 	m_dsvHeap = 0;
 
 	myInt = 0;
+	myHwnd = 0;
 
 	FProfiler::GetInstance();
 
@@ -393,6 +396,8 @@ ID3D12GraphicsCommandList * FD3d12Renderer::CreateCommandList()
 
 bool FD3d12Renderer::Initialize(int screenHeight, int screenWidth, HWND hwnd, bool vsync, bool fullscreen)
 {
+	myHwnd = hwnd;
+
 	m_viewport.Width = static_cast<float>(screenWidth);
 	m_viewport.Height = static_cast<float>(screenHeight);
 	m_viewport.MaxDepth = 1.0f;
@@ -1253,6 +1258,13 @@ bool FD3d12Renderer::RenderPostEffects()
 	}
 	PIXEndEvent(m_commandQueue);
 	//*/
+
+
+	return true;
+}
+
+bool FD3d12Renderer::Present()
+{	
 	//*
 	{
 		ID3D12GraphicsCommandList* commandList = m_workerThreadCmdLists[FJobSystem::ourThreadIdx];

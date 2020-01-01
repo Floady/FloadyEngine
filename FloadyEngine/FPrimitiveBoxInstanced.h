@@ -6,8 +6,6 @@
 #include "FMeshManager.h"
 #include <string>
 
-#include <DirectXMath.h>
-
 
 class FCamera;
 class FD3d12Renderer;

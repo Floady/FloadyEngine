@@ -3,7 +3,7 @@
 #include "FShaderManager.h"
 #include "FSceneGraph.h"
 
-#define GRAPHICS_DEBUGGING 1 // enable this if you use VS graphics debugger so we use their pix version
+#define GRAPHICS_DEBUGGING 0 // enable this if you use VS graphics debugger so we use their pix version
 
 class FCamera;
 class FDebugDrawer;
@@ -87,6 +87,9 @@ public:
 	int GetNextOffset() { int val = myCurrentHeapOffset;  myCurrentHeapOffset++; return val; } // this is for the CBV+SRV heap
 	int GetCurHeapOffset() { return myCurrentHeapOffset; }
 	bool RenderPostEffects();
+	bool Present();
+
+	HWND GetWindowHandle() { return myHwnd; }
 
 	// Render tasks
 	void InitFrame();
@@ -103,8 +106,8 @@ public:
 
 	FShaderManager& GetShaderManager() { return myShaderManager; }
 	ID3D12CommandAllocator* GetCommandAllocator();
-	ID3D12DescriptorHeap* GetSRVHeap() { return m_srvHeap; }
-	ID3D12DescriptorHeap* GetRTVHeap() { return m_renderTargetViewHeap; }
+	ID3D12DescriptorHeap* GetSRVHeap() const { return m_srvHeap; }
+	ID3D12DescriptorHeap* GetRTVHeap() const { return m_renderTargetViewHeap; }
 	D3D12_VIEWPORT& GetViewPort() { return m_viewport; }
 	D3D12_RECT& GetScissorRect() { return m_scissorRect; }
 	float GetAspectRatio() { return m_aspectRatio; }
@@ -133,6 +136,7 @@ public:
 
 	void WaitForRenderFromThread();
 private:
+	HWND myHwnd;
 	FJobSystem* myRenderJobSys;
 	static FD3d12Renderer* ourInstance;
 	FDebugDrawer* myDebugDrawer;

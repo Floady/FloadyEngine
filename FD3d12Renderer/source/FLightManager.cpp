@@ -3,6 +3,7 @@
 #include "FDebugDrawer.h"
 #include "FCamera.h"
 #include "FProfiler.h"
+#include <DirectXMath.h>
 
 using namespace DirectX;
 
@@ -154,29 +155,27 @@ FLightManager::Light* FLightManager::GetLight(unsigned int aLightId)
 	return nullptr;
 }
 
-const XMFLOAT4X4& FLightManager::GetSpotlightViewProjMatrix(int i) const
-{
-	return mySpotlights[i].GetViewProjMatrix();
-}
-
 static DirectX::XMFLOAT4X4 ourIdentityMatrix = DirectX::XMFLOAT4X4();
-const DirectX::XMFLOAT4X4& FLightManager::GetCurrentActiveLightViewProjMatrix() const
-{
-	if(myActiveLight == -1)
-		return GetDirectionalLightViewProjMatrix(0); // todo: fix
 
-	if(myActiveLight >= mySpotlights.size())
-		return ourIdentityMatrix;
-	
-	return GetSpotlightViewProjMatrix(myActiveLight);
+const FMatrix & FLightManager::GetSpotlightViewProjMatrix2(int i) const
+{
+	return mySpotlights[i].GetViewProjMatrix2();
 }
 
-//@todo: this is not entirely correct but currently at least it covers the scene (we are missing some shadows, and the z/depth his over-eager)
-// works for now.. you can transform the worldpos with lightmatrix to see if it falls inside the camera frustum
-// or we can just add all camera frustum corners to the scene AABB to cover it all (maxCam and minCam, but they are not correct now)
-const DirectX::XMFLOAT4X4& FLightManager::GetDirectionalLightViewProjMatrix(int i) const
+const FMatrix & FLightManager::GetCurrentActiveLightViewProjMatrix2() const
 {
-	return myDirectionalLights[i].GetViewProjMatrix();
+	if (myActiveLight == -1)
+		return GetDirectionalLightViewProjMatrix2(0); // todo: fix
+
+	if (myActiveLight >= mySpotlights.size())
+		return FMatrix();
+
+	return GetSpotlightViewProjMatrix2(myActiveLight);
+}
+
+const FMatrix & FLightManager::GetDirectionalLightViewProjMatrix2(int i) const
+{
+	return myDirectionalLights[i].GetViewProjMatrix2();
 }
 
 void FLightManager::SortLights()
@@ -244,8 +243,12 @@ void FLightManager::UpdateViewProjMatrices()
 
 				XMMATRIX  _viewProjMatrix = XMMatrixTranspose(_viewMatrix * projMatrix);
 				XMMATRIX  _transposedProjMatrix = XMMatrixTranspose(projMatrix);
-				XMStoreFloat4x4(&mySpotlights[i].myViewProjMatrix, _viewProjMatrix);
-				XMStoreFloat4x4(&mySpotlights[i].myProjMatrix, _transposedProjMatrix);
+				XMFLOAT4X4 _storageViewProjMtx;
+				XMFLOAT4X4 _storageProjMtxTrans;
+				XMStoreFloat4x4(&_storageViewProjMtx, _viewProjMatrix);
+				XMStoreFloat4x4(&_storageProjMtxTrans, _transposedProjMatrix);
+				memcpy(&mySpotlights[i].myViewProjMatrix2.cell, _storageViewProjMtx.m, sizeof(float) * 16);
+				memcpy(&mySpotlights[i].myProjMatrix2.cell, _storageProjMtxTrans.m, sizeof(float) * 16);
 			}
 
 			if (myDoDebugDraw)
@@ -260,7 +263,9 @@ void FLightManager::UpdateViewProjMatrices()
 		if (myDirectionalLights[i].myHasMoved || ourShouldRecalc)
 		{
 			// add camera frustum corners to scene
-			XMMATRIX invProj = FD3d12Renderer::GetInstance()->GetCamera()->_viewProjMatrix;
+			const FMatrix& viewProjMtx = FD3d12Renderer::GetInstance()->GetCamera()->GetViewProjMatrix();
+			XMFLOAT4X4 m = XMFLOAT4X4(viewProjMtx.cell);
+			XMMATRIX invProj = XMLoadFloat4x4(&m);
 			invProj = XMMatrixInverse(nullptr, invProj);
 			XMVECTOR maxCam = XMVector3Transform(XMVectorSet(1, 1, 1, 1), invProj);
 			XMVECTOR minCam = XMVector3Transform(XMVectorSet(0, 0, 0, 1), invProj);
@@ -397,8 +402,12 @@ void FLightManager::UpdateViewProjMatrices()
 
 			if (!myFreezeDebugInfo)
 			{
-				XMStoreFloat4x4(&myDirectionalLights[i].myViewProjMatrix, _viewProjMatrix);
-				XMStoreFloat4x4(&myDirectionalLights[i].myProjMatrix, XMMatrixTranspose(myProjMatrix));
+				XMFLOAT4X4 _storageViewProjMtx;
+				XMFLOAT4X4 _storageProjMtxTrans;
+				XMStoreFloat4x4(&_storageViewProjMtx, _viewProjMatrix);
+				XMStoreFloat4x4(&_storageProjMtxTrans, XMMatrixTranspose(myProjMatrix));
+				memcpy(&myDirectionalLights[i].myViewProjMatrix2.cell, _storageViewProjMtx.m, sizeof(float) * 16);
+				memcpy(&myDirectionalLights[i].myProjMatrix2.cell, _storageProjMtxTrans.m, sizeof(float) * 16);
 			}
 		}
 	}

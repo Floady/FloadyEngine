@@ -3,6 +3,9 @@
 #include "FTimer.h"
 #include "FD3d12Renderer.h"
 
+#include "imgui.h"
+#include "ImGui_Impl_win32.h"
+
 static const bool FULL_SCREEN = false;
 static FRenderWindow* ApplicationHandle = 0;
 
@@ -85,11 +88,15 @@ bool FRenderWindow::CheckForQuit()
 	return false;
 }
 
+IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT CALLBACK FRenderWindow::MessageHandler(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, umsg, wparam, lparam))
+		return true;
+
 	myInputCallback(umsg, wparam, lparam);
 	
-
 	switch (umsg)
 	{
 		case WM_SETFOCUS:

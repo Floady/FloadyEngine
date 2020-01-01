@@ -85,10 +85,17 @@ void FD3d12Quad::Init()
 
 	// Create the vertex buffer.
 	{
+		
 		m_aspectRatio = 1.0f;
 		const float size = 1.0f;
 		const float z = 0.0f;
-		Vertex triangleVertices[] =
+		struct Vertex
+		{
+			float pos[3];
+			float uv[2];
+		};
+
+		Vertex triangleVertices[6] =
 		{
 			{ { -size, size, z },{ 0.0f, 0.0f } },
 			{ { size, -size, z },{ 1.0f, 1.0f } },
@@ -222,12 +229,9 @@ void FD3d12Quad::Render()
 	HRESULT hr;
 
 	// set camera data
-	XMFLOAT4X4 invProjMatrix = myManagerClass->GetCamera()->GetInvViewProjMatrix();
-	XMFLOAT4X4 invProjMatrix2 = myManagerClass->GetCamera()->GetViewProjMatrixTransposed();
-		
 	static float shaderConstData2[20];
 	memset(&shaderConstData2, 0, sizeof(float) * 20);
-	memcpy(&shaderConstData2, invProjMatrix.m, sizeof(invProjMatrix.m));
+	memcpy(&shaderConstData2, myManagerClass->GetCamera()->GetInvViewProjMatrix2().cell, sizeof(float) * 16);
 
 	FVector3 camPos = myManagerClass->GetCamera()->GetPos();
 	
@@ -249,8 +253,12 @@ void FD3d12Quad::Render()
 	const std::vector<FLightManager::DirectionalLight>& directionallights = FLightManager::GetInstance()->GetDirectionalLights();
 	for (const FLightManager::DirectionalLight& directionalLight : directionallights)
 	{
-		const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(lightIdx);
-		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+		//const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(lightIdx);
+		//memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+
+		const FMatrix& lightViewProj = FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix2(lightIdx);
+		memcpy(&lightData[idx], lightViewProj.cell, sizeof(float) * 16);
+
 		idx += 16;
 
 		// worldpos
@@ -291,8 +299,11 @@ void FD3d12Quad::Render()
 
 		numLights++;
 
-		const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
-		memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+		//const XMFLOAT4X4& lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix(lightIdx);
+		//memcpy(&lightData[idx], lightViewProj.m, sizeof(lightViewProj.m));
+
+		const FMatrix& lightViewProj = FLightManager::GetInstance()->GetSpotlightViewProjMatrix2(lightIdx);
+		memcpy(&lightData[idx], lightViewProj.cell, sizeof(float) * 16);
 		idx += 16;
 
 		// worldpos

@@ -1,8 +1,8 @@
 #include "..\FGame.h"
 #include "..\FD3d12Input.h"
-#include "..\FD3d12Renderer.h"
+#include "FD3d12Renderer.h"
 #include "FGUIManager.h"
-#include "..\FScreenQuad.h"
+#include "FScreenQuad.h"
 
 FGUIManager::FGUIManager()
 {

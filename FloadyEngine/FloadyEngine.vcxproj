@@ -205,7 +205,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include;$(SolutionDir)\FCommon\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.14393.0\um;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include;$(SolutionDir)\FCommon\include;$(SolutionDir)\FD3d12Renderer\include;$(SolutionDir)\Extern\imgui-master;$(SolutionDir)\Extern\imgui-master\examples</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -215,8 +215,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.16299.0\um\x64;$(ProjectDir)\libpng1628\lib\x64\Release;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\;$(SolutionDir)\FCommon\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>FCommon.lib;FAssetLib.lib;FMath.lib;FPhysics.lib;libpng16.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.16299.0\um\x64;$(ProjectDir)\libpng1628\lib\x64\Release;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\;$(SolutionDir)\FCommon\lib\x64\$(Configuration)\;$(SolutionDir)\FD3d12Renderer\lib\x64\$(Configuration)\;$(SolutionDir)\IMGUI\lib\x64\$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>FD3d12Renderer.lib;FCommon.lib;FAssetLib.lib;FMath.lib;FPhysics.lib;libpng16.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib;IMGUI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -224,9 +224,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="F3DPicker.cpp" />
-    <ClCompile Include="FDebugDrawer.cpp" />
-    <ClCompile Include="FCamera.cpp" />
-    <ClCompile Include="FD3d12Quad.cpp" />
     <ClCompile Include="FGameAgent.cpp" />
     <ClCompile Include="FGameBuilding.cpp" />
     <ClCompile Include="FGameBuildingManager.cpp" />
@@ -239,6 +236,8 @@
     <ClCompile Include="FGameUIPanel.cpp" />
     <ClCompile Include="FGameUIPanelBuildings.cpp" />
     <ClCompile Include="FGameUIPanelDebug.cpp" />
+    <ClCompile Include="FGameUIPanelProfiler.cpp" />
+    <ClCompile Include="FGameUIPanelProfilerIMGUI.cpp" />
     <ClCompile Include="FGUIButtonToggle.cpp" />
     <ClCompile Include="FLightComponent.cpp" />
     <ClCompile Include="FMeshInstanceManager.cpp" />
@@ -249,37 +248,24 @@
     <ClCompile Include="FPathfindComponent.cpp" />
     <ClCompile Include="FPhysicsComponent.cpp" />
     <ClCompile Include="FPlacingManager.cpp" />
-    <ClCompile Include="FPostProcessEffect.cpp" />
     <ClCompile Include="FPrimitiveBoxInstanced.cpp" />
     <ClCompile Include="FPrimitiveBoxMultiTex.cpp" />
     <ClCompile Include="FRenderMeshComponent.cpp" />
-    <ClCompile Include="FRenderableObject.cpp" />
     <ClCompile Include="FRenderWindow.cpp" />
     <ClCompile Include="FD3d12Input.cpp" />
-    <ClCompile Include="FD3d12Renderer.cpp" />
-    <ClCompile Include="FDynamicText.cpp" />
-    <ClCompile Include="FFontManager.cpp" />
     <ClCompile Include="FGame.cpp" />
     <ClCompile Include="FGameCamera.cpp" />
-    <ClCompile Include="FLightManager.cpp" />
     <ClCompile Include="FloadyEngine.cpp" />
-    <ClCompile Include="FPrimitiveGeometry.cpp" />
-    <ClCompile Include="FSceneGraph.cpp" />
-    <ClCompile Include="FScreenQuad.cpp" />
     <ClCompile Include="FShaderManager.cpp" />
     <ClCompile Include="FSkyBox.cpp" />
-    <ClCompile Include="FTextureManager.cpp" />
     <ClCompile Include="FThrowableTrajectory.cpp" />
     <ClCompile Include="GUI\FGUIButton.cpp" />
+    <ClCompile Include="GUI\FGUILabel.cpp" />
     <ClCompile Include="GUI\FGUIManager.cpp" />
     <ClCompile Include="FPrimitiveBoxColorOverride.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3dx12.h" />
     <ClInclude Include="F3DPicker.h" />
-    <ClInclude Include="FDebugDrawer.h" />
-    <ClInclude Include="FCamera.h" />
-    <ClInclude Include="FD3d12Quad.h" />
     <ClInclude Include="FGameAgent.h" />
     <ClInclude Include="FGameBuilding.h" />
     <ClInclude Include="FGameBuildingManager.h" />
@@ -292,6 +278,8 @@
     <ClInclude Include="FGameUIPanel.h" />
     <ClInclude Include="FGameUIPanelBuildings.h" />
     <ClInclude Include="FGameUIPanelDebug.h" />
+    <ClInclude Include="FGameUIPanelProfiler.h" />
+    <ClInclude Include="FGameUIPanelProfilerIMGUI.h" />
     <ClInclude Include="FGUIButtonToggle.h" />
     <ClInclude Include="FLightComponent.h" />
     <ClInclude Include="FMeshInstanceManager.h" />
@@ -302,27 +290,17 @@
     <ClInclude Include="FPathfindComponent.h" />
     <ClInclude Include="FPhysicsComponent.h" />
     <ClInclude Include="FPlacingManager.h" />
-    <ClInclude Include="FPostProcessEffect.h" />
     <ClInclude Include="FPrimitiveBoxInstanced.h" />
     <ClInclude Include="FPrimitiveBoxMultiTex.h" />
     <ClInclude Include="FRenderMeshComponent.h" />
-    <ClInclude Include="FRenderableObject.h" />
     <ClInclude Include="FRenderWindow.h" />
     <ClInclude Include="FD3d12Input.h" />
-    <ClInclude Include="FD3d12Renderer.h" />
-    <ClInclude Include="FDynamicText.h" />
-    <ClInclude Include="FFontManager.h" />
     <ClInclude Include="FGame.h" />
     <ClInclude Include="FGameCamera.h" />
-    <ClInclude Include="FLightManager.h" />
-    <ClInclude Include="FPrimitiveGeometry.h" />
-    <ClInclude Include="FSceneGraph.h" />
-    <ClInclude Include="FScreenQuad.h" />
-    <ClInclude Include="FShaderManager.h" />
     <ClInclude Include="FSkyBox.h" />
-    <ClInclude Include="FTextureManager.h" />
     <ClInclude Include="FThrowableTrajectory.h" />
     <ClInclude Include="GUI\FGUIButton.h" />
+    <ClInclude Include="GUI\FGUILabel.h" />
     <ClInclude Include="GUI\FGUIManager.h" />
     <ClInclude Include="FPrimitiveBoxColorOverride.h" />
   </ItemGroup>

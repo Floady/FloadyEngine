@@ -72,7 +72,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(ProjectDir)\lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)\build\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -123,7 +123,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>include\;$(SolutionDir)\FCommon\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\FPhysics\include;$(SolutionDir)\FMath\include;$(SolutionDir)\FAssetLib\include;$(ProjectDir)\..\RecastDetour\Detour\Include;$(ProjectDir)\..\RecastDetour\Recast\Include;$(IncludePath);include\;$(SolutionDir)\FCommon\include;$(SolutionDir)\Extern\imgui-master\examples;$(SolutionDir)\Extern\imgui-master</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -131,10 +131,10 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>FCommon.lib;FAssetLib.lib;FMath.lib;FPhysics.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib</AdditionalDependencies>
+      <AdditionalDependencies>FCommon.lib;FAssetLib.lib;FMath.lib;FPhysics.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FJson.lib;RecastDetour.lib;IMGUI.lib</AdditionalDependencies>
     </Lib>
     <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FCommon\lib\x64\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\FPhysics\lib\x64\Release;$(SolutionDir)\FMath\lib\x64\$(Configuration)\;$(SolutionDir)\FAssetLib\lib\x64\$(Configuration)\;$(ProjectDir)\..\x64\$(Configuration)\;$(SolutionDir)\FCommon\lib\x64\$(Configuration)\;$(SolutionDir)\IMGUI\lib\x64\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -148,29 +148,45 @@
     <ClInclude Include="include\FDebugDrawer.h" />
     <ClInclude Include="include\FDynamicText.h" />
     <ClInclude Include="include\FFontManager.h" />
+    <ClInclude Include="include\FIMGUI.h" />
     <ClInclude Include="include\FLightManager.h" />
     <ClInclude Include="include\FPostProcessEffect.h" />
     <ClInclude Include="include\FPrimitiveGeometry.h" />
     <ClInclude Include="include\FRenderableObject.h" />
     <ClInclude Include="include\FSceneGraph.h" />
+    <ClInclude Include="include\FScreenQuad.h" />
     <ClInclude Include="include\FShaderManager.h" />
     <ClInclude Include="include\FTextureManager.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Extern\imgui-master\examples\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\Extern\imgui-master\examples\imgui_impl_win32.cpp" />
     <ClCompile Include="source\FCamera.cpp" />
     <ClCompile Include="source\FD3d12Quad.cpp" />
     <ClCompile Include="source\FD3d12Renderer.cpp" />
     <ClCompile Include="source\FDebugDrawer.cpp" />
     <ClCompile Include="source\FDynamicText.cpp" />
     <ClCompile Include="source\FFontManager.cpp" />
+    <ClCompile Include="source\FIMGUI.cpp" />
     <ClCompile Include="source\FLightManager.cpp" />
     <ClCompile Include="source\FPostProcessEffect.cpp" />
     <ClCompile Include="source\FPrimitiveGeometry.cpp" />
     <ClCompile Include="source\FRenderableObject.cpp" />
     <ClCompile Include="source\FSceneGraph.cpp" />
+    <ClCompile Include="source\FScreenQuad.cpp" />
     <ClCompile Include="source\FTextureManager.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
+  </Target>
 </Project>

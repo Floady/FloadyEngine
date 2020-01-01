@@ -1,7 +1,7 @@
 #pragma once
 #include "FRenderableObject.h"
 #include "FVector3.h"
-#include <DirectXMath.h>
+#include "FMatrix.h"
 
 struct FPlane
 {
@@ -19,11 +19,12 @@ public:
 	void Yaw(float angle);
 	void Pitch(float angle);
 	const FVector3& GetPos() const { return myPos;  }
-	const DirectX::XMFLOAT4X4& GetViewProjMatrix();
-	const DirectX::XMFLOAT4X4& GetViewProjMatrixTransposed() { return myViewProjMatrixTransposed; }
-	const DirectX::XMFLOAT4X4& GetInvViewProjMatrix() { return myInvViewProjMatrix; }
-	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose = true);
-	DirectX::XMFLOAT4X4 GetViewProjMatrixWithOffset(const DirectX::XMMATRIX& anObjectMatrix);
+	const FMatrix& GetViewProjMatrix() const; 
+	const FMatrix& GetViewMatrix() const;
+	const FMatrix& GetInvViewProjMatrix2() const;
+	const FMatrix& GetInvViewProjMatrix3() const;
+	const FMatrix& GetProjMatrix() const;
+	FMatrix GetViewProjMatrixWithOffset2(float x, float y, float z);
 	void UpdateViewProj();
 	bool IsInFrustum(FRenderableObject* anEntity) const;
 	bool IsInFrustum(const FVector3& aPoint) const;
@@ -31,21 +32,17 @@ public:
 	bool IsInFrustum(float x, float y, float z) const;
 	bool IsInFrustum(const FAABB& anABB) const;
 	bool LineIntersectsAABB(const FVector3& start, const FVector3& end, const FAABB& anAABB) const;
-	DirectX::XMFLOAT4X4 GetProjMatrix() { return myProjMatrixFloatVersion; }
 	void SetOverrideLight(bool aShouldOverride) { myOverrideWithLight = aShouldOverride; }
-	DirectX::XMMATRIX _viewProjMatrix;
-	DirectX::XMMATRIX _viewMatrix;
-	DirectX::XMMATRIX  myProjMatrix;
 	
 	void SetFreezeDebug(bool aShouldFreeze) { myFreezeDebugInfo = aShouldFreeze; }
 	void SetDebugDrawEnabled(bool anEnabled) { myDoDebugDraw = anEnabled; }
 
 private:
-	DirectX::XMFLOAT4X4  myProjMatrixFloatVersion;
-	DirectX::XMMATRIX myViewMatrix;
-	DirectX::XMFLOAT4X4 myViewProjMatrix;
-	DirectX::XMFLOAT4X4 myViewProjMatrixTransposed;
-	DirectX::XMFLOAT4X4 myInvViewProjMatrix;
+	FMatrix myViewProjMatrix;
+	FMatrix myViewMatrix2;
+	FMatrix myInvViewProjMatrix2;
+	FMatrix myInvViewProjMatrix3;
+	FMatrix myProjMatrix2;
 	FVector3 myPos;
 	FVector3 myDir;
 	FVector3 myUp;
@@ -67,7 +64,6 @@ private:
 	FVector3 myDebugPos;
 	FVector3 myDebugAt;
 	FVector3 myDebugUp;
-	DirectX::XMMATRIX debugViewProj;
 	FVector3 myDebugFrustumCorners[8]; // NTL, NTR, NBL, NBR, FTL, FTR, FBL, FBR
 };
 

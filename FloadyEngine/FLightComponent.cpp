@@ -54,6 +54,22 @@ void FLightComponent::Update(double aDeltaTime)
 	if (!myLightId)
 		return;
 
+	static float light_dir = 0.0f;
+	static float light_speed = 0.1f;
+	static bool light_positive = true;
+
+	if (light_dir > 1.0f)
+		light_positive = false;
+	else if (light_dir < -1.0f)
+		light_positive = true;
+
+	if (light_positive)
+		light_dir += aDeltaTime * light_speed;
+	else
+		light_dir -= aDeltaTime * light_speed;
+
+	FLightManager::GetInstance()->SetLightDir(myLightId, FVector3(0, -1, light_dir));
+
 	if (myColorAlpha >= 0.0f)
 		myAlphaStep = -0.3f;
 	else if (myColorAlpha <= -1.0f)

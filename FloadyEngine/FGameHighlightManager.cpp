@@ -9,8 +9,6 @@
 #include "FRenderMeshComponent.h"
 #include "FPrimitiveBoxInstanced.h"
 
-using namespace DirectX;
-
 FGameHighlightManager::FGameHighlightManager()
 {
 	myScratchBuffer = nullptr;
@@ -99,8 +97,8 @@ FGameHighlightManager::FGameHighlightManager()
 
 void FGameHighlightManager::Render()
 {
-	//if (myObjects.size() == 0)
-	//	return;
+	if (myObjects.size() == 0)
+		return;
 
 	// test with 1 obj
 	FRenderMeshComponent* entity = nullptr;
@@ -119,25 +117,28 @@ void FGameHighlightManager::Render()
 	}
 
 	// copy modelviewproj data to gpu
-	XMFLOAT4X4 m = entity ? XMFLOAT4X4(entity->GetRotMatrix()) : XMFLOAT4X4();
-	XMMATRIX mtxRot = XMLoadFloat4x4(&m);
+	FMatrix rotMatrix;
+	memcpy(rotMatrix.cell, entity->GetRotMatrix(), sizeof(float) * 16);
 
-	XMMATRIX scale = XMMatrixScaling(vecScale.x, vecScale.y, vecScale.z); //XMMatrixScaling(myScale.x, myScale.y, myScale.z);
-	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos.x, pos.y, pos.z, 1));
-	offset = scale * mtxRot * offset;
+	FMatrix scaleMatrix;
+	scaleMatrix.cell[FMatrix::SX] = vecScale.x;
+	scaleMatrix.cell[FMatrix::SY] = vecScale.y;
+	scaleMatrix.cell[FMatrix::SZ] = vecScale.z;
 
-	offset = offset * FD3d12Renderer::GetInstance()->GetCamera()->_viewProjMatrix;
+	FMatrix result, posMtx, viewProj;
+	viewProj = FD3d12Renderer::GetInstance()->GetCamera()->GetViewProjMatrix();
 
-	XMFLOAT4X4 ret;
-	offset = XMMatrixTranspose(offset);
-	
-
-	XMStoreFloat4x4(&ret, offset);
+	rotMatrix.Invert2();
+	rotMatrix.SetTranslation(pos);
+	rotMatrix.Concatenate(scaleMatrix);
+	viewProj.Transpose();
+	viewProj.Concatenate(rotMatrix);
+	result = viewProj;
 
 	float constData[32];
-	memcpy(&constData[0], FD3d12Renderer::GetInstance()->GetCamera()->GetViewProjMatrixWithOffset(pos.x, pos.y, pos.z).m, sizeof(XMFLOAT4X4));
-	//memcpy(&constData[0], FD3d12Renderer::GetInstance()->GetCamera()->GetViewProjMatrixWithOffset(0,0,0).m, sizeof(XMFLOAT4X4));
-	memcpy(&constData[0], ret.m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[0], FD3d12Renderer::GetInstance()->GetCamera()->GetViewProjMatrixWithOffset2(pos.x, pos.y, pos.z).cell, sizeof(float) * 16);
+	//memcpy(&constData[0], ret.m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[0], result.cell, sizeof(float) * 16);
 	memcpy(myConstantBufferPtrProjMatrix, &constData[0], sizeof(float) * 16);
 
 	// Set necessary state.

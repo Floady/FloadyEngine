@@ -3,10 +3,14 @@
 #include "FJobSystem.h"
 #include "FUtilities.h"
 
+
 FProfiler* FProfiler::ourInstance = nullptr;
 unsigned int FProfiler::ourHistoryBufferCount = 120;
 static const float textHeight = 0.03f;
 static const float textWidth = 0.6f;
+
+FTimer scopedMarker::myTimer;
+
 FProfiler * FProfiler::GetInstance()
 {
 	if (!ourInstance)
@@ -32,6 +36,7 @@ FProfiler::FProfiler()
 		FALSE,             // initially not owned
 		NULL);             // unnamed mutex
 
+	scopedMarker::myTimer.Restart();
 }
 
 FProfiler::~FProfiler()
@@ -65,6 +70,49 @@ void FProfiler::AddTiming(const char * aName, double aTime)
 	myIsPaused = false;
 }
 
+void FProfiler::ProcessMarker(const scopedMarker& aMarker)
+{
+	if (myIsPaused)
+		return;
+	myIsPaused = true;
+	if (myTimings.find(aMarker.myName) == myTimings.end())
+	{
+		DWORD dwWaitResult = WaitForSingleObject(
+			ghMutex,    // handle to mutex
+			INFINITE);  // no time-out interval
+
+		if (myTimings.find(aMarker.myName) == myTimings.end())
+		{
+			myTimings[aMarker.myName].myFrameTimings.resize(ourHistoryBufferCount);
+		}
+
+		ReleaseMutex(ghMutex);
+	}
+
+	myTimings[aMarker.myName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myTime += (aMarker.myEndTime - aMarker.myStartTime);
+	myTimings[aMarker.myName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myStartTime = aMarker.myStartTime;
+	myTimings[aMarker.myName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myEndTime = aMarker.myEndTime;
+	myTimings[aMarker.myName].myFrameTimings[myCurrentFrame % ourHistoryBufferCount].myOccurences++;
+	myTimings[aMarker.myName].myTotalTime.myTime += (aMarker.myEndTime - aMarker.myStartTime);
+	myTimings[aMarker.myName].myTotalTime.myOccurences++;
+	myIsPaused = false;
+}
+
+void FProfiler::AddTimedMarker(const char* aMarkerName)
+{
+	MarkerInfo m;
+	m.myName = aMarkerName;
+	m.myStartTime = scopedMarker::myTimer.GetTimeMS();
+	myMarkers.push_back(m);
+}
+void FProfiler::SetPause(bool aPaused)
+{
+	myIsPaused = aPaused;
+	if (myIsPaused)
+		scopedMarker::myTimer.Pause();
+	else
+		scopedMarker::myTimer.Unpause();
+}
 void FProfiler::StartFrame()
 {
 	if (myIsPaused)
@@ -78,9 +126,14 @@ void FProfiler::StartFrame()
 	}
 }
 
+void FProfiler::RenderIMGUI()
+{
+
+}
+
 void scopedMarker::Start()
 {
-	myTimer.Restart();
+	myStartTime = myTimer.GetTimeMS();
 }
 
 scopedMarker::~scopedMarker()
@@ -88,6 +141,6 @@ scopedMarker::~scopedMarker()
 	if (!FProfiler::GetInstanceNoCreate())
 		return;
 
-	double time = myTimer.GetTimeMS();
-	FProfiler::GetInstance()->AddTiming(myName, time);
+	myEndTime = myTimer.GetTimeMS();
+	FProfiler::GetInstance()->ProcessMarker(*this);
 }

@@ -35,8 +35,13 @@ FCamera::FCamera(float aWidth, float aHeight)
 	// near + far set here
 	// Flipping near and far makes depth precision way better but the object dissapears sooner o.0 - also still has artifacts anyway
 	//myProjMatrix = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, 1.0f, 100.0f);
-	myProjMatrix = XMMatrixPerspectiveFovLH(myFovY, aspectRatio, myFar*2, myNear);
-	XMStoreFloat4x4(&myProjMatrixFloatVersion, myProjMatrix);
+	XMMATRIX projMatrix = XMMatrixPerspectiveFovLH(myFovY, aspectRatio, myFar*2, myNear);
+
+	// store
+	XMFLOAT4X4 ret;
+	XMStoreFloat4x4(&ret, projMatrix);
+	memcpy(myProjMatrix2.cell, ret.m, sizeof(float) * 16);
+
 	UpdateViewProj();
 }
 
@@ -73,19 +78,33 @@ void FCamera::Pitch(float angle)
 	myPitch += angle;
 }
 
-const DirectX::XMFLOAT4X4 & FCamera::GetViewProjMatrix()
+const FMatrix& FCamera::GetViewProjMatrix() const
 {
 	return myViewProjMatrix;
 }
 
-XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool transpose)
+const FMatrix & FCamera::GetViewMatrix() const
 {
-	if(myOverrideWithLight)
-	{
-		//return FLightManager::GetInstance()->GetSpotlightViewProjMatrix(0);
-		return FLightManager::GetInstance()->GetDirectionalLightViewProjMatrix(0);
-	}
+	return myViewMatrix2;
+}
 
+const FMatrix& FCamera::GetInvViewProjMatrix2() const
+{
+	return myInvViewProjMatrix2;
+}
+
+const FMatrix& FCamera::GetInvViewProjMatrix3() const
+{
+	return myInvViewProjMatrix3;
+}
+
+const FMatrix & FCamera::GetProjMatrix() const
+{
+	return myProjMatrix2;
+}
+
+FMatrix FCamera::GetViewProjMatrixWithOffset2(float x, float y, float z)
+{
 	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
 	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
 	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 1);
@@ -96,49 +115,26 @@ XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(float x, float y, float z, bool 
 	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
 	vAt += eye;
 
-	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
 	// test :)
 	//XMMATRIX scale = XMMatrixScaling(3.0f, 1.0f, 1.0f);
 	XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(x, y, z, 1));
 	//offset = offset * scale;
 	XMMATRIX _tempviewProjMatrix;
+
+	// combine
+	XMFLOAT4X4 m = XMFLOAT4X4(myProjMatrix2.cell);
+	XMMATRIX _projMatrix = XMLoadFloat4x4(&m);
+	_tempviewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * _projMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
 	
-	// combine
-	if(transpose)
-		_tempviewProjMatrix = XMMatrixTranspose(offset * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
-	else
-		_tempviewProjMatrix = (offset * _viewMatrix * myProjMatrix);
-
 	XMFLOAT4X4 ret;
 	// store
 	XMStoreFloat4x4(&ret, _tempviewProjMatrix);
 
-	return ret;
-}
+	FMatrix result;
+	memcpy(result.cell, ret.m, sizeof(float) * 4 * 4);
 
-XMFLOAT4X4 FCamera::GetViewProjMatrixWithOffset(const XMMATRIX& anObjectMatrix)
-{
-	FXMVECTOR eye = XMVectorSet(myPos.x, myPos.y, myPos.z, 1);
-	FXMVECTOR at = XMVectorSet(myDir.x, myDir.y, myDir.z, 1);
-	FXMVECTOR up = XMVectorSet(myUp.x, myUp.y, myUp.z, 1);
-
-	XMMATRIX mtxRot = XMMatrixRotationRollPitchYaw(myPitch, myYaw, 0);
-
-	XMVECTOR vUp = XMVector3Transform(up, mtxRot);
-	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
-	vAt += eye;
-
-	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
-	XMMATRIX _tempviewProjMatrix;
-
-	// combine
-	_tempviewProjMatrix = XMMatrixTranspose(anObjectMatrix * _viewMatrix * myProjMatrix); // transpose cause it will be going to HLSL (do this externally in the future)
-
-	XMFLOAT4X4 ret;
-	// store
-	XMStoreFloat4x4(&ret, _tempviewProjMatrix);
-
-	return ret;
+	return result;
 }
 
 FVector3 shortenLength(FVector3 A, float reductionLength)
@@ -162,19 +158,29 @@ void FCamera::UpdateViewProj()
 	XMVECTOR vAt = XMVector3Transform(at, mtxRot);
 	vAt += eye;
 
-	_viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+	XMMATRIX _viewMatrix = XMMatrixLookAtLH(eye, vAt, vUp);
+
+	XMFLOAT4X4 viewTmp;
+	XMStoreFloat4x4(&viewTmp, (_viewMatrix));
+	memcpy(myViewMatrix2.cell, viewTmp.m, sizeof(float) * 16);
 
 	// combine with stored projection matrix
-	_viewProjMatrix = XMMatrixMultiply(_viewMatrix, myProjMatrix);
-	XMMATRIX _viewProjMatrix2 = _viewMatrix * myProjMatrix;
-
+	XMFLOAT4X4 m = XMFLOAT4X4(myProjMatrix2.cell);
+	XMMATRIX _projMatrix = XMLoadFloat4x4(&m);
+	XMMATRIX _viewProjMatrix = XMMatrixMultiply(_viewMatrix, _projMatrix);
+	XMFLOAT4X4 viewProjTmp;
+	XMStoreFloat4x4(&viewProjTmp, (_viewProjMatrix));
+	memcpy(myViewProjMatrix.cell, viewProjTmp.m, sizeof(float) * 16);
+	
 	XMMATRIX invProj = _viewProjMatrix;
 	invProj = XMMatrixInverse(nullptr, invProj);
 
 	// store
-	XMStoreFloat4x4(&myViewProjMatrix, (_viewProjMatrix));
-	XMStoreFloat4x4(&myViewProjMatrixTransposed, XMMatrixTranspose(_viewProjMatrix));
-	XMStoreFloat4x4(&myInvViewProjMatrix, XMMatrixTranspose(invProj)); // this one is for hlsl
+	XMFLOAT4X4 invViewProjection;
+	XMStoreFloat4x4(&invViewProjection, invProj); // this one is for hlsl
+	memcpy(myInvViewProjMatrix3.cell, invViewProjection.m, sizeof(float) * 16);
+	XMStoreFloat4x4(&invViewProjection, XMMatrixTranspose(invProj)); // this one is for hlsl
+	memcpy(&myInvViewProjMatrix2.cell[0], invViewProjection.m, sizeof(float) * 16);
 
 	// Update frustum
 
@@ -189,13 +195,6 @@ void FCamera::UpdateViewProj()
 	XMFLOAT4X4 viewProjection;
 
 	XMStoreFloat4x4(&viewProjection, (viewProj));
-
-	if (!myFreezeDebugInfo)
-	{
-		debugViewProj = viewProj;
-		
-		debugViewProj = XMMatrixInverse(nullptr, debugViewProj);
-	}
 
 	// Left plane
 	myFrustum[0].myNormal.x = viewProjection._14 + viewProjection._11;

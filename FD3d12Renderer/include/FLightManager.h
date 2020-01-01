@@ -1,8 +1,8 @@
 #pragma once
 #include <d3d12.h>
 #include "FVector3.h"
+#include "FMatrix.h"
 #include "FRenderableObject.h"
-#include <DirectXMath.h>
 #include <vector>
 
 class FLightManager
@@ -14,11 +14,11 @@ public:
 		FVector3 myDir;
 		FVector3 myColor;
 		virtual FAABB GetAABB() = 0;
-		const DirectX::XMFLOAT4X4& GetViewProjMatrix() const { return myViewProjMatrix; }
+		const FMatrix& GetViewProjMatrix2() const { return myViewProjMatrix2; }
 		float myAlpha;
 		unsigned int myId;
-		DirectX::XMFLOAT4X4 myViewProjMatrix;
-		DirectX::XMFLOAT4X4 myProjMatrix;
+		FMatrix myViewProjMatrix2;
+		FMatrix myProjMatrix2;
 		bool myHasMoved;
 	};
 
@@ -35,9 +35,9 @@ public:
 		float myRange;
 	};
 
-	const DirectX::XMFLOAT4X4& GetSpotlightViewProjMatrix(int i) const;
-	const DirectX::XMFLOAT4X4& GetCurrentActiveLightViewProjMatrix() const;
-	const DirectX::XMFLOAT4X4& GetDirectionalLightViewProjMatrix(int i) const;
+	const FMatrix& GetSpotlightViewProjMatrix2(int i) const;
+	const FMatrix& GetCurrentActiveLightViewProjMatrix2() const;
+	const FMatrix& GetDirectionalLightViewProjMatrix2(int i) const;
 
 	void SortLights();
 	void ResetVisibleAABB() { myAABBVisibleFromCam.Reset(); }

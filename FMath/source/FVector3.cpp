@@ -1,13 +1,12 @@
 #include "FVector3.h"
-#include <DirectXMath.h>
+#include "FMatrix.h"
 
 void FVector3::Rotate22(float anAngleX, float anAngleY, float anAngleZ)
 {
-	DirectX::FXMVECTOR pos = DirectX::XMVectorSet(x, y, z, 1);
+	FMatrix m;
+	m.RotateX(anAngleX);
+	m.RotateY(anAngleY);
+	m.RotateZ(anAngleZ);
 
-	DirectX::XMMATRIX mtxRot = DirectX::XMMatrixRotationRollPitchYaw(anAngleX, anAngleY, anAngleZ);
-	DirectX::XMVECTOR vUp = DirectX::XMVector3Transform(pos, mtxRot);
-	x = DirectX::XMVectorGetX(vUp);
-	y = DirectX::XMVectorGetY(vUp);
-	z = DirectX::XMVectorGetZ(vUp);
+	*this = m.Transform(*this);
 }

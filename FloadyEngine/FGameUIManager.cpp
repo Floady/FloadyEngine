@@ -7,14 +7,19 @@
 #include "FGameBuilding.h"
 #include "FGameEntity.h"
 #include "FGameUIPanelBuildings.h"
+#include "FGameUIPanelProfilerIMGUI.h"
 #include "FGameUIPanelDebug.h"
+#include "FGameUIPanelProfiler.h"
 
 FGameUIManager::FGameUIManager()
 {
 	myBuildingPanel = new FGameUIPanelBuildings();
 	myDebugPanel = new FGameUIPanelDebug();
+	//myProfilerPanel = new FGameUIPanelProfiler();
 	myDebugPanel->Hide();
 	myBuildingPanel->Hide();
+	//myProfilerPanel->Hide();
+	myProfilerPanelIMGUI = new FGameUIPanelProfilerIMGUI();
 }
 
 void FGameUIManager::Update()
@@ -31,6 +36,11 @@ void FGameUIManager::Update()
 	case InGame:
 	{
 		myBuildingPanel->Update();
+		break;
+	}
+	case Profiler:
+	{
+		//myProfilerPanel->Update();
 		break;
 	}
 	}
@@ -51,6 +61,7 @@ void FGameUIManager::SetState(GuiState aState)
 	//FGUIManager::GetInstance()->ClearAll();
 
 	myDebugPanel->Hide();
+	//myProfilerPanel->Hide();
 
 	switch (myState)
 	{
@@ -62,6 +73,13 @@ void FGameUIManager::SetState(GuiState aState)
 		case Debug:
 		{
 			myDebugPanel->Show();
+			break;
+		}
+		case Profiler:
+		{
+			//delete myProfilerPanel;
+			//myProfilerPanel = new FGameUIPanelProfiler();
+			//myProfilerPanel->Show();
 			break;
 		}
 		case InGame:
@@ -96,6 +114,7 @@ void FGameUIManager::SetState(GuiState aState)
 		{
 			myBuildingPanel->Hide();
 			myDebugPanel->Hide();
+			//myProfilerPanel->Hide();
 
 			for (size_t i = 0; i < ourBuildings.size(); i++)
 			{

@@ -1,11 +1,20 @@
 #pragma once
-#include <DirectXMath.h>
 #include "FD3d12Renderer.h"
 #include "F3DModel.h"
 
 class FPrimitiveGeometry
 {
 public:
+	struct float2
+	{
+		float x; float y;;
+	};
+	
+	struct float3
+	{
+		float x; float y; float z;
+	};
+
 	struct Vertex
 	{
 		Vertex()
@@ -31,9 +40,9 @@ public:
 				&& uv.y == other.uv.y;
 		}
 
-		DirectX::XMFLOAT3 position;
-		DirectX::XMFLOAT3 normal;
-		DirectX::XMFLOAT2 uv;
+		float3 position;
+		float3 normal;
+		float2 uv;
 	};
 
 	struct Vertex2
@@ -88,9 +97,9 @@ public:
 				&& specularMatId == other.specularMatId;
 		}
 
-		DirectX::XMFLOAT3 position;
-		DirectX::XMFLOAT3 normal;
-		DirectX::XMFLOAT2 uv;
+		float3 position;
+		float3 normal;
+		float2 uv;
 		unsigned int matId;
 		unsigned int normalmatId;
 		unsigned int specularMatId;

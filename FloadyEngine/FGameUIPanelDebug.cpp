@@ -7,6 +7,7 @@
 #include "FProfiler.h"
 #include "FSceneGraph.h"
 #include "FPhysicsWorld.h"
+#include "FCamera.h"
 
 FGameUIPanelDebug::FGameUIPanelDebug()
 {

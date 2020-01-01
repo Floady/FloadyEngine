@@ -57,43 +57,10 @@
     <ClCompile Include="FD3d12Input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FD3d12Quad.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FCamera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FDynamicText.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FShaderManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FFontManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FTextureManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FLightManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FPrimitiveGeometry.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FRenderWindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FD3d12Renderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FRenderableObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FSceneGraph.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FScreenQuad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GUI\FGUIButton.cpp">
@@ -102,11 +69,7 @@
     <ClCompile Include="GUI\FGUIManager.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="FDebugDrawer.cpp" />
     <ClCompile Include="FNavMeshManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FPostProcessEffect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FNavMeshManagerRecast.cpp">
@@ -199,51 +162,21 @@
     <ClCompile Include="FLightComponent.cpp">
       <Filter>Game\Entities\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FGameUIPanelProfiler.cpp">
+      <Filter>Game\GameUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\FGUILabel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FGameUIPanelProfilerIMGUI.cpp">
+      <Filter>Game\GameUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FD3d12Input.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3d12Quad.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FCamera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FDynamicText.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FShaderManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FFontManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FTextureManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FLightManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPrimitiveGeometry.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FRenderWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FD3d12Renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FRenderableObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FSceneGraph.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FScreenQuad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GUI\FGUIButton.h">
@@ -252,11 +185,7 @@
     <ClInclude Include="GUI\FGUIManager.h">
       <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="FDebugDrawer.h" />
     <ClInclude Include="FNavMeshManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FPostProcessEffect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FNavMeshManagerRecast.h">
@@ -348,6 +277,15 @@
     </ClInclude>
     <ClInclude Include="FLightComponent.h">
       <Filter>Game\Entities\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameUIPanelProfiler.h">
+      <Filter>Game\GameUI</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\FGUILabel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FGameUIPanelProfilerIMGUI.h">
+      <Filter>Game\GameUI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

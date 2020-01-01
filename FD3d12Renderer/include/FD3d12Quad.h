@@ -1,7 +1,6 @@
 #pragma once
 
 #include <d3d12.h>
-#include <DirectXMath.h>
 #include "FVector3.h"
 
 class FD3d12Renderer;
@@ -9,12 +8,6 @@ class FD3d12Renderer;
 class FD3d12Quad
 {
 public:
-	struct Vertex
-	{
-		DirectX::XMFLOAT3 position;
-		DirectX::XMFLOAT2 uv;
-	};
-
 	FD3d12Quad(FD3d12Renderer* aManager, FVector3 aPos);
 	~FD3d12Quad();
 	void Init();

@@ -15,9 +15,6 @@
 
 REGISTER_GAMEENTITYCOMPONENT2(FRenderMeshComponent);
 
-using namespace DirectX;
-
-
 void hash_combine2(size_t &seed, size_t hash)
 {
 	hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -179,19 +176,6 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 	{
 		FRenderableObjectInstanceData& data = FMeshInstanceManager::GetInstance()->GetInstanceData(myModelInstanceName, myMeshInstanceId);
 		
-		XMMATRIX mtxRot3 = XMMatrixIdentity();
-		XMFLOAT4X4 m2;
-		XMStoreFloat4x4(&m2, mtxRot3);
-
-		for (int i = 0; i < 4; i++)
-		{
-			for (int j = 0; j < 4; j++)
-			{
-				data.myRotMatrix[i * 4 + j] = m2.m[i][j];
-			}
-		}
-
-
 		string tex = anObj.GetItem("tex").GetAs<string>();
 
 		FMeshInstanceManager::GetInstance()->GetInstance(myModelInstanceName, myMeshInstanceId)->SetTexture(tex.c_str());
@@ -202,17 +186,20 @@ void FRenderMeshComponent::Init(const FJsonObject & anObj)
 		
 		data.myIsVisible = true;
 		data.myPos = pos;
-		const FVector3& scale2 = scale;// GetScale();
-		XMFLOAT4X4 m = XMFLOAT4X4();
-		XMMATRIX mtxRot = XMLoadFloat4x4(&m);
-		XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
-		XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos.x, pos.y, pos.z, 1));
-		offset = scale * offset;
+		const FVector3& scale2 = scale;
 
-		offset = XMMatrixTranspose(offset);
-		XMFLOAT4X4 result;
-		XMStoreFloat4x4(&result, offset);
-		memcpy(data.myModelMatrix, result.m, sizeof(float) * 16);
+		//
+		FMatrix scaleMatrix;
+		scaleMatrix.cell[FMatrix::SX] = scale2.x;
+		scaleMatrix.cell[FMatrix::SY] = scale2.y;
+		scaleMatrix.cell[FMatrix::SZ] = scale2.z;
+		FMatrix rotMatrix;
+		memcpy(data.myRotMatrix, rotMatrix.cell, sizeof(float) * 16);
+		
+		rotMatrix.SetTranslation(pos);
+		rotMatrix.Concatenate(scaleMatrix);
+
+		memcpy(data.myModelMatrix, rotMatrix.cell, sizeof(float) * 16);
 	}
 }
 
@@ -246,17 +233,18 @@ void FRenderMeshComponent::PostPhysicsUpdate()
 
 			const FVector3& pos2 = data.myPos;
 			const FVector3& scale2 = GetScale();
-			XMFLOAT4X4 m = XMFLOAT4X4(data.myRotMatrix);
-			XMMATRIX mtxRot = XMLoadFloat4x4(&m);
-			XMMATRIX scale = XMMatrixScaling(scale2.x, scale2.y, scale2.z);
-			XMMATRIX offset = XMMatrixTranslationFromVector(XMVectorSet(pos2.x, pos2.y, pos2.z, 1));
-			offset = scale * mtxRot * offset;
 
-			offset = XMMatrixTranspose(offset);
-			XMFLOAT4X4 result;
-			XMStoreFloat4x4(&result, offset);
-			memcpy(data.myModelMatrix, result.m, sizeof(float) * 16);
+			FMatrix scaleMatrix;
+			scaleMatrix.cell[FMatrix::SX] = scale2.x;
+			scaleMatrix.cell[FMatrix::SY] = scale2.y;
+			scaleMatrix.cell[FMatrix::SZ] = scale2.z;
+			FMatrix rotMatrix;
+			memcpy(rotMatrix.cell, data.myRotMatrix, sizeof(float) * 16);
+			rotMatrix.Invert2();
+			rotMatrix.SetTranslation(pos2);
+			rotMatrix.Concatenate(scaleMatrix);
 
+			memcpy(data.myModelMatrix, rotMatrix.cell, sizeof(float) * 16);
 		}
 		else
 		{

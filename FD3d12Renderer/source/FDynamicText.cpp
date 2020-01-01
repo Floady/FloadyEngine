@@ -41,6 +41,8 @@ FDynamicText::FDynamicText(FD3d12Renderer* aManager, FVector3 aPos, const char* 
 	myWidth = aWidth;
 	myHeight = aHeight;
 
+	myFitToWidth = false;
+
 	myMutex.Init(aManager->GetDevice(), "FDynamicTest");
 }
 
@@ -187,7 +189,7 @@ void FDynamicText::PopulateCommandList()
 		}
 		else
 		{
-			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(0, 0, 0).cell, sizeof(XMFLOAT4X4));
 		}
 
 		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
@@ -209,7 +211,7 @@ void FDynamicText::PopulateCommandList()
 			memcpy(myConstantBufferPtr, viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
 		}
 		else
-			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(myPos.x, myPos.y, myPos.z).cell, sizeof(XMFLOAT4X4));
 
 		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	}
@@ -306,7 +308,7 @@ void FDynamicText::PopulateCommandListAsync()
 			memcpy(&constData[0], viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
 		else
 		{
-			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+			memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(0, 0, 0).cell, sizeof(XMFLOAT4X4));
 		}
 
 		memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
@@ -328,7 +330,7 @@ void FDynamicText::PopulateCommandListAsync()
 			memcpy(myConstantBufferPtr, viewProjIdentity.m, sizeof(XMFLOAT4X4)); // ortho
 		}
 		else
-			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(myPos.x, myPos.y, myPos.z).m, sizeof(XMFLOAT4X4));
+			memcpy(myConstantBufferPtr, myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(myPos.x, myPos.y, myPos.z).cell, sizeof(XMFLOAT4X4));
 
 		if (!myIs2D)
 			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(myManagerClass->GetDepthBuffer(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
@@ -414,6 +416,12 @@ void FDynamicText::SetText(const char * aNewText)
 		float scaleFactorWidth = finalWidth / (texWidth);
 		float scaleFactorHeight = finalHeight / (texHeight);
 
+		if (!myFitToWidth)
+		{
+			scaleFactorWidth = 1.0f / 3200; // enable this if you don't want to 'fit' text to texWidth (squeezes font) todo: whats a good value, why 1000? - i think these are the resolutions the font is made with
+//			scaleFactorHeight = 1.0f / 2140;
+		}
+
 		const float quadZ = 0.0f;
 		FPrimitiveGeometry::Vertex uvTL;
 		uvTL.uv.x = 0;
@@ -462,6 +470,11 @@ void FDynamicText::SetText(const char * aNewText)
 
 		myTriangleVertices.clear();
 	}
+}
+
+void FDynamicText::SetFitToWidth(bool aFitToWidth)
+{
+	myFitToWidth = aFitToWidth;
 }
 
 void FDynamicText::SetShader()

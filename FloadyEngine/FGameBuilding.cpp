@@ -8,11 +8,8 @@
 #include "FUtilities.h"
 #include "FGameLevel.h"
 #include "FGameEntityComponent.h"
-#include <DirectXMath.h>
 #include "FD3d12Renderer.h"
 #include "FRenderMeshComponent.h"
-
-using namespace DirectX;
 
 REGISTER_GAMEENTITY2(FGameBuilding);
 

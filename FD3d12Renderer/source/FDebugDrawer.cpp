@@ -9,6 +9,7 @@
 #include "FDebugDrawer.h"
 #include "FProfiler.h"
 #include "FCamera.h"
+#include <DirectXMath.h>
 
 using namespace DirectX;
 
@@ -26,7 +27,6 @@ FDebugDrawer::FDebugDrawer(FD3d12Renderer* aManager) : FRenderableObject()
 	myPsoLines = nullptr;
 	myPsoTriangles = nullptr;
 }
-
 
 FDebugDrawer::~FDebugDrawer()
 {
@@ -353,7 +353,7 @@ void FDebugDrawer::PopulateCommandListInternal(ID3D12GraphicsCommandList* aCmdLi
 	XMStoreFloat4x4(&ret, offset);
 
 	float constData[32];
-	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset(0, 0, 0).m, sizeof(XMFLOAT4X4));
+	memcpy(&constData[0], myManagerClass->GetCamera()->GetViewProjMatrixWithOffset2(0, 0, 0).cell, sizeof(float) * 16);
 	memcpy(&constData[16], ret.m, sizeof(XMFLOAT4X4));
 	memcpy(myConstantBufferPtr, &constData[0], sizeof(float) * 32);
 

@@ -1,10 +1,10 @@
 #include "..\FGame.h"
 #include "..\FD3d12Input.h"
-#include "..\FD3d12Renderer.h"
+#include "FD3d12Renderer.h"
 #include "FGUIButton.h"
-#include "..\FScreenQuad.h"
-#include "..\FDynamicText.h"
-#include "..\FSceneGraph.h"
+#include "FScreenQuad.h"
+#include "FDynamicText.h"
+#include "FSceneGraph.h"
 
 FGUIButton::FGUIButton(FVector3 aTL, FVector3 aBR, const char* aTexture, FDelegate2<void()> aCallback) : FGUIObject(aTL, aBR)
 {
